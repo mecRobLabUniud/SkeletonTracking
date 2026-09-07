@@ -19,7 +19,13 @@
 // #include "COLLcheck.hpp"
 #include "SSMPFL.hpp"
 
-// Global flag, set by the signal handler
+// ─────────────────────────────────────────────────────────────────────────────
+bool do_once = true;
+Eigen::VectorXd q_real;
+Eigen::VectorXd qd_real;
+Eigen::VectorXd qdd_real;
+Eigen::Vector3d p_real;
+Eigen::Vector3d pd_real;
 std::atomic<bool> running{true};
 
 void signal_handler(int signum) {
@@ -28,19 +34,8 @@ void signal_handler(int signum) {
 }
 
 
-struct JointLimits {
-    Eigen::VectorXd q_min, q_max;
-    Eigen::VectorXd qd_min, qd_max;
-    Eigen::VectorXd qdd_min, qdd_max;
-};
 
-// Initialize simulation state
-bool do_once = true;
-Eigen::VectorXd q_real;
-Eigen::VectorXd qd_real;
-Eigen::VectorXd qdd_real;
-Eigen::Vector3d p_real;
-Eigen::Vector3d pd_real;
+
 
 
 struct ExperimentParams {
@@ -63,46 +58,6 @@ struct ExperimentParams {
     double computational_frequency = 16.0;  // Hz
     double stopping_time = 0.3;  // seconds
     double pause_after_collision = 2.0;  // seconds
-    
-    // Manipulator joint limits (UR5e)
-    JointLimits joint_limits;
-    
-    // Robot trajectory bounds
-    double x_min_robot_initial = 0.5;
-    double x_max_robot_initial = 0.7;
-    double y_min_robot_initial = -0.2;
-    double y_max_robot_initial = 0.1;
-    double z_min_robot_initial = 0.2;
-    double z_max_robot_initial = 0.4;
-    
-    double x_min_robot_final = -0.2;
-    double x_max_robot_final = 0.1;
-    double y_min_robot_final = 0.5;
-    double y_max_robot_final = 0.7;
-    double z_min_robot_final = 0.2;
-    double z_max_robot_final = 0.4;
-    
-    // Human trajectory parameters
-    double b_human = 0.5;
-    double h_human = 0.1;
-    double z_min_human = 0.15;
-    double z_max_human = 0.45;
-    double time_collision_min = 2.0;
-    double time_collision_max = 4.0;
-    double time_movement = 2.0;
-    
-    ExperimentParams() {
-        const double pi = M_PI;
-        
-        joint_limits.q_min.fill(-2.0 * pi);
-        joint_limits.q_max.fill( 2.0 * pi);
-        
-        joint_limits.qd_min.fill(-1.0 * pi);
-        joint_limits.qd_max.fill( 1.0 * pi);
-        
-        joint_limits.qdd_min.fill(-1.25 * pi);
-        joint_limits.qdd_max.fill( 1.25 * pi);
-    }
     
     double computational_period() const {
         return 1.0 / computational_frequency;
