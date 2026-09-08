@@ -241,23 +241,34 @@ int task_engine(
         const std::array<Eigen::VectorXd, 2> q_r, 
         const std::array<Eigen::VectorXd, 2> qd_r, 
         const std::array<Eigen::VectorXd, 2> qdd_r,
-        Eigen::Vector3d& p_h, 
-        Eigen::Vector3d& pd_h, 
-        Eigen::Vector3d& pdd_h) {
-    std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
+        std::vector<Eigen::Vector3d>& skeleton,
+        std::vector<Eigen::Vector3d>& skeletond,
+        std::vector<Eigen::Vector3d>& skeletondd) {
+    std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
+    std::vector<Eigen::Vector3d> skeletond_prev = skeletond;
+    std::vector<Eigen::Vector3d> skeletondd_prev = skeletondd;
+    skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_r[0]);
 
     // if (!dist) return 1;
     // else std::cout << "Minimum distance between robot and skeleton: " << dist->length << std::endl;
 
     double loop_duration = 0.001 * static_cast<double>(elapsed_ms);
-    Eigen::VectorXd p_h_prev = p_h;
-    Eigen::VectorXd pd_h_prev = pd_h;
-    p_h = dist->c_h;
-    pd_h = (p_h - p_h_prev)/loop_duration;
-    pdd_h = (pd_h - pd_h_prev)/loop_duration;
 
-    SSM_PFL_escape(robot, q_r, qd_r, qdd_r, p_h, pd_h, pdd_h);
+    for (int i=0; i<skeleton.size(); i++) {
+        if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) {
+            continue;
+        }
+        
+        Eigen::VectorXd p_h_prev = p_h;
+        Eigen::VectorXd pd_h_prev = pd_h;
+        p_h = point;
+        pd_h = (p_h - p_h_prev)/loop_duration;
+        pdd_h = (pd_h - pd_h_prev)/loop_duration;
+    }
+   
+
+    // SSM_PFL_escape(robot, q_r, qd_r, qdd_r, p_h, pd_h, pdd_h);
 
     std::vector<nlohmann::json> payload;
     payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
@@ -316,13 +327,10 @@ int execute_task (int n_traj, std::string c_dir="") {
     const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf_path);
 
-    // ── Definition of human collision point ──────────────────────────────────────
-    Eigen::VectorXd q(Eigen::Map<Eigen::VectorXd>((*traj).q[0].data(), (*traj).q[0].size()));
+    // ── Definition of human skeleton points ──────────────────────────────────────
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-    std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q);
-    Eigen::Vector3d p_h = dist->c_h;
-    Eigen::Vector3d pd_h = Eigen::VectorXd::Zero(3);
-    Eigen::Vector3d pdd_h = Eigen::VectorXd::Zero(3);
+    std::vector<Eigen::Vector3d> skeletond(p_h.size(), Eigen::Vector3d::Zero());
+    std::vector<Eigen::Vector3d> skeletondd(p_h.size(), Eigen::Vector3d::Zero());
 
     const int rate_hz = 16;
     const int period_ms = static_cast<int>(1.0 / rate_hz * 1000.0);
@@ -344,7 +352,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             qdd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_ms].data(), (*traj).qdd[elapsed_ms].size());
             qdd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_ms + period_ms].data(), (*traj).qdd[elapsed_ms + period_ms].size());
             
-            task_engine(transmitters, robot, elapsed_ms, q_r, qd_r, qdd_r, p_h, pd_h, pdd_h);
+            task_engine(transmitters, robot, elapsed_ms, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
         }
         else {
             loop_start = std::chrono::steady_clock::now();
