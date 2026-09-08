@@ -116,7 +116,7 @@ int SSM_PFL_escape(RobotModel& robot,
     std::cout << "HERE" << std::endl;
 
     Eigen::MatrixXd J = robot.ComputeJacobian("panda_link8", q_r[0]);
-    std::cout << "Jacobian (6x7):\n" << J << std::endl;
+    // std::cout << "Jacobian (6x7):\n" << J << std::endl;
 
     std::array<Eigen::Vector3d, 2> p_r;
     p_r[0] = robot.GetJointPose("panda_link8", q_r[0]).translation().transpose();
@@ -135,27 +135,10 @@ int SSM_PFL_escape(RobotModel& robot,
         do_once = false;
     }
 
-
-        // // =================================================================
-        // // LOOP w4: PFL Velocities (outer loop)
-        // // =================================================================
-        // for (int w4 = 0; w4 < numberPFL; ++w4) {
-        //     double velocity_PFL = params.vel_PFL[w4];
-// 
-        //     
-        //     // =============================================================
-        //     // LOOP w3: Qv Values (inner loop)
-        //     // =============================================================
-        //     for (int w3 = 0; w3 < number_QpQv; ++w3) {
-        //         double Qv = params.Qvs[w3];
-
-
-
-    double velocity_PFL = params.vel_PFL[0];
-    double Qv = params.Qvs[0];
+    double velocity_PFL = 0.4;
+    double Qv = 0.08;
+    double HR_clearance = 0.1;
                 
-                
-    
     std::vector<double> pd_real_module;
     std::vector<Eigen::VectorXd> qdd_real_history;
     
@@ -166,7 +149,7 @@ int SSM_PFL_escape(RobotModel& robot,
 
     if (!collision) {
         // Compute safety distance delta
-        double delta_safety = 0.1 + pd_h.norm() * params.stopping_time;
+        double delta_safety = HR_clearance + pd_h.norm() * params.stopping_time;
         double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
 
         // std::cout << "=================================" << std::endl;
@@ -248,22 +231,6 @@ int SSM_PFL_escape(RobotModel& robot,
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main loop implementing chosen strategy
 // ─────────────────────────────────────────────────────────────────────────────
@@ -280,19 +247,8 @@ int task_engine(
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_r[0]);
 
-    if (!dist) return 1;
+    // if (!dist) return 1;
     // else std::cout << "Minimum distance between robot and skeleton: " << dist->length << std::endl;
-
-    std::vector<nlohmann::json> payload;
-    payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
-    payload.push_back(q_r[0]);
-    payload.push_back(std::vector<int>{});
-    transmitters[1]->send_data(payload);
-
-    payload.clear();
-    payload.push_back(dist->c_h);
-    payload.push_back(dist->c_r);
-    transmitters[2]->send_data(payload);
 
     double loop_duration = 0.001 * static_cast<double>(elapsed_ms);
     Eigen::VectorXd p_h_prev = p_h;
@@ -302,6 +258,17 @@ int task_engine(
     pdd_h = (pd_h - pd_h_prev)/loop_duration;
 
     SSM_PFL_escape(robot, q_r, qd_r, qdd_r, p_h, pd_h, pdd_h);
+
+    std::vector<nlohmann::json> payload;
+    payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
+    payload.push_back(q_real);
+    payload.push_back(std::vector<int>{});
+    transmitters[1]->send_data(payload);
+
+    payload.clear();
+    payload.push_back(dist->c_h);
+    payload.push_back(dist->c_r);
+    transmitters[2]->send_data(payload);
     
     return 0;
 };

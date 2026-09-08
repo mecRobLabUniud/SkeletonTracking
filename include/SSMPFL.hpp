@@ -1,9 +1,6 @@
 #pragma once
 #include "robot_model.hpp"
-// #include "JacobianUtils.hpp"
 #include "minDistance.hpp"
-// #include "QPSolver.hpp"
-// #include <casadi/casadi.hpp>
 #include <qpOASES.hpp>
        
 // using namespace casadi;
@@ -72,7 +69,6 @@ inline SSMPFLResult SSMPFL(const RobotModel& robot,
     (void)xd_t; // computed in source, unused there too
 
     ro = ro + vo * delta_t;
-
 
     // --- Objective: joint-space + task-space tracking ------------------
     Eigen::MatrixXd weight_matrix = Eigen::MatrixXd::Zero(7, 7);
