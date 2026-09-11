@@ -3,20 +3,6 @@
 #include "minDistance.hpp"
 #include <qpOASES.hpp>
        
-// using namespace casadi;
-
-// -----------------------------------------------------------------------
-// Appendix D: "SSMPFL.m"
-//
-// function [qddot,qd_tplusone,q_tplusone,x_tplusone,xd_tplusone,exitflag] =
-//     SSMPFL(robot,q_limits,qd_limits,qdd_limits,delta_t,stopping_time,
-//            q_t,qdot_t,x_ref_tplusone,xd_ref_tplusone,qddot_suggestion,
-//            ro,vo,delta,q_des,qd_des,Qv)
-//
-// One-step QP: track a task-space + joint-space reference while enforcing
-// joint/velocity/acceleration limits and the combined SSM+PFL safety
-// constraints (Equation 2.70 in the thesis).
-// -----------------------------------------------------------------------
 struct SSMPFLResult {
     Eigen::VectorXd qdd_next;
     Eigen::VectorXd qd_next;
@@ -25,16 +11,6 @@ struct SSMPFLResult {
     Eigen::Vector3d pd_next;
     bool exitflag;
 };
-
-// casadi::DM eigenToDM(const Eigen::MatrixXd& mat) {
-//               casadi::DM dm = casadi::DM::zeros(mat.rows(), mat.cols());
-//               for (int r = 0; r < mat.rows(); ++r)
-//                      for (int c = 0; c < mat.cols(); ++c)
-//                      dm(r, c) = mat(r, c);
-//               return dm;
-//        }
- 
-
 
 inline SSMPFLResult SSMPFL(const RobotModel& robot,
                             double delta_t,

@@ -113,69 +113,45 @@ int SSM_PFL_escape(RobotModel& robot,
     const int number_QpQv = static_cast<int>(params.Qvs.size());
     const int numberPFL = static_cast<int>(params.vel_PFL.size());
 
-    std::cout << "HERE" << std::endl;
+    Eigen::MatrixXd J = robot.ComputeJacobian("panda_link8", q_r[0]);
+    // std::cout << "Jacobian (6x7):\n" << J << std::endl;
 
-    for (int i=0; i<skeleton.size(); i++) {
-        if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) {
-            continue;
-        }
+    std::array<Eigen::Vector3d, 2> p_r;
+    p_r[0] = robot.GetJointPose("panda_link8", q_r[0]).translation().transpose();
+    p_r[1] = robot.GetJointPose("panda_link8", q_r[1]).translation().transpose();
+    std::array<Eigen::Vector3d, 2> pd_r;
+    pd_r[0] = (J * qd_r[0]).tail<3>();
+    pd_r[1] = (J * qd_r[1]).tail<3>();
 
-        Eigen::MatrixXd J = robot.ComputeJacobian("panda_link8", q_r[0]);
-        // std::cout << "Jacobian (6x7):\n" << J << std::endl;
+    // Initialize simulation state
+    if (do_once) {
+        q_real = q_r[0];
+        qd_real = qd_r[0];
+        qdd_real = Eigen::VectorXd::Zero(7);
+        p_real = p_r[0];
+        pd_real = pd_r[0];
+        do_once = false;
+    }
+
+    double velocity_PFL = 0.4;
+    double Qv = 0.08;
+    double HR_clearance = 0.1;
+                
+    std::vector<double> pd_real_module;
+    std::vector<Eigen::VectorXd> qdd_real_history;
     
-        std::array<Eigen::Vector3d, 2> p_r;
-        p_r[0] = robot.GetJointPose("panda_link8", q_r[0]).translation().transpose();
-        p_r[1] = robot.GetJointPose("panda_link8", q_r[1]).translation().transpose();
-        std::array<Eigen::Vector3d, 2> pd_r;
-        pd_r[0] = (J * qd_r[0]).tail<3>();
-        pd_r[1] = (J * qd_r[1]).tail<3>();
-    
-        // Initialize simulation state
-        if (do_once) {
-            q_real = q_r[0];
-            qd_real = qd_r[0];
-            qdd_real = Eigen::VectorXd::Zero(7);
-            p_real = p_r[0];
-            pd_real = pd_r[0];
-            do_once = false;
-        }
-    
-        double velocity_PFL = 0.4;
-        double Qv = 0.08;
-        double HR_clearance = 0.1;
-                    
-        std::vector<double> pd_real_module;
-        std::vector<Eigen::VectorXd> qdd_real_history;
-        
-        bool collision = false;
-        int collision_counter = 0;
-        int arrival_step = number_time_points_complete;
-        int failure_flag = 0;
-    
-        if (!collision) {
+    bool collision = false;
+    int collision_counter = 0;
+    int arrival_step = number_time_points_complete;
+    int failure_flag = 0;
+
+    if (!collision) {
+        for (int i=0; i<skeleton.size(); i++) {
+            if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
+
             // Compute safety distance delta
             double delta_safety = HR_clearance + skeletond[i].norm() * params.stopping_time;
             double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
-    
-            // std::cout << "=================================" << std::endl;
-            // std::cout << q_real << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << qd_real << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << p_r[1] << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << pd_r[1] << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << p_h << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << pd_h << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << velocity_term << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << q_r[1] << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
-            // std::cout << Qv << std::endl;
-            // std::cout << "---------------------------------" << std::endl;
     
             SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
                                 
@@ -214,20 +190,20 @@ int SSM_PFL_escape(RobotModel& robot,
                 // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Optimization failed" << std::endl;
                 return 1;
             }
-        } else {
-            // Collision recovery phase
-            collision_counter++;
-            qdd_real.setZero();
-            qd_real.setZero();
-            // q_real.setZero();
-            // p_real.setZero();
-            pd_real.setZero();
-            pd_real_module.push_back(0.0);
-            
-            if (collision_counter > params.pause_after_collision * params.computational_frequency) {
-                collision = false;
-                // reference_time = 0;
-            }
+        }
+    } else {
+        // Collision recovery phase
+        collision_counter++;
+        qdd_real.setZero();
+        qd_real.setZero();
+        // q_real.setZero();
+        // p_real.setZero();
+        pd_real.setZero();
+        pd_real_module.push_back(0.0);
+        
+        if (collision_counter > params.pause_after_collision * params.computational_frequency) {
+            collision = false;
+            // reference_time = 0;
         }
     }
 
@@ -252,7 +228,7 @@ int task_engine(
         std::vector<Eigen::Vector3d>& skeletondd) {
     std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
     std::vector<Eigen::Vector3d> skeletond_prev = skeletond;
-    std::vector<Eigen::Vector3d> skeletondd_prev = skeletondd;
+    // std::vector<Eigen::Vector3d> skeletondd_prev = skeletondd;
     skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_r[0]);
 
@@ -262,9 +238,7 @@ int task_engine(
     double loop_duration = 0.001 * static_cast<double>(elapsed_ms);
 
     for (int i=0; i<skeleton.size(); i++) {
-        if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) {
-            continue;
-        }
+        if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
         
         // Eigen::Vector3d p_h_prev = p_h;
         // Eigen::Vector3d pd_h_prev = pd_h;
@@ -272,7 +246,6 @@ int task_engine(
         skeletond[i] = (skeleton[i] - skeleton_prev[i])/loop_duration;
         skeletondd[i] = (skeletond[i] - skeletond_prev[i])/loop_duration;
     }
-   
 
     SSM_PFL_escape(robot, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
 

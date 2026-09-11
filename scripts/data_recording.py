@@ -122,11 +122,15 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    skeleton_data_dir = os.path.join(data_dir, f"skeleton_data")
-    media_dir = os.path.join(data_dir, f"media")
-    n_test_skeleton_data = max([int(directory[4:]) for directory in list(os.walk(skeleton_data_dir))[0][1]]) if not list(os.walk(skeleton_data_dir))[0][1] == [] else 0
-    n_test_media = max([int(directory[4:]) for directory in list(os.walk(media_dir))[0][1]]) if not list(os.walk(media_dir))[0][1] == [] else 0
-    n_test = max(n_test_skeleton_data, n_test_media)
+    try:
+        skeleton_data_dir = os.path.join(data_dir, f"skeleton_data")
+        media_dir = os.path.join(data_dir, f"media")
+        n_test_skeleton_data = max([int(directory[4:]) for directory in list(os.walk(skeleton_data_dir))[0][1]]) if not list(os.walk(skeleton_data_dir))[0][1] == [] else 0
+        n_test_media = max([int(directory[4:]) for directory in list(os.walk(media_dir))[0][1]]) if not list(os.walk(media_dir))[0][1] == [] else 0
+        n_test = max(n_test_skeleton_data, n_test_media)
+    except:
+        skeleton_data_dir = os.path.join(data_dir, f"skeleton_data")
+        n_test = max([int(directory[4:]) for directory in list(os.walk(skeleton_data_dir))[0][1]]) if not list(os.walk(skeleton_data_dir))[0][1] == [] else 0
 
     if arg1 is None:
         raise ValueError("No argument provided. Enter the number of cameras")   
