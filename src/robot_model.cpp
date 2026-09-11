@@ -7,6 +7,7 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
+#include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/spatial/explog.hpp>
 
 
@@ -152,7 +153,9 @@ bool RobotModel::ComputeIK(const std::string& frame_name,
         J * J.transpose() + damping * Eigen::MatrixXd::Identity(6, 6);
     Eigen::VectorXd dq = J.transpose() * JJt.ldlt().solve(err);
 
-    q = pinocchio::integrate(model_, q, dq);
+    Eigen::VectorXd q_next(q.size());
+    pinocchio::integrate(model_, q, dq, q_next);
+    q = q_next;
   }
 
   if (converged && q_result != nullptr) {

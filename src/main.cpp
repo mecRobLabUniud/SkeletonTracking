@@ -154,7 +154,7 @@ int SSM_PFL_escape(RobotModel& robot,
     
         if (!collision) {
             // Compute safety distance delta
-            double delta_safety = HR_clearance + pd_h.norm() * params.stopping_time;
+            double delta_safety = HR_clearance + skeletond[i].norm() * params.stopping_time;
             double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
     
             // std::cout << "=================================" << std::endl;
@@ -177,7 +177,7 @@ int SSM_PFL_escape(RobotModel& robot,
             // std::cout << Qv << std::endl;
             // std::cout << "---------------------------------" << std::endl;
     
-            SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], p_h, pd_h, velocity_term, q_r[1], Qv);
+            SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
                                 
             // Update state
             qdd_real = res.qdd_next;
@@ -192,7 +192,7 @@ int SSM_PFL_escape(RobotModel& robot,
             // Check if optimization succeeded
             if (res.exitflag) {
                 // Check collision with human (distance <= 0.1m)
-                if ((p_real - p_h).norm() <= 0.1) {
+                if ((p_real - skeleton[i]).norm() <= 0.1) {
                     // R_STOP[w1][w2][w3][w4] += 1.0;
                     collision = true;
                     collision_counter = 0;
@@ -278,13 +278,13 @@ int task_engine(
 
     std::vector<nlohmann::json> payload;
     payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
-    payload.push_back(q_real);
+    payload.push_back(std::vector<double>(q_real.data(), q_real.data() + q_real.size()));
     payload.push_back(std::vector<int>{});
     transmitters[1]->send_data(payload);
 
     payload.clear();
-    payload.push_back(dist->c_h);
-    payload.push_back(dist->c_r);
+    payload.push_back(std::array<double, 3>{{dist->c_h[0], dist->c_h[1], dist->c_h[2]}});
+    payload.push_back(std::array<double, 3>{{dist->c_r[0], dist->c_r[1], dist->c_r[2]}});
     transmitters[2]->send_data(payload);
     
     return 0;
@@ -335,8 +335,8 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // ── Definition of human skeleton points ──────────────────────────────────────
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-    std::vector<Eigen::Vector3d> skeletond(p_h.size(), Eigen::Vector3d::Zero());
-    std::vector<Eigen::Vector3d> skeletondd(p_h.size(), Eigen::Vector3d::Zero());
+    std::vector<Eigen::Vector3d> skeletond(skeleton.size(), Eigen::Vector3d::Zero());
+    std::vector<Eigen::Vector3d> skeletondd(skeleton.size(), Eigen::Vector3d::Zero());
 
     const int rate_hz = 16;
     const int period_ms = static_cast<int>(1.0 / rate_hz * 1000.0);

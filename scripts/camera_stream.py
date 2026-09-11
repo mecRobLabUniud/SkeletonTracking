@@ -18,7 +18,6 @@ import numpy as np
 import time
 import logging
 import pyrealsense2 as rs
-from ultralytics import YOLO
 from utils.skeleton_tracker import SkeletonTracker
 from utils.data_transmitter import DataTransmitter
 from utils.decorators import chronometer, set_rate
