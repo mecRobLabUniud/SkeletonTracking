@@ -259,6 +259,14 @@ int task_engine(
     payload.push_back(std::array<double, 3>{{dist->c_h[0], dist->c_h[1], dist->c_h[2]}});
     payload.push_back(std::array<double, 3>{{dist->c_r[0], dist->c_r[1], dist->c_r[2]}});
     transmitters[2]->send_data(payload);
+
+    Eigen::Vector3d p_r;
+    p_r = robot.GetJointPose("panda_link8", q_r[0]).translation().transpose();
+
+    payload.clear();
+    payload.push_back(std::vector<double>(p_real.data(), p_real.data() + p_real.size()));
+    payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
+    transmitters[3]->send_data(payload);
     
     return 0;
 };
@@ -299,6 +307,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
     auto traj = load_trajectory(n_traj, c_dir);
     if (!traj) return 1;

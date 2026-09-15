@@ -203,7 +203,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     qpOASES::real_t fval = qp.getObjVal();
     (void)fval;
 
-    std::cout << "qddot = " << qddot.transpose() << std::endl;
+    // std::cout << "qddot = " << qddot.transpose() << std::endl;
 
     bool success = (status == qpOASES::SUCCESSFUL_RETURN);
     int simpleStatus = qpOASES::getSimpleStatus(status);
