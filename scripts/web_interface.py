@@ -77,6 +77,10 @@ def send_data():
         y = [pnt[1] if not np.isnan(pnt[1]) else None for pnt in merged_skeleton]
         z = [pnt[2] if not np.isnan(pnt[2]) else None for pnt in merged_skeleton]
 
+        # x = [0.5]
+        # y = [0.5]
+        # z = [0.5]
+
         if use_robot:
             robot_p = dtrs[n_devices+2].receive_data()[0]
             robot_q = dtrs[n_devices+2].receive_data()[1]

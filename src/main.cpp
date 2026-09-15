@@ -133,8 +133,8 @@ int SSM_PFL_escape(RobotModel& robot,
         do_once = false;
     }
 
-    double velocity_PFL = 0.4;
-    double Qv = 0.08;
+    double velocity_PFL = 0.1;
+    double Qv = 0.008;
     double HR_clearance = 0.1;
                 
     std::vector<double> pd_real_module;
@@ -315,10 +315,14 @@ int execute_task (int n_traj, std::string c_dir="") {
     const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf_path);
 
+    
+
     // ── Definition of human skeleton points ──────────────────────────────────────
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     std::vector<Eigen::Vector3d> skeletond(skeleton.size(), Eigen::Vector3d::Zero());
     std::vector<Eigen::Vector3d> skeletondd(skeleton.size(), Eigen::Vector3d::Zero());
+
+    std::cout << "skeleton.size() = " << skeleton.size() << std::endl;
 
     const int rate_hz = 16;
     const int period_ms = static_cast<int>(1.0 / rate_hz * 1000.0);

@@ -22,7 +22,7 @@ function createPoint(p, color) {
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( point, 3 ) );
-    const material = new THREE.PointsMaterial( { color: color, size: 0.03, sizeAttenuation: true, transparent: true, opacity: 0.5 - 0.1*(t_start - Date.now()) } );
+    const material = new THREE.PointsMaterial( { color: color, size: 0.01, sizeAttenuation: true, transparent: true, opacity: 0.5 - 0.1*(t_start - Date.now()) } );
     const points = new THREE.Points( geometry, material );
     scene.add( points );
     // console.log('Inside function')
@@ -36,7 +36,16 @@ function createPoint(p, color) {
 // 3D plot update
 // ─────────────────────────────────────────────────────────────────────────────
 function update_plot() {
-    socket.on('update_plot', function (point) {        
+    socket.on('update_plot', function (point) {    
+        
+        if (point.x != null) {
+            createPoint(
+                { x: point.x[0], y: point.y[0], z: point.z[0]},
+                '#aa0000'
+            );
+        }
+
+
         if (point.p_real != null && point.p_r != null) {
             p_real.push(createPoint(
                     { x: point.p_real[0], y: point.p_real[1], z: point.p_real[2]},
@@ -50,11 +59,11 @@ function update_plot() {
             );
         }
 
-        if (p_real.length >= 10) {
+        if (p_real.length >= 50) {
             scene.remove(p_real[0]);
             p_real.splice(0, 1);
         }
-        if (p_r.length >= 10) {
+        if (p_r.length >= 50) {
             scene.remove(p_r[0]);
             p_r.splice(0, 1);
         }
