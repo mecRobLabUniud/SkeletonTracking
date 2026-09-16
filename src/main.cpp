@@ -169,7 +169,6 @@ int SSM_PFL_escape(RobotModel& robot,
             if (res.exitflag) {
                 // Check collision with human (distance <= 0.1m)
                 if ((p_real - skeleton[i]).norm() <= 0.1) {
-                    // R_STOP[w1][w2][w3][w4] += 1.0;
                     collision = true;
                     collision_counter = 0;
                     std::cout << "===================== Collision detected" << std::endl;
@@ -222,7 +221,11 @@ int task_engine(
     std::vector<Eigen::Vector3d> skeletond_prev = skeletond;
     // std::vector<Eigen::Vector3d> skeletondd_prev = skeletondd;
     skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-    std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_real);
+
+    std::optional<DistanceResult> dist;
+    if (q_real.size() == 7) {
+        dist = human_to_robot_distance(skeleton, robot, q_real);
+    }    
 
     // if (!dist) return 1;
     // else std::cout << "Minimum distance between robot and skeleton: " << dist->length << std::endl;
