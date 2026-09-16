@@ -222,7 +222,7 @@ int task_engine(
     std::vector<Eigen::Vector3d> skeletond_prev = skeletond;
     // std::vector<Eigen::Vector3d> skeletondd_prev = skeletondd;
     skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-    std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_r[0]);
+    std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_real);
 
     // if (!dist) return 1;
     // else std::cout << "Minimum distance between robot and skeleton: " << dist->length << std::endl;

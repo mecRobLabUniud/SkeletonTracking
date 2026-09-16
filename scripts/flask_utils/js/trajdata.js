@@ -45,7 +45,6 @@ function update_plot() {
             );
         }
 
-
         if (point.p_real != null && point.p_r != null) {
             p_real.push(createPoint(
                     { x: point.p_real[0], y: point.p_real[1], z: point.p_real[2]},
@@ -59,11 +58,11 @@ function update_plot() {
             );
         }
 
-        if (p_real.length >= 50) {
+        if (p_real.length >= 20) {
             scene.remove(p_real[0]);
             p_real.splice(0, 1);
         }
-        if (p_r.length >= 50) {
+        if (p_r.length >= 20) {
             scene.remove(p_r[0]);
             p_r.splice(0, 1);
         }
