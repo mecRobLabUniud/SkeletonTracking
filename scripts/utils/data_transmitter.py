@@ -16,14 +16,12 @@ import base64
 import numpy as np
 import multiprocessing.resource_tracker as rt
 from multiprocessing import shared_memory
-from utils.decorators import requires, chronometer, set_rate
+from utils.decorators import requires
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parameters
 # ─────────────────────────────────────────────────────────────────────────────
-pic = None
 H, W, C = 480, 848, 3
-dtype = np.uint8
 
 
 # ─────────────────────────────────────────────────────────────────────────────

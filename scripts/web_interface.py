@@ -40,11 +40,7 @@ app = Flask(__name__,
             static_url_path='')
 socketio = SocketIO(app, cors_allowed_origins="*")
 dtrs = None
-in_port = 7000
-topic = "SKEL"
 use_robot = False
-cnt = 0.0
-state = 1
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +65,6 @@ def rula_thread():
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def send_data():
-    global cnt, state
     try:
         merged_skeleton = dtrs[n_devices].receive_data()[0]
         

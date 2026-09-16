@@ -1,7 +1,7 @@
 /*
 ░█▀▄░█░█░█░░░█▀█░░░█▀▀░█▀▀░█▀█░█▀▄░█▀▀░░░█▀▀░█▀█░█▄█░█▀█░█░█░▀█▀░█▀█░▀█▀░▀█▀░█▀█░█▀█    
 ░█▀▄░█░█░█░░░█▀█░░░▀▀█░█░░░█░█░█▀▄░█▀▀░░░█░░░█░█░█░█░█▀▀░█░█░░█░░█▀█░░█░░░█░░█░█░█░█    
-░▀░▀░▀▀▀░▀▀▀░▀░▀░░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀░░▀░░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀    
+░▀░▀░▀▀▀░▀▀▀░▀░▀░░░▀▀▀░▀▀▀░▀░▀░▀░▀░▀▀▀░░░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀░░▀░░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀    
 */
 
 #include <algorithm>
@@ -14,7 +14,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Parameters
 // ─────────────────────────────────────────────────────────────────────────────
-double elapsed = 0.0;
 int prevUpperArmScore = 0;
 int prevNeckScore = 0;
 int prevTrunkScore = 0;
@@ -54,7 +53,6 @@ int scoreUpperArm(const Vec3& shoulder, const Vec3& elbow,
     // Angle between upper arm and the trunk-down direction
     double ang = angleDeg(upperArm, trunkDown);
 
-    // std::cout << "scoreUpperArm angle: " << ang << "°" << std::endl;
     // ang ≈ 0  → arm hanging straight down (neutral)
     // ang ≈ 90 → arm horizontal
     // ang ≈ 180→ arm fully raised overhead
@@ -84,7 +82,6 @@ int scoreLowerArm(const Vec3& shoulder, const Vec3& elbow,
     Vec3 lower = (wrist    - elbow).normalized();
     double ang = angleDeg(upper, lower);
 
-    // std::cout << "scoreLowerArm angle: " << ang << "°" << std::endl;
     // ang is the elbow flexion angle (0°=fully extended, 180°=fully flexed)
     // RULA uses flexion from 0°: score 1 for 60-100°, score 2 otherwise
     // Note: angleDeg gives supplementary angle relative to straight line.
@@ -106,8 +103,6 @@ int scoreWrist(const Vec3& elbow, const Vec3& wrist,
     Vec3 forearm = (elbow - wrist).normalized();
     Vec3 handLine = (hand - wrist).normalized();
     double ang = angleDeg(forearm, handLine);
-
-    // std::cout << "scoreWrist angle: " << ang << "°" << "\r";
 
     // When forearm is horizontal (90° from up) and wrist is neutral,
     // deviation from 90° approximates flexion/extension
@@ -162,7 +157,6 @@ int scoreNeck(const Vec3& head, const Vec3& upperTorso,
     Vec3 trunk = (upperTorso - lowerTorso).normalized();
     double ang = angleDeg(neck, trunk) - 10.0;
 
-    // std::cout << "scoreNeck angle: " << ang << "°" << std::endl;
     // ang ≈ 0  → head straight up (neutral extension reference)
     // RULA flexion = angle forward from vertical
     int score;
@@ -182,8 +176,6 @@ int scoreTrunk(const Vec3& upperTorso, const Vec3& lowerTorso,
 {
     Vec3 trunk = (upperTorso - lowerTorso).normalized();
     double ang = angleDeg(trunk, WORLD_UP) - 5.0;
-
-    // std::cout << "scoreTrunk angle: " << ang << "°" << std::endl;
 
     int score;
     if      (ang <= 5)  score = 1;   // well-supported / upright
@@ -209,16 +201,8 @@ int scoreLegs(const Vec3& lHip,  const Vec3& rHip,
     double lKneeAng = angleDeg(lThigh, lShank);
     double rKneeAng = angleDeg(rThigh, rShank);
 
-    // std::cout << "lThigh: " << lKnee.x << "° - " << std::isnan(lKnee.x) << std::endl;
-
-    // std::cout << "scoreLegsangle: " << lKneeAng << "°" << " - " << rKneeAng << "°" << std::endl;
-
     // If knees are roughly straight (legs extended / well-supported standing
     // or balanced sitting), score 1; otherwise score 2.
-    // bool balanced = (lKneeAng < 30 || lKneeAng > 150) &&
-    //                 (rKneeAng < 30 || rKneeAng > 150);
-    // return balanced ? 1 : 2;
-
     int score = 1;
     if (!std::isnan(lKnee.x) && !std::isnan(lAnkle.x)) {
         bool balanced = (lKneeAng < 30 || lKneeAng > 150);
@@ -391,13 +375,11 @@ RULAResult computeRULA(const Skeleton& kp,
     int elbow_idx       = (side == 'L') ? L_ELBOW       : R_ELBOW;
     int wrist_idx       = (side == 'L') ? L_WRIST       : R_WRIST;
     int hand_idx        = (side == 'L') ? L_HAND        : R_HAND;
-    int hip_idx         = (side == 'L') ? L_HIP         : R_HIP;
 
     const Vec3 shoulder    = toVec3(kp[shoulder_idx]);
     const Vec3 elbow       = toVec3(kp[elbow_idx]);
     const Vec3 wrist       = toVec3(kp[wrist_idx]);
     const Vec3 hand       = toVec3(kp[hand_idx]);
-    const Vec3 hip         = toVec3(kp[hip_idx]);
     const Vec3 upperTorso  = toVec3(kp[UPPER_TORSO]);
     const Vec3 lowerTorso  = toVec3(kp[LOWER_TORSO]);
     const Vec3 head        = toVec3(kp[HEAD]);

@@ -18,18 +18,6 @@ void save_trajectory_CSV(const std::string& path,
 std::vector<double> load_timestamps_CSV(const std::string& path);
 
 
-void save_timestamps_CSV(const std::string& path,
-                         const std::vector<double>& times);
-
-
-// ── Binary I/O ────────────────────────────────────────────────────────────
-std::vector<std::array<double, 7>> load_bin(const std::string& path);
-
-
-void save_bin(const std::string& path,
-              const std::vector<std::array<double, 7>>& traj);
-
-
 // ── Finite-difference derivative estimation ─────────────────────────────────
 Eigen::VectorXd estimate_velocities(const Eigen::VectorXd& t,
                                     const Eigen::VectorXd& q);
@@ -101,8 +89,3 @@ struct Trajectory {
 Trajectory interpolate_to_1kHz_full(
         const std::vector<std::array<double, 7>>& traj_low,
         std::vector<double> time_low);
-
-
-// ── Sanity checks ────────────────────────────────────────────────────────
-void validate_trajectory(const std::vector<std::array<double, 7>>& traj,
-                         double rate_hz = 1000.0);

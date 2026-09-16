@@ -1,6 +1,5 @@
 #pragma once
 #include <Eigen/Core>
-#include <array>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -14,9 +13,6 @@ struct Vec3 {
     Vec3 operator-(const Vec3& o) const { return {x-o.x, y-o.y, z-o.z}; }
     Vec3 operator+(const Vec3& o) const { return {x+o.x, y+o.y, z+o.z}; }
     Vec3 operator*(double s)      const { return {x*s,   y*s,   z*s};   }
-    // double x()                    const { return x; }
-    // double y()                    const { return y; }
-    // double z()                    const { return z; }
 
     double dot(const Vec3& o)  const { return x*o.x + y*o.y + z*o.z; }
     double norm()              const { return std::sqrt(dot(*this));   }
@@ -51,7 +47,7 @@ enum KP {
 using Skeleton = std::vector<Eigen::Vector3d>;
 
 // Convert a raw keypoint array to Vec3
-Vec3 toVec3(const std::array<double, 3>& p);
+Vec3 toVec3(const Eigen::Vector3d& p);
 
 extern const Vec3 WORLD_UP;
 
@@ -100,7 +96,7 @@ int scoreLowerArm(const Vec3& shoulder, const Vec3& elbow,
                    const Vec3& wrist, const AdjustmentFlags& f);
 
 int scoreWrist(const Vec3& elbow, const Vec3& wrist,
-                const Vec3& shoulder, const AdjustmentFlags& f);
+                const Vec3& hand, const AdjustmentFlags& f);
 
 int scoreWristTwist(bool atEndOfRange);
 
@@ -111,7 +107,7 @@ int lookupGroupA(int upperArm, int lowerArm, int wrist, int wristTwist);
 // Group B scoring
 // ─────────────────────────────────────────────────────────────────────────────
 int scoreNeck(const Vec3& head, const Vec3& upperTorso,
-               const AdjustmentFlags& f);
+               const Vec3& lowerTorso, const AdjustmentFlags& f);
 
 int scoreTrunk(const Vec3& upperTorso, const Vec3& lowerTorso,
                 const AdjustmentFlags& f);

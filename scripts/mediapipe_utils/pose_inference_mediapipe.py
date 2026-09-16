@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import time
-import pyrealsense2 as rs
 import mediapipe as mp
 import os
 from mediapipe.tasks import python
@@ -55,49 +54,3 @@ class MediapipeTracker():
         result = self.landmarker.detect_for_video(mp_image, frame_timestamp_ms)
 
         return result
-
-
-def main():
-    # --- RealSense setup ---
-    w_camera, h_camera = 848, 480
-    ctx = rs.context()
-    devices = ctx.devices
-    pipe = rs.pipeline()
-    cfg = rs.config()
-    cfg.enable_device(devices[0].get_info(rs.camera_info.serial_number))
-    cfg.enable_stream(rs.stream.color, w_camera, h_camera, rs.format.bgr8, 60)
-    pipe.start(cfg)
-
-    while True:
-        t0 = time.time()
-
-        fs = pipe.wait_for_frames()
-        color = fs.get_color_frame()
-        if not color:
-            continue
-
-        color_img = np.asanyarray(color.get_data())
-        rgb_img = cv2.cvtColor(color_img, cv2.COLOR_BGR2RGB)
-
-        mp = MediapipeTracker()
-
-        t1 = time.time()
-        result = mp.inference_pose_landmarker(rgb_img)
-        t2 = time.time()
-
-        annotated = mp.draw_landmarks_on_image(rgb_img, result)
-
-        total = time.time() - t0
-        print(f"inference: {(t2-t1)*1000:.1f}ms | total: {total*1000:.1f}ms | "
-              f"FPS: {1/total:.1f}", end="\r")
-
-        cv2.imshow("Pose (Tasks API)", annotated)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    pipe.stop()
-    cv2.destroyAllWindows()
-
-
-if __name__ == "__main__":
-    main()

@@ -19,7 +19,6 @@ import pyrealsense2 as rs
 import threading
 import logging
 from utils.filters import Keypoints3DSmoother
-from utils.decorators import chronometer, set_rate
 from mediapipe_utils.pose_inference_mediapipe import MediapipeTracker
 
 logging.getLogger('ultralytics').setLevel(logging.ERROR)
@@ -28,16 +27,7 @@ logging.getLogger('tensorrt').setLevel(logging.ERROR)
 # ─────────────────────────────────────────────────────────────────────────────
 # Parameters
 # ─────────────────────────────────────────────────────────────────────────────
-TARGET_KEYPOINTS = list(range(17))
-COCO_SKELETON = [
-    (0, 1), (0, 2), (1, 3), (2, 4), (3, 5), (4, 6),
-    (5, 7), (7, 9), (6, 8), (8, 10),
-    (5, 6), (5, 11), (6, 12), (11, 12),
-    (11, 13), (13, 15), (12, 14), (14, 16)
-]
-EDGES = [(a, b) for (a, b) in COCO_SKELETON if a in TARGET_KEYPOINTS and b in TARGET_KEYPOINTS]
-conf_thr = 0.5          # Threshold of confidence for keypoint acceptance (0.0-1.0)
-max_depth_range = 3.0   # Maximum depth range to consider for keypoint validation (meters)
+conf_thr = 0.5
 running = True
 
 
@@ -174,51 +164,6 @@ class SkeletonTracker:
                     self.xyz = self.smoother.update(xyz, conf, conf_thr)
                     self.conf = conf
 
-            
-
-            #     person = results[0].keypoints.data[0].cpu().numpy()
-            #     xy = person[:, :2]
-            #     conf = person[:, 2]
-            #     xyz = np.full((len(TARGET_KEYPOINTS), 3), np.nan, dtype=np.float32)
-            #     for k in TARGET_KEYPOINTS:
-            #         if conf[k] < conf_thr:
-            #             continue
-            #         u, v = float(xy[k, 0]), float(xy[k, 1])
-            #         margin = 15
-            #         if u < margin or u > self.W - margin or v < margin or v > self.H - margin:
-            #             continue
-# 
-            #         # Depth reading
-            #         z = self.robust_depth_median(depth, u, v, R=6, max_dist=max_depth_range)
-            #         if not math.isfinite(z):
-            #             continue
-            #         X, Y, Z = rs.rs2_deproject_pixel_to_point(self.intr, [u, v], z)
-            #         xyz[k] = np.array([X, Y, Z], dtype=np.float32)
-# 
-            #     # Temporal filter
-            #     with self.mutex:
-            #         self.xyz = self.smoother.update(xyz, conf, conf_thr)
-            #         self.conf = conf
-
-
-
-
-
-            # if not results.pose_world_landmarks == []:
-            #     person = results.pose_world_landmarks[0]
-            #     xyz = np.full((len(person), 3), np.nan, dtype=np.float32)
-            #     conf = np.full((len(person)), np.nan, dtype=np.float32)
-            #     for k, landmark in enumerate(person):
-            #         xyz[k] = np.array([landmark.x, landmark.y, landmark.z], dtype=np.float32)
-            #         conf[k] = landmark.visibility
-# 
-            #     with self.mutex:
-            #         self.xyz = self.smoother.update(xyz, conf, conf_thr)
-            #         self.conf = conf
-
-
-
-
             with self.mutex:
                 self.frame = annotated.copy()
 
@@ -311,13 +256,8 @@ class SkeletonTracker:
             xyz = self.xyz.copy() if self.xyz is not None else None
             conf = self.conf.copy() if self.conf is not None else None            
         return xyz, conf
-
     def shutdown(self):
         self.started = []
         self.camera_thread.join()
-        self.model_thread.join()
-
-
-        
-
-        
+        if self.model_thread is not None:
+            self.model_thread.join()

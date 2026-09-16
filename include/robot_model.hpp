@@ -2,7 +2,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -41,22 +40,6 @@ class RobotModel {
 
     Eigen::MatrixXd ComputeDerivativeJacobian(const std::string& frame_name,
                                     const Eigen::VectorXd& q) const;
-
-    // --- Inverse kinematics ---------------------------------------------------
-
-    // Damped least-squares (Levenberg-Marquardt style) IK for the pose of
-    // `frame_name`. Returns true and fills q_result on success.
-    // q_init is the seed configuration (IK is local/iterative, not global).
-    bool ComputeIK(const std::string& frame_name,
-                    const Eigen::Isometry3d& target_pose,
-                    const Eigen::VectorXd& q_init,
-                    Eigen::VectorXd* q_result,
-                    double eps = 1e-4,
-                    int max_iters = 1000,
-                    double damping = 1e-6) const;
-
-    int num_joints() const { return model_.nq; }
-    int num_velocity_dof() const { return model_.nv; }
 
     private:
     pinocchio::FrameIndex GetFrameIndexOrThrow(

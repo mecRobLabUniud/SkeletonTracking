@@ -1,10 +1,8 @@
 #include <fstream>
 #include <stdexcept>
 #include <iostream>
-#include <cmath>
 #include <sstream>
 #include <iomanip>
-#include <algorithm>
 
 #include "trajectory_utils.hpp"
 
@@ -96,40 +94,6 @@ std::vector<double> load_timestamps_CSV(const std::string& path) {
     return t;
 }
 
-void save_timestamps_CSV(const std::string& path,
-                       const std::vector<double>& times) {
-    std::ofstream f(path);
-    if (!f) throw std::runtime_error("Cannot write: " + path);
-
-    f << std::fixed << std::setprecision(9);
-    f << "# t\n";
-    for (const double t : times)
-        f << t << "\n";
-
-    std::cout << "Saved " << times.size() << " timestamps to " << path << "\n";
-}
-
-// ── Binary I/O ────────────────────────────────────────────────────────────
-std::vector<std::array<double, 7>> load_bin(const std::string& path) {
-    std::ifstream f(path, std::ios::binary | std::ios::ate);
-    if (!f) throw std::runtime_error("Cannot open: " + path);
-
-    size_t n = f.tellg() / (7 * sizeof(double));
-    f.seekg(0);
-
-    std::vector<std::array<double, 7>> traj(n);
-    for (auto& wp : traj)
-        f.read(reinterpret_cast<char*>(wp.data()), 7 * sizeof(double));
-    return traj;
-}
-
-void save_bin(const std::string& path,
-             const std::vector<std::array<double, 7>>& traj) {
-    std::ofstream f(path, std::ios::binary);
-    if (!f) throw std::runtime_error("Cannot write: " + path);
-    for (const auto& wp : traj)
-        f.write(reinterpret_cast<const char*>(wp.data()), 7 * sizeof(double));
-}
 
 // ── Finite-difference velocity estimation ──────────────────────────────────
 // Central differences for interior points, one-sided for endpoints
@@ -185,7 +149,7 @@ void quintic_spline_interp_full(const Eigen::VectorXd& t_low,
     Eigen::VectorXd a_low = estimate_accelerations(t_low, q_low);
 
     std::cout << "========== v Low ==========\n" << v_low.transpose() << "\n";
-    std::cout << "========== a Low ==========\n" << v_low.transpose() << "\n";
+    std::cout << "========== a Low ==========\n" << a_low.transpose() << "\n";
 
     q_high.resize(m);
     v_high.resize(m);
@@ -243,44 +207,4 @@ Trajectory interpolate_to_1kHz_full(
     }
 
     return out;
-}
-
-
-// ── Sanity checks ────────────────────────────────────────────────────────
-// Note: default value for rate_hz is declared in the header only —
-// repeating it here would be a compile error.
-void validate_trajectory(const std::vector<std::array<double, 7>>& traj,
-                         double rate_hz) {
-    // Franka Panda limits
-    constexpr double VEL_LIMIT  = 2.175;    // rad/s
-    constexpr double ACC_LIMIT  = 15.0;     // rad/s²
-    constexpr double STEP_LIMIT = 0.01;     // rad per 1ms tick
-
-    double max_step = 0.0, max_vel = 0.0, max_acc = 0.0;
-    double dt = 1.0 / rate_hz;
-
-    for (size_t i = 1; i < traj.size(); ++i) {
-        for (int j = 0; j < 7; ++j) {
-            double dp = std::abs(traj[i][j] - traj[i-1][j]);
-            double v  = dp / dt;
-            max_step = std::max(max_step, dp);
-            max_vel  = std::max(max_vel,  v);
-
-            if (i >= 2) {
-                double dp_prev = std::abs(traj[i-1][j] - traj[i-2][j]);
-                double dv = std::abs(v - dp_prev / dt);
-                max_acc = std::max(max_acc, dv / dt);
-            }
-        }
-    }
-
-    std::cout << "── Trajectory validation ──────────────────────\n";
-    std::cout << "Waypoints  : " << traj.size() << "\n";
-    std::cout << "Max step   : " << max_step << " rad  "
-              << (max_step > STEP_LIMIT ? "⚠ HIGH" : "✓ OK") << "\n";
-    std::cout << "Max vel    : " << max_vel  << " rad/s  "
-              << (max_vel  > VEL_LIMIT  ? "⚠ EXCEEDS LIMIT" : "✓ OK") << "\n";
-    std::cout << "Max acc    : " << max_acc  << " rad/s²  "
-              << (max_acc  > ACC_LIMIT  ? "⚠ EXCEEDS LIMIT" : "✓ OK") << "\n";
-    std::cout << "───────────────────────────────────────────────\n";
 }

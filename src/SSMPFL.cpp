@@ -44,8 +44,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::Vector3d x_t = robot.GetJointPose("panda_link8", q_tp).translation();
     Eigen::MatrixXd J_t = robot.ComputeJacobian("panda_link8", q_t).bottomRows(3);
     Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).bottomRows(3);
-    Eigen::Vector3d xd_t = J_t * qdot_t;
-    (void)xd_t;  // computed in source, unused there too
 
     ro = ro + vo * delta_t;
 
@@ -58,8 +56,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     weight_matrix(4, 4) = 1.75;
     weight_matrix(5, 5) = 0.1;
     weight_matrix(6, 6) = 0.1;
-    // NOTE: weight_matrix is 6x6 in the source regardless of n; if your
-    // robot doesn't have 6 joints, resize/adjust this block accordingly.
 
     double dt2 = delta_t * delta_t;
     double dt4 = dt2 * dt2;
@@ -115,10 +111,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::MatrixXd J6d = robot.ComputeDerivativeJacobian("panda_link8", q_t).bottomRows(3);
     Eigen::Vector3d r6 = robot.GetJointPose("panda_link8", q_t).translation();
 
-    // NOTE: unlike SSMescape/SSMcheck, here the constraint rows are scaled
-    // by delta_t only (not stopping_time), and the RHS margin term uses
-    // 1/stopping_time instead — this matches Equation 2.70 in the source
-    // (as opposed to Equation 2.52 used by SSMescape/SSMcheck).
     Eigen::MatrixXd A(10, n);
     Eigen::VectorXd b(10);
 
@@ -175,8 +167,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
            - ((ro.transpose() * J5 - r4.transpose() * J5 - (r5 - r4).transpose() * J4) * qdot_t).value()
            - (delta_t * (ro - r5).transpose() * J5d * qdot_t).value();
 
-    int nV = H.rows();  // was hardcoded to 6 — use actual size, not a magic number
-    int nC = A.rows();  // number of inequality rows
+    int nV = H.rows();
+    int nC = A.rows();
 
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> H_rm = H;
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> A_rm = A;
@@ -199,11 +191,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     Eigen::VectorXd qddot(nV);
     qp.getPrimalSolution(qddot.data());
-
-    qpOASES::real_t fval = qp.getObjVal();
-    (void)fval;
-
-    // std::cout << "qddot = " << qddot.transpose() << std::endl;
 
     bool success = (status == qpOASES::SUCCESSFUL_RETURN);
     int simpleStatus = qpOASES::getSimpleStatus(status);

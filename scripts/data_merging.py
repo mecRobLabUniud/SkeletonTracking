@@ -19,17 +19,14 @@ Incoming data has mediapipe configuration:
 
 import sys
 import numpy as np
-from utils.kalman_filter import SimpleMerger, KalmanFilter3D, KalmanFilter6D, ImprovedKalmanFilter6D
+from utils.kalman_filter import KalmanFilter6D
 from utils.data_transmitter import DataTransmitter
-from utils.decorators import chronometer, set_rate
+from utils.decorators import set_rate
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parameters
 # ─────────────────────────────────────────────────────────────────────────────
-port = 6000
 running = True
-topic = "SKEL"
-interfaces = None
 n_devices = 0
 skel_len = 0
 kfs = None

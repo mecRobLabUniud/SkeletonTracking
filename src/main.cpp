@@ -16,7 +16,6 @@
 #include "min_distance_calculation.hpp"
 #include "robot_model.hpp"
 
-// #include "COLLcheck.hpp"
 #include "SSMPFL.hpp"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,50 +32,29 @@ void signal_handler(int signum) {
     running = false;
 }
 
-
-
-
-
-
 struct ExperimentParams {
-    // Test configuration
-    int number_trajectories = 1;
-    int number_intrusions_per_trajectory = 1;
-    
-    // Qv values (weight for velocity error in optimization)
-    std::vector<double> Qvs = {
-        0.06, 0.07, 0.08, 0.09, 0.1,
-        0.11, 0.125, 0.15, 0.2, 0.3
-    };
-    
-    // PFL velocity values (velocity scaling factor)
-    std::vector<double> vel_PFL = {0.1, 0.2, 0.3, 0.4, 0.5};
-    
     // Timing
     double time_beginning = 0.0;
     double time_final = 10.0;
     double computational_frequency = 16.0;  // Hz
     double stopping_time = 0.3;  // seconds
     double pause_after_collision = 2.0;  // seconds
-    
+
     double computational_period() const {
         return 1.0 / computational_frequency;
     }
 };
 
-
 double rms(const std::vector<double>& values) {
     if (values.empty()) return 0.0;
-    
+
     double sum_squares = 0.0;
     for (double v : values) {
         sum_squares += v * v;
     }
-    
+
     return std::sqrt(sum_squares / values.size());
 }
-
-
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,27 +72,8 @@ int SSM_PFL_escape(RobotModel& robot,
     ExperimentParams params;
     
     const double dt = params.computational_period();
-    const double t_begin = params.time_beginning;
-    const double t_final = params.time_final;
-    
-    // Create time vectors
-    std::vector<double> time_points;
-    for (double t = t_begin; t <= t_final + 1e-9; t += dt) {
-        time_points.push_back(t);
-    }
-    
-    std::vector<double> time_points_complete;
-    for (double t = t_begin; t <= t_final + 25.0 + 1e-9; t += dt) {
-        time_points_complete.push_back(t);
-    }
-    
-    const int number_time_points = static_cast<int>(time_points.size());
-    const int number_time_points_complete = static_cast<int>(time_points_complete.size());
-    const int number_QpQv = static_cast<int>(params.Qvs.size());
-    const int numberPFL = static_cast<int>(params.vel_PFL.size());
 
     Eigen::MatrixXd J = robot.ComputeJacobian("panda_link8", q_r[0]);
-    // std::cout << "Jacobian (6x7):\n" << J << std::endl;
 
     std::array<Eigen::Vector3d, 2> p_r;
     p_r[0] = robot.GetJointPose("panda_link8", q_r[0]).translation().transpose();
@@ -137,77 +96,35 @@ int SSM_PFL_escape(RobotModel& robot,
     double Qv = 0.08;
     double HR_clearance = 0.1;
                 
-    std::vector<double> pd_real_module;
-    std::vector<Eigen::VectorXd> qdd_real_history;
-    
-    bool collision = false;
-    int collision_counter = 0;
-    int arrival_step = number_time_points_complete;
-    int failure_flag = 0;
+    for (int i=0; i<skeleton.size(); i++) {
+        if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
 
-    if (!collision) {
-        for (int i=0; i<skeleton.size(); i++) {
-            if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
+        // Compute safety distance delta
+        double delta_safety = HR_clearance + skeletond[i].norm() * params.stopping_time;
+        double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
 
-            // Compute safety distance delta
-            double delta_safety = HR_clearance + skeletond[i].norm() * params.stopping_time;
-            double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
-    
-            SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
-                                
-            // Update state
-            qdd_real = res.qdd_next;
-            qd_real = res.qd_next;
-            q_real = res.q_next;
-            p_real = res.p_next;
-            pd_real = res.pd_next;
+        SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
+                            
+        // Update state
+        qdd_real = res.qdd_next;
+        qd_real = res.qd_next;
+        q_real = res.q_next;
+        p_real = res.p_next;
+        pd_real = res.pd_next;
             
-            pd_real_module.push_back(pd_real.norm());
-            qdd_real_history.push_back(qdd_real);
-            
-            // Check if optimization succeeded
-            if (res.exitflag) {
-                // Check collision with human (distance <= 0.1m)
-                if ((p_real - skeleton[i]).norm() <= 0.1) {
-                    // R_STOP[w1][w2][w3][w4] += 1.0;
-                    collision = true;
-                    collision_counter = 0;
-                    std::cout << "===================== Collision detected" << std::endl;
-                    // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Collision at step " << i << std::endl;
-                }
-                
-                // // Check if robot reached goal position
-                // if ((p_real - p_r).norm() <= 0.005) {
-                //     // arrival_step = i;
-                //     std::cout << "Trajectory completed" << std::endl;
-                //     // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Arrived at t=" << (i * dt) << "s" << std::endl;
-                //     return 0;
-                // }
-            } else {
-                // Optimization failed
-                failure_flag = 1;
-                std::cout << "Optimization failed" << std::endl;
-                // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Optimization failed" << std::endl;
-                return 1;
+        // Check if optimization succeeded
+        if (res.exitflag) {
+            // Check collision with human (distance <= 0.1m)
+            if ((p_real - skeleton[i]).norm() <= 0.1) {
+                std::cout << "===================== Collision detected" << std::endl;
             }
-        }
-    } else {
-        // Collision recovery phase
-        collision_counter++;
-        qdd_real.setZero();
-        qd_real.setZero();
-        // q_real.setZero();
-        // p_real.setZero();
-        pd_real.setZero();
-        pd_real_module.push_back(0.0);
-        
-        if (collision_counter > params.pause_after_collision * params.computational_frequency) {
-            collision = false;
-            // reference_time = 0;
+        } else {
+            // Optimization failed
+            std::cout << "Optimization failed" << std::endl;
+            return 1;
         }
     }
 
-    
     return 0;
 }
 
@@ -228,21 +145,14 @@ int task_engine(
         std::vector<Eigen::Vector3d>& skeletondd) {
     std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
     std::vector<Eigen::Vector3d> skeletond_prev = skeletond;
-    // std::vector<Eigen::Vector3d> skeletondd_prev = skeletondd;
     skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, q_r[0]);
-
-    // if (!dist) return 1;
-    // else std::cout << "Minimum distance between robot and skeleton: " << dist->length << std::endl;
 
     double loop_duration = 0.001 * static_cast<double>(elapsed_ms);
 
     for (int i=0; i<skeleton.size(); i++) {
         if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
         
-        // Eigen::Vector3d p_h_prev = p_h;
-        // Eigen::Vector3d pd_h_prev = pd_h;
-        // p_h = skeleton[i];
         skeletond[i] = (skeleton[i] - skeleton_prev[i])/loop_duration;
         skeletondd[i] = (skeletond[i] - skeletond_prev[i])/loop_duration;
     }
@@ -303,7 +213,7 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir) {
 // ─────────────────────────────────────────────────────────────────────────────
 int execute_task (int n_traj, std::string c_dir="") {
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
-    transmitters.reserve(3);
+    transmitters.reserve(4);
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));

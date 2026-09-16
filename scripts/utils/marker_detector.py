@@ -66,7 +66,6 @@ class MarkerDetector:
 
     # ── Dynamic calibration ──────────────────────────────────────────────────────────────
     def dynamic_calibration(self, marker_ID): 
-        self.criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.01)
         while True:   
             # operations on the frame come here
             frame = self.tracker.get_color_frame()
@@ -125,7 +124,6 @@ class MarkerDetector:
 
     # ── Static calibration ──────────────────────────────────────────────────────────────
     def static_calibration(self, marker_ID): 
-        self.criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         for _ in range(3):
             frame = self.tracker.get_color_frame()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Change grayscale
@@ -174,7 +172,6 @@ class MarkerDetector:
 
     # ── Static calibration ──────────────────────────────────────────────────────────────
     def simple_calibration(self, marker_ID): 
-        self.criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.0001)
         for _ in range(3):
             frame = self.tracker.get_color_frame()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Change grayscale

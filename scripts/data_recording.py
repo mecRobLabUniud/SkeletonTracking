@@ -7,35 +7,23 @@
 """
 
 import sys
-import zmq
 import time
 import numpy as np
 import cv2
 import os
 import json
 import signal
-import struct
-import threading
-import multiprocessing.resource_tracker as rt
-from multiprocessing import shared_memory
 from utils.data_transmitter import DataTransmitter
 from utils.video_recorder import VideoRecorder
-from utils.decorators import chronometer, set_rate
+from utils.decorators import set_rate
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parameters
 # ─────────────────────────────────────────────────────────────────────────────
-in_port = 6000
-out_port = 6000
-topic = "SKEL"
 running = True
-skel_len = 17
-H, W, C = 480, 848, 3
-FRAME_BYTES = H * W * C
 
 stream_cnt = 0
 n_devices = 0
-frame_id = 0
 paused = False
 reset = False
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -43,22 +31,6 @@ data_dir = os.path.join(script_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
 t0 = time.time()
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Pause/resume logic
-# ─────────────────────────────────────────────────────────────────────────────
-def listen_for_input():
-    """Listen for keyboard input in a separate thread."""
-    global paused
-    while True:
-        key = input()
-        if key.strip().lower() == '' and paused:
-            paused = False
-            print("\n▶  Loop RESUMED")
-        elif key.strip().lower() == '' and not paused:
-            paused = True
-            print("\n⏸  Loop PAUSED")
- 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Recording
@@ -110,10 +82,6 @@ def main():
     arg1 = sys.argv[1] if len(sys.argv) > 1 else None
     arg2 = sys.argv[2] if len(sys.argv) > 2 else None
     arg3 = sys.argv[3] if len(sys.argv) > 3 else None
-
-    # Start input listener in background thread
-    # input_thread = threading.Thread(target=listen_for_input, daemon=True)
-    # input_thread.start()
 
     # Clear shutdown logic
     def signal_handler(sig, frame):

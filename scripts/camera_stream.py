@@ -20,7 +20,7 @@ import logging
 import pyrealsense2 as rs
 from utils.skeleton_tracker import SkeletonTracker
 from utils.data_transmitter import DataTransmitter
-from utils.decorators import chronometer, set_rate
+from utils.decorators import set_rate
 
 logging.getLogger('ultralytics').setLevel(logging.ERROR)
 logging.getLogger('tensorrt').setLevel(logging.ERROR)
@@ -29,11 +29,7 @@ logging.getLogger('tensorrt').setLevel(logging.ERROR)
 # Parameters
 # ─────────────────────────────────────────────────────────────────────────────
 running = True
-save_data = False
-display_stream = False
 script_dir = os.path.dirname(os.path.abspath(__file__))
-yolo_model = "yolo26n-pose"
-yolo_hand_model = "yolo26n-hands"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

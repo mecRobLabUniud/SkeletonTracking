@@ -1,159 +1,218 @@
+# SkeletonTracking
 
-### Descrizione del Progetto
-Il progetto "implementazione_dynamic_safety_zones" implementa un sistema di controllo cartesiano per un robot Franka Panda, integrando zone di sicurezza dinamiche basate su capsule geometriche. Queste capsule rappresentano regioni di sicurezza, di dimensione variabile, attorno al robot e agli oggetti umani rilevati, permettendo un'interazione sicura durante operazioni di pick and place.
+Multi-camera real-time human skeleton tracking with ergonomic (RULA) evaluation and a live 3D web visualization of a Franka Panda robot.
 
-Il sistema combina:
-- **Controllo cartesiano**: Il robot segue traiettorie pianificate in posizione.
-- **Tracking scheletrico**: Utilizzo di YOLOv8 per il rilevamento delle pose umane in tempo reale.
-- **Comunicazione in tempo reale**: Tramite ZeroMQ per lo scambio di dati tra componenti Python e C++.
-- **Capsule dinamiche**: Zone di sicurezza che si adattano dinamicamente alla posizione del robot e degli umani.
-- **Architettura Multithread**: Separazione del ciclo di controllo real-time (1 kHz) dal solver di ottimizzazione (CasADi) tramite thread paralleli per garantire il rispetto delle scadenze temporali hard real-time.
+The system streams skeletons from one or more Intel RealSense cameras, fuses them into a single multi-person skeleton, computes Rapid Upper Limb Assessment (RULA) ergonomic scores, and displays everything in a browser. When robot simulation is enabled, a C++ trajectory executor publishes the robot state so the human skeleton and robot can be rendered side by side in a shared 3D scene.
 
-Il controllo opera a 1 kHz per garantire risposte in tempo reale.
+## Architecture
 
-### File Presenti (Descrizione Dettagliata)
+```
+                    ┌───────────────────────────┐
+                    │   camera_stream.py (xN)   │  1 per RealSense camera
+                    │   MediaPipe/YOLO + filters │
+                    └─────────────┬─────────────┘
+              ZMQ "SINGLE_CAMERA_{n}"  port 6000+n    (frames via shared memory shared_image{n})
+                                  │
+                    ┌─────────────▼─────────────┐
+                    │   data_merging.py          │  Kalman fusion of N cameras
+                    └─────────────┬─────────────┘
+              ZMQ "MERGED_10"  port 6010
+                                  │
+     ┌────────────────────────────┼───────────────────────────────┐
+     │                            │                               │
+┌────▼────┐                 ┌─────▼──────┐                  ┌─────▼──────┐
+│  main   │ ◄────────────── │ rula_eval  │                  │ web_interface.py │
+│(C++,    │        ZMQ      │(C++, RULA) │          ZMQ     │  Flask + Socket.IO │
+│ robot)  │              "RULA_11" 6011  │                  └─────┬──────┘
+└────┬────┘                                                       │ WebSocket
+     │  ZMQ "ROBOT_12" 6012 / "DISTANCE_13" 6013 / "TRAJDATA_14" 6014 │
+     └──────────────────────────────────────────────────────────────┘
+                                                      ├─ 3D scene (Three.js)
+                                                      └─ camera frames (img)
+```
 
-- **CMakeLists.txt**: File di configurazione per la compilazione del progetto utilizzando CMake. Definisce le dipendenze, i target di build e le librerie necessarie (inclusa libfranka). Configura il linking con Eigen, Pinocchio, CasADi e altre librerie per l'ottimizzazione e la cinematica.
+**Communication protocol** (implemented in `scripts/utils/data_transmitter.py` and `include/data_transmitter.hpp`):
 
-- **controllo_pick_and_place_capsule_dinamiche_parallelo.cpp**: File principale contenente l'implementazione del controllo cartesiano con capsule dinamiche per operazioni di pick and place, utilizzando un'architettura parallela. Include:
-  - Caricamento del modello URDF del robot Panda usando Pinocchio.
-  - **Thread Ottimizzatore**: Esegue il solver CasADi in un thread separato (~50Hz) per calcolare il tempo di stop ottimale senza bloccare il controllo.
-  - **Thread Controllo Real-Time**: Loop a 1 kHz che gestisce la comunicazione con il robot, legge i dati condivisi dall'ottimizzatore in modo thread-safe (mutex), e calcola le capsule dinamiche.
-  - Definizione di waypoints per traiettorie pick and place.
-  - Gestione stati: RUNNING (esecuzione traiettoria), STOPPING (frenata sicura interpolata), PAUSED (robot fermo), RECOVERING (ripresa traiettoria).
-  - Calcolo delle capsule geometriche del robot basate sui frame dei giunti.
-  - Ricezione dati skeleton umani via ZMQ e calcolo distanze capsule-robot vs capsule-umane.
-  - Controllo di sicurezza: se distanza < raggio dinamico, attiva STOPPING utilizzando i parametri calcolati asincronamente dal thread ottimizzatore.
+| Data               | Topic             | Port  | Sender              | Receiver             |
+|--------------------|-------------------|-------|---------------------|----------------------|
+| Per-camera skeleton| `SINGLE_CAMERA_{n}` | `6000+n` | `camera_stream.py` / `data_recording.py --stream` | `data_merging.py`, `web_interface.py` |
+| Merged skeleton    | `MERGED_10`       | `6010` | `data_merging.py`   | `main`, `rula_evaluation`, `web_interface.py` |
+| RULA scores        | `RULA_11`         | `6011` | `rula_evaluation`   | `web_interface.py`  |
+| Robot state        | `ROBOT_12`        | `6012` | `main` (robot mode) | `web_interface.py`  |
+| Min. distance      | `DISTANCE_13`     | `6013` | `main` (robot mode) | `web_interface.py`  |
+| Trajectory data    | `TRAJDATA_14`     | `6014` | `main` (robot mode) | `web_interface.py`  |
 
-- **examples_common.cpp** e **examples_common.h**: Codice comune e header utilizzati negli esempi, contenenti funzioni di utilità per l'interfaccia con il robot Franka (setDefaultBehavior, calcolo traiettorie polinomiali, etc.).
+Camera frames are exchanged out-of-band through POSIX shared memory segments named `shared_image{n}` (480×848×3), referenced by `device_id`.
 
-- **header_capsuleDinamiche.cpp** e **header_capsuleDinamiche.h**: Implementazione e dichiarazione delle classi per gestire le capsule dinamiche. Include:
-  - Strutture dati per capsule geometriche (CapsuleGeo) e parametri di sicurezza (DynamicSafetyParams).
-  - Funzione optimize_stop_time_casadi_hybrid: usa CasADi e Pinocchio per ottimizzare il tempo di stop del robot, considerando limiti di velocità/accelerazione/jerk/coppia, costruendo traiettorie polinomiali di quinto grado per fermate sicure.
-  - Calcolo raggi dinamici delle capsule basati su velocità robot e umana, tempo di reazione.
-  - Funzioni per calcolo distanze tra segmenti (capsule).
+## Directory structure
 
-- **Istruzioni_compilazione.txt**: Documento con istruzioni dettagliate per la compilazione e l'esecuzione del progetto (vedi sezione Istruzioni di Esecuzione).
+```
+.
+├── CMakeLists.txt              # C++ build configuration
+├── run.sh                      # Main launcher (all-in-one entry point)
+├── include/                    # C++ headers
+│   ├── data_transmitter.hpp    # ZMQ + shared memory communication
+│   ├── robot_model.hpp         # Pinocchio kinematics wrapper
+│   ├── SSMPFL.hpp              # Safe-Stop + Position/Force-Limiting QP solver
+│   ├── minDistance.hpp         # Point/segment geometry primitives
+│   ├── min_distance_calculation.hpp
+│   ├── rula_score_computation.hpp
+│   ├── trajectory_utils.hpp    # CSV load + 1 kHz spline interpolation
+│   └── utils.hpp               # JSON → keypoint conversion
+├── src/
+│   ├── main.cpp                # Robot trajectory executor (robot mode)
+│   ├── rula_evaluation.cpp     # RULA scoring executable
+│   ├── rula_score_computation.cpp
+│   ├── robot_model.cpp
+│   ├── SSMPFL.cpp
+│   ├── min_distance_calculation.cpp
+│   ├── trajectory_utils.cpp
+│   ├── urdf/panda.urdf         # Franka Panda robot model
+│   └── trajectories/test1/     # Recorded joint trajectories (q/qd/qdd/ref)
+└── scripts/
+    ├── camera_stream.py        # Per-camera skeleton tracking (RealSense)
+    ├── data_merging.py         # Multi-camera Kalman fusion
+    ├── data_recording.py       # Record to disk / replay (`-r`/`-s`)
+    ├── web_interface.py        # Flask + Socket.IO server feeding the browser
+    ├── calibration.py          # Camera↔world ArUco calibration
+    ├── utils/                  # data_transmitter, kalman_filter, filters,
+    │                           # skeleton_tracker, marker_detector, ...
+    ├── mediapipe_utils/        # Standalone MediaPipe demos
+    ├── flask_utils/            # Web UI (index.html, js/, style, meshes/)
+    ├── models/                 # MediaPipe/YOLO model files
+    └── data/                   # Calibration poses, logs, recorded skeletons
+```
 
-- **marker_pos.txt**: File contenente la posizione del marker (ArUco) utilizzato per il tracking o la calibrazione della camera.
+## Requirements
 
-- **rotation_matrix.txt**: Matrice di rotazione utilizzata per trasformazioni di coordinate, per allineare i sistemi di riferimento tra robot e visione mediante una trasformazione da camera a base robot.
+**Hardware**
+- One or more Intel RealSense cameras (USB). Camera count is auto-detected via `lsusb` (Vendor ID `8086`).
+- (For calibration only) a printed ArUco marker (ID 34, `DICT_6X6_250`).
 
-- **run_system_dynamic.sh**: Script shell per l'esecuzione automatica del sistema completo. Gestisce:
-  - Compilazione automatica del codice C++.
-  - Avvio del processo Python per skeleton tracking.
-  - Avvio del controllo C++ con gestione processi (cleanup su SIGINT/SIGTERM).
-  - Configurazione IP robot e percorsi.
+**Python** (`pip install`)
+- `pyrealsense2`, `ultralytics`, `opencv-python`, `numpy`
+- `mediapipe`, `zmq`, `flask`, `flask-socketio`
+- `pandas`, `pyyaml` (recording/training)
 
-- **skeleton_yolo_and_transmission.py**: Script Python che gestisce il rilevamento e trasmissione dei dati dello skeleton. Include:
-  - Uso di YOLOv8 (modello yolov8x-pose.pt) per rilevamento pose umane da camera RealSense.
-  - Filtro One Euro per smoothing dei keypoints 3D, riducendo jitter mantenendo bassa latenza.
-  - Conversione keypoints in capsule geometriche (segmenti tra giunti).
-  - Trasmissione dati via ZeroMQ (socket IPC) al processo C++.
-  - Gestione occlusioni: mantiene ultimi valori validi per 0.5s, poi NaN.
-  
-- **skeleton_zmq.h**: Header C++ per l'integrazione di ZeroMQ nel codice di controllo. Definisce strutture per buffer capsule skeleton e classe SkeletonZmqSubscriber per ricezione thread-safe dei dati da Python.
+**C++ build**
+- CMake ≥ 3.10, C++17 compiler
+- Eigen3, OpenCV, nlohmann-json, qpOASES, Pinocchio (with URDF + CasADi support, optional)
+- ZeroMQ (`libzmq`)
 
-- **yolov8x-pose.pt**: Modello pre-addestrato di YOLOv8 per il rilevamento delle pose (skeleton tracking). Rileva 17 keypoints 3D per persona, usato per costruire capsule umane dinamiche.
+## Build
 
-
-### Istruzioni di Esecuzione
-Il sistema richiede un robot Franka Panda connesso, una camera RealSense per visione, e librerie installate (libfranka, Pinocchio, CasADi, pyrealsense2, ultralytics, zmq).
-
-#### Esecuzione Automatica (Raccomandata)
-1. Modifica `run_system_dynamic.sh` per impostare `ROBOT_IP` (default 172.16.0.2) e `FRANKA_DIR` (percorso build libfranka).
-2. Rendi eseguibile lo script: `chmod +x run_system_dynamic.sh`
-3. Esegui: `./run_system_dynamic.sh`
-   - Compila automaticamente il C++.
-   - Avvia skeleton tracking Python in background.
-   - Avvia controllo C++.
-   - Premi Ctrl+C per arrestare tutto.
-
-# Configurazione del file bash
-1. **Rendi eseguibile lo script bash**
-    - chmod +x run_system_dynamic.sh
-2. **Compila il progetto in c++, se non è già stato fatto**
-    - mkdir -p build && cd build
-    - cmake .. -DCMAKE_BUILD_TYPE=Release -DFranka_DIR=/home/lab/donaldo_ws/home/lab/donaldo_ws/libfranka/build
-    - make -j4
-    - cd ..
-3. **Lancia tutto**
-    - ./run_system_dynamic.sh
-
-#### Esecuzione Manuale
-1. **Compilazione C++**:
-   ```
-   mkdir build
-   cd build
-   cmake .. -DCMAKE_BUILD_TYPE=Release -DFranka_DIR=/path/to/libfranka/build
-   make
-   cp ../*.csv .  # se presenti file CSV
-   ```
-
-2. **Avvio Skeleton Tracking** (in terminale separato):
-   ```
-   python3 skeleton_yolo_and_transmission.py
-   ```
-   - Assicurati camera RealSense connessa e pyrealsense2 installato.
-
-3. **Avvio Controllo Robot**:
-   ```
-   cd build
-   ./controllo_pick_and_place_capsule_dinamiche_parallelo <ROBOT_IP>
-   ```
-   - Esempio: `./controllo_pick_and_place_capsule_dinamiche_parallelo 172.16.0.2`
-
-#### Note
-- Il controllo opera a 1 kHz; assicurati bassa latenza di rete.
-- Log salvati in `log_dynamic_success.csv` o `log_error_dynamic.csv`.
-- Per calibrazione, usa `marker_pos.txt` e `rotation_matrix.txt` per allineare sistemi di coordinate.
-- Se skeleton non valido, capsule umane ignorate (raggio = 0).
-
-
-
-### Setup CasADi e Pinocchio
-
-## Installare CasADi a livello di sistema
-# Installare i prerequisiti necessari
-sudo apt update
-sudo apt install -y build-essential cmake git pkg-config coinor-libipopt-dev gfortran
-
-# Clonare il repository ufficiale
-git clone https://github.com/casadi/casadi.git
-cd casadi
-
-# Configurazione con CMake
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IPOPT=ON -DCMAKE_INSTALL_PREFIX=/usr/local ..
-
-# Compilazione e installazione
+```bash
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
-sudo make install
-sudo ldconfig *per aggiornare la cache*
+cd ..
+```
 
-## Installare Pinocchio a livello di sistema
-# Installare le dipendenze di Pinocchio
-sudo apt update
-sudo apt install -y cmake git pkg-config
-sudo apt install -y libeigen3-dev libboost-all-dev liburdfdom-dev
+This produces two executables in `build/`:
 
-# Clonare repository ufficiale
-cd ~
-git clone --recursive https://github.com/stack-of-tasks/pinocchio.git
-cd pinocchio
+| Executable    | Purpose                                                            |
+|---------------|--------------------------------------------------------------------|
+| `build/main`  | Robot trajectory executor; receives the merged skeleton and publishes robot/trajectory/distance data (only used with `--robot`) |
+| `build/rula_evaluation` | Receives the merged skeleton and publishes RULA scores      |
 
-# Configurazione con CMake (con supporto Casadi)
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX=/usr/local \
-      -DBUILD_PYTHON_INTERFACE=OFF \
-      -DBUILD_WITH_URDF_SUPPORT=ON \
-      -DBUILD_WITH_CASADI_SUPPORT=ON \
-      ..
+## Usage — run.sh
 
-# Compilazione ed installazione
-make -j$(nproc)
-sudo make install
-sudo ldconfig
+`run.sh` is the single entry point. It launches the Python processes and the compiled C++ binaries, cleaning them all up on Ctrl+C.
+
+```
+./run.sh MODE [OPTIONS]
+```
+
+**Modes** (choose exactly one):
+
+| Mode             | What it does                                                        |
+|------------------|---------------------------------------------------------------------|
+| `--track`        | Live tracking: cameras → fusion → RULA (and optional robot)         |
+| `--record`       | Record live skeleton + video data to disk                           |
+| `--stream`       | Replay a previously recorded test from disk (no cameras needed)     |
+| `--calibrate`    | Run ArUco camera calibration                                        |
+
+**Options:**
+
+| Option      | Description                                                         |
+|-------------|---------------------------------------------------------------------|
+| `--gui`     | Launch the web interface (3D scene + camera streams)                |
+| `--test N`  | Test number to stream (only with `--stream`; data in `scripts/data/skeleton_data/testN`) |
+| `--robot`   | Also run the robot simulation (needs `build/main`)                  |
+| `--traj N`  | Trajectory number for robot execution (only with `--robot`; data in `src/trajectories/testN`) |
+| `-h, --help`| Show usage                                                          |
+
+### Examples
+
+```bash
+# Live tracking with web interface (no robot)
+./run.sh --track --gui
+
+# Live tracking, robot trajectory #1, with web visualization
+./run.sh --track --robot --traj 1 --gui
+
+# Record a new dataset
+./run.sh --record
+
+# Replay recorded test 2
+./run.sh --stream --test 2
+
+# Replay test 3 and visualize with the robot
+./run.sh --stream --test 3 --robot --traj 1 --gui
+
+# Calibrate cameras
+./run.sh --calibrate
+```
+
+If `--test` is omitted with `--stream`, the script prompts for the test number.
+
+## What each mode runs
+
+| Mode       | Processes launched                                                                    |
+|------------|---------------------------------------------------------------------------------------|
+| `--track`  | `data_merging <ncams>`, `camera_stream`, `rula_evaluation` (+ optional `main <traj>`) |
+| `--record` | `data_recording <ncams> -r`, `camera_stream`                                          |
+| `--stream` | `data_recording <ncams> -s <test>`, `data_merging <ncams>`, `rula_evaluation` (+ optional `main <traj>`) |
+| `--calibrate` | `calibration`                                                                     |
+
+`--gui` additionally starts `web_interface.py` and opens the visualization at `http://localhost:5000` (auto-opens in your browser).
+
+## Manual launch (equivalent)
+
+For fine-grained control, the same pipeline can be started by hand:
+
+```bash
+# Terminal 1 — tracking (or camera_stream only for single-camera)
+python3 scripts/camera_stream.py &
+python3 scripts/data_merging.py <n_cameras> &
+python3 scripts/data_recording.py <n_cameras> -r        # instead of camera_stream if recording
+
+# Terminal 2 — RULA scoring
+./build/rula_evaluation
+
+# Terminal 3 — optional robot trajectory executor
+./build/main <traj_n> <repo_dir>
+
+# Terminal 4 — web interface
+python3 scripts/web_interface.py <n_cameras> [--robot]
+```
+
+## Calibration
+
+`./run.sh --calibrate` detects a physical ArUco marker (ID 34) and writes a 4×4 camera→world transform to `scripts/data/calibration/pose_{serial}.txt` for each detected camera. `camera_stream.py` loads these files to express skeletons in the shared world frame. Calibrate once per camera before tracking.
+
+## Outputs
+
+- Recorded skeletons: `scripts/data/skeleton_data/test<n>/skeleton_<cam>.txt`
+- Calibration matrices: `scripts/data/calibration/pose_<serial>.txt`
+- Logs: `scripts/data/logs/`
+- Recorded videos are written by `VideoRecorder` (see `scripts/utils/video_recorder.py`).
+
+## Notes & troubleshooting
+
+- **No cameras / no calibration file**: `camera_stream.py` spins without data (or throws `FileNotFoundError` for a missing `pose_{serial}.txt`). Make sure cameras are plugged in and calibration was run.
+- **Robot mode requires a built binary**: `--robot`/`--traj` depend on `build/main`; run the build steps first.
+- **Streaming from disk does not need cameras or RealSense** — only recorded test data.
+- **Ports are fixed** (6000–6014); do not run two senders on the same port at once (e.g. live recording and replaying simultaneously).
+- The ZMQ framework ensures topic/RX matching between sender and receiver via the `DataTransmitter` class; both Python and C++ implementations speak the same protocol.
+- `data_merging.py` outputs the fused skeleton in a reshaped 21-point format; the web frontend downsamples/renders it in the shared 3D scene.
