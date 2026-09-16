@@ -96,7 +96,7 @@ def merging(dtrs, dts):
     
     cnt += 0.01
 
-    reshaped_skeleton = np.asanyarray([[0.35, -0.35 + 0.1*sin(cnt), 0.5]]) # reshape_structure(merged_skeleton)    
+    reshaped_skeleton = np.asanyarray([[0.35, -0.4 + 0.1*sin(cnt), 0.5]]) # reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
 
     dts.send_data(reshaped_skeleton, merged_confidence)

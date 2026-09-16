@@ -21,12 +21,14 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 bool do_once = true;
+bool collision = false;
 Eigen::VectorXd q_real;
 Eigen::VectorXd qd_real;
 Eigen::VectorXd qdd_real;
 Eigen::Vector3d p_real;
 Eigen::Vector3d pd_real;
 std::atomic<bool> running{true};
+int collision_counter = 0;
 
 void signal_handler(int signum) {
     (void)signum;
@@ -136,12 +138,9 @@ int SSM_PFL_escape(RobotModel& robot,
     double velocity_PFL = 0.1;
     double Qv = 0.008;
     double HR_clearance = 0.1;
-                
-    std::vector<double> pd_real_module;
-    std::vector<Eigen::VectorXd> qdd_real_history;
     
-    bool collision = false;
-    int collision_counter = 0;
+    
+    
     int arrival_step = number_time_points_complete;
     int failure_flag = 0;
 
@@ -154,16 +153,6 @@ int SSM_PFL_escape(RobotModel& robot,
             double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
     
             SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
-                                
-            // Update state
-            qdd_real = res.qdd_next;
-            qd_real = res.qd_next;
-            q_real = res.q_next;
-            p_real = res.p_next;
-            pd_real = res.pd_next;
-            
-            pd_real_module.push_back(pd_real.norm());
-            qdd_real_history.push_back(qdd_real);
             
             // Check if optimization succeeded
             if (res.exitflag) {
@@ -171,7 +160,8 @@ int SSM_PFL_escape(RobotModel& robot,
                 if ((p_real - skeleton[i]).norm() <= 0.1) {
                     collision = true;
                     collision_counter = 0;
-                    std::cout << "===================== Collision detected" << std::endl;
+                    std::cout << "=== Collision detected ===" << std::endl;
+                    break;
                     // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Collision at step " << i << std::endl;
                 }
             } else {
@@ -181,6 +171,13 @@ int SSM_PFL_escape(RobotModel& robot,
                 // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Optimization failed" << std::endl;
                 return 1;
             }
+
+            // Update state
+            qdd_real = res.qdd_next;
+            qd_real = res.qd_next;
+            q_real = res.q_next;
+            p_real = res.p_next;
+            pd_real = res.pd_next;
         }
     } else {
         // Collision recovery phase
@@ -190,7 +187,6 @@ int SSM_PFL_escape(RobotModel& robot,
         // q_real.setZero();
         // p_real.setZero();
         pd_real.setZero();
-        pd_real_module.push_back(0.0);
         
         if (collision_counter > params.pause_after_collision * params.computational_frequency) {
             collision = false;
@@ -292,7 +288,6 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir) {
 }
 
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Execute task
 // ─────────────────────────────────────────────────────────────────────────────
@@ -310,36 +305,47 @@ int execute_task (int n_traj, std::string c_dir="") {
     const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf_path);
 
-    
-
     // ── Definition of human skeleton points ──────────────────────────────────────
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     std::vector<Eigen::Vector3d> skeletond(skeleton.size(), Eigen::Vector3d::Zero());
     std::vector<Eigen::Vector3d> skeletondd(skeleton.size(), Eigen::Vector3d::Zero());
 
-    std::cout << "skeleton.size() = " << skeleton.size() << std::endl;
-
     const int rate_hz = 16;
     const int period_ms = static_cast<int>(1.0 / rate_hz * 1000.0);
     auto next_time = std::chrono::steady_clock::now();
     auto loop_start = std::chrono::steady_clock::now();
+    auto delay_time_start = std::chrono::steady_clock::now();
+    std::chrono::duration<double> delay_time{0.0};
     
     // ── Task engine ──────────────────────────────────────────────────────────────
     while (running) {
-        auto elapsed = std::chrono::steady_clock::now() - loop_start;
+        auto elapsed = std::chrono::steady_clock::now() - loop_start + delay_time;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
         if (elapsed_ms < traj->q.size()) {
+            auto elapsed_time = elapsed_ms;
             std::array<Eigen::VectorXd, 2> q_r;
-            q_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_ms].data(), (*traj).q[elapsed_ms].size());
-            q_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_ms + period_ms].data(), (*traj).q[elapsed_ms + period_ms].size());
+            q_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_time].data(), (*traj).q[elapsed_time].size());
+            q_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_time + period_ms].data(), (*traj).q[elapsed_time + period_ms].size());
             std::array<Eigen::VectorXd, 2> qd_r;
-            qd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qd[elapsed_ms].data(), (*traj).qd[elapsed_ms].size());
-            qd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qd[elapsed_ms + period_ms].data(), (*traj).qd[elapsed_ms + period_ms].size());
+            qd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qd[elapsed_time].data(), (*traj).qd[elapsed_time].size());
+            qd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qd[elapsed_time + period_ms].data(), (*traj).qd[elapsed_time + period_ms].size());
             std::array<Eigen::VectorXd, 2> qdd_r;
-            qdd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_ms].data(), (*traj).qdd[elapsed_ms].size());
-            qdd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_ms + period_ms].data(), (*traj).qdd[elapsed_ms + period_ms].size());
+            qdd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_time].data(), (*traj).qdd[elapsed_time].size());
+            qdd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_time + period_ms].data(), (*traj).qdd[elapsed_time + period_ms].size());
             
-            task_engine(transmitters, robot, elapsed_ms, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
+            if (!collision) {
+                task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
+                delay_time_start = std::chrono::steady_clock::now();
+            }
+            else {
+                while (collision) {
+                    std::cout << "elapsed_time " << elapsed_time << std::endl;
+                    std::cout << "elapsed_ms " << elapsed_ms << std::endl;
+                    std::cout << "collision" << std::endl;
+                    task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
+                }
+                delay_time = std::chrono::steady_clock::now() - delay_time_start;
+            }
         }
         else {
             loop_start = std::chrono::steady_clock::now();
