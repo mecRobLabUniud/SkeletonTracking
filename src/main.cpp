@@ -175,14 +175,6 @@ int SSM_PFL_escape(RobotModel& robot,
                     std::cout << "===================== Collision detected" << std::endl;
                     // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Collision at step " << i << std::endl;
                 }
-                
-                // // Check if robot reached goal position
-                // if ((p_real - p_r).norm() <= 0.005) {
-                //     // arrival_step = i;
-                //     std::cout << "Trajectory completed" << std::endl;
-                //     // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Arrived at t=" << (i * dt) << "s" << std::endl;
-                //     return 0;
-                // }
             } else {
                 // Optimization failed
                 failure_flag = 1;

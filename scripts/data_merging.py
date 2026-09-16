@@ -19,6 +19,7 @@ Incoming data has mediapipe configuration:
 
 import sys
 import numpy as np
+from math import sin
 from utils.kalman_filter import SimpleMerger, KalmanFilter3D, KalmanFilter6D, ImprovedKalmanFilter6D
 from utils.data_transmitter import DataTransmitter
 from utils.decorators import chronometer, set_rate
@@ -33,6 +34,7 @@ interfaces = None
 n_devices = 0
 skel_len = 0
 kfs = None
+cnt = 0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +93,9 @@ def merging(dtrs, dts):
         confidence_marker = [confidence[i] for confidence in confidences if not confidence==None]
         merged_skeleton.append(kfs[i].step(skeleton_marker, confidence_marker).tolist())
     
-    reshaped_skeleton = np.asanyarray([[0.4, -0.4, 0.5]]) # reshape_structure(merged_skeleton)    
+    cnt += 0.01
+
+    reshaped_skeleton = np.asanyarray([[0.4, -0.4 + sin(cnt), 0.5]]) # reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
 
     dts.send_data(reshaped_skeleton, merged_confidence)
