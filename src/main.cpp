@@ -266,7 +266,7 @@ int task_engine(
 // ─────────────────────────────────────────────────────────────────────────────
 // Load trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir) {
+std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double t_start = 0.0, std::array<double, 7> q_start = {}) {
     std::string trajectory_path = c_dir + "src/trajectories/test" + std::to_string(n_traj) + "/";
     std::ifstream f(trajectory_path);
     try {
@@ -279,10 +279,27 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir) {
 
     std::vector<std::array<double, 7>> traj_low = load_trajectory_CSV(trajectory_path + "q_ref.csv");
     std::vector<double> t_low = load_timestamps_CSV(trajectory_path + "t_ref.csv");
+
+    if (t_start != 0.0) {
+        std::vector<std::array<double, 7>> traj_low_new;
+        std::vector<double> t_low_new;
+        traj_low_new.push_back(q_start);
+        t_low_new.push_back(0.0);        
+        for (int i=0; i<traj_low.size(); i++) {
+            if (t_start < t_low[i]) {
+                traj_low_new.push_back(traj_low[i]);
+                t_low_new.push_back(t_low[i] - t_start);
+            }
+        }
+
+        traj_low = traj_low_new;
+        t_low = t_low_new;
+    }
+
     Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
-    save_trajectory_CSV(trajectory_path + "q.csv",  traj_high.q);
-    save_trajectory_CSV(trajectory_path + "qd.csv",  traj_high.qd);
-    save_trajectory_CSV(trajectory_path + "qdd.csv",  traj_high.qdd);
+    // save_trajectory_CSV(trajectory_path + "q.csv",  traj_high.q);
+    // save_trajectory_CSV(trajectory_path + "qd.csv",  traj_high.qd);
+    // save_trajectory_CSV(trajectory_path + "qdd.csv",  traj_high.qdd);
 
     return traj_high;
 }
@@ -299,8 +316,8 @@ int execute_task (int n_traj, std::string c_dir="") {
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
-    auto traj = load_trajectory(n_traj, c_dir);
-    if (!traj) return 1;
+    // auto traj = load_trajectory(n_traj, c_dir);
+    // if (!traj) return 1;
 
     const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf_path);
@@ -316,12 +333,19 @@ int execute_task (int n_traj, std::string c_dir="") {
     auto loop_start = std::chrono::steady_clock::now();
     auto delay_time_start = std::chrono::steady_clock::now();
     std::chrono::duration<double> delay_time{0.0};
+
+    // ── Delay for loading web interface ──────────────────────────────────────────
+    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4.0) {;}
     
-    // ── Task engine ──────────────────────────────────────────────────────────────
+    // ── Trajectory loop ──────────────────────────────────────────────────────────
     while (running) {
-        auto elapsed = std::chrono::steady_clock::now() - loop_start + delay_time;
+        auto traj = load_trajectory(n_traj, c_dir);
+        if (!traj) return 1;
+
+        auto elapsed = std::chrono::steady_clock::now() - loop_start - delay_time;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
         if (elapsed_ms < traj->q.size()) {
+            
             auto elapsed_time = elapsed_ms;
             std::array<Eigen::VectorXd, 2> q_r;
             q_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_time].data(), (*traj).q[elapsed_time].size());
@@ -334,14 +358,15 @@ int execute_task (int n_traj, std::string c_dir="") {
             qdd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_time + period_ms].data(), (*traj).qdd[elapsed_time + period_ms].size());
             
             if (!collision) {
+                std::cout << "elapsed_ms " << elapsed_ms << std::endl;
                 task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
                 delay_time_start = std::chrono::steady_clock::now();
             }
             else {
-                while (collision) {
-                    std::cout << "elapsed_time " << elapsed_time << std::endl;
-                    std::cout << "elapsed_ms " << elapsed_ms << std::endl;
-                    std::cout << "collision" << std::endl;
+                std::cout << "++++++++ collision +++++++++++" << std::endl;
+                while (collision) {         
+                    std::cout << "elapsed_ms " << elapsed_ms << std::endl;           
+                    
                     task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
                 }
                 delay_time = std::chrono::steady_clock::now() - delay_time_start;
