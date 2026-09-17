@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: R3D_project
+    stdin_open: true
+    tty: true
+    # network_mode: host 
+    # user: lab
+    privileged: true 
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/root/.Xauthority
+    # ports:
+    #   - "6050:6050"
+    restart: unless-stopped
+    # devices:
+    #   - /dev:/dev
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw
