@@ -125,16 +125,6 @@ int SSM_PFL_escape(RobotModel& robot,
     pd_r[0] = (J * qd_r[0]).tail<3>();
     pd_r[1] = (J * qd_r[1]).tail<3>();
 
-    // Initialize simulation state
-    if (do_once) {
-        q_real = q_r[0];
-        qd_real = qd_r[0];
-        qdd_real = Eigen::VectorXd::Zero(7);
-        p_real = p_r[0];
-        pd_real = pd_r[0];
-        do_once = false;
-    }
-
     double velocity_PFL = 0.1;
     double Qv = 0.008;
     double HR_clearance = 0.1;
@@ -266,14 +256,11 @@ int task_engine(
 // ─────────────────────────────────────────────────────────────────────────────
 // Load trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double t_start = 0.0, std::array<double, 7> q_start = {}) {
+std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double t_start = 0.0, Eigen::VectorXd q_start = {}) {
     std::string trajectory_path = c_dir + "src/trajectories/test" + std::to_string(n_traj) + "/";
     std::ifstream f(trajectory_path);
-    try {
-        if (!f) throw 1;
-    }
-    catch (int err) {
-        std::cerr << "Error: cannot open '" + trajectory_path + "'" << std::endl;
+    if (!f) {
+        std::cerr << "Error: cannot open '" << trajectory_path << "'" << std::endl;
         return std::nullopt;
     }
 
@@ -281,11 +268,20 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
     std::vector<double> t_low = load_timestamps_CSV(trajectory_path + "t_ref.csv");
 
     if (t_start != 0.0) {
+        if (q_start.size() != 7) {
+            std::cerr << "Error: q_start must have 7 elements when t_start != 0" << std::endl;
+            return std::nullopt;
+        }
+
+        std::array<double, 7> q_start_arr;
+        Eigen::VectorXd::Map(q_start_arr.data(), 7) = q_start;
+
         std::vector<std::array<double, 7>> traj_low_new;
         std::vector<double> t_low_new;
-        traj_low_new.push_back(q_start);
-        t_low_new.push_back(0.0);        
-        for (int i=0; i<traj_low.size(); i++) {
+        traj_low_new.push_back(q_start_arr);
+        t_low_new.push_back(0.0);
+
+        for (size_t i = 0; i < traj_low.size(); i++) {
             if (t_start < t_low[i]) {
                 traj_low_new.push_back(traj_low[i]);
                 t_low_new.push_back(t_low[i] - t_start);
@@ -335,49 +331,77 @@ int execute_task (int n_traj, std::string c_dir="") {
     std::chrono::duration<double> delay_time{0.0};
 
     // ── Delay for loading web interface ──────────────────────────────────────────
-    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4.0) {;}
+    // while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4.0) {;} 
     
+    next_time = std::chrono::steady_clock::now();
+    loop_start = std::chrono::steady_clock::now();
+    // delay_time_start = std::chrono::steady_clock::now();
+
+    auto traj = load_trajectory(n_traj, c_dir);
+    if (!traj) return 1;
+
+    Eigen::VectorXd q_start = Eigen::Map<Eigen::VectorXd>(traj->q[0].data(), traj->q[0].size());
+    double t_start = 0.0;
+
     // ── Trajectory loop ──────────────────────────────────────────────────────────
     while (running) {
-        auto traj = load_trajectory(n_traj, c_dir);
-        if (!traj) return 1;
+        traj = load_trajectory(n_traj, c_dir, t_start, q_start);
+        std::cout << "executed " << std::endl;
+        if (!traj) {
+            std::cout << "error " << std::endl;
+            return 1;
+        }
+        std::cout << traj->q[0] << std::endl;
+        // Initialize simulation state
+        q_real = Eigen::Map<Eigen::VectorXd>(traj->q[0].data(), traj->q[0].size());
+        qd_real = Eigen::Map<Eigen::VectorXd>(traj->qd[0].data(), traj->qd[0].size());
+        qdd_real = Eigen::Map<Eigen::VectorXd>(traj->qdd[0].data(), traj->qdd[0].size());
+        p_real = robot.GetJointPose("panda_link8", q_real).translation().transpose();
+        pd_real = robot.GetJointPose("panda_link8", qd_real).translation().transpose();
+        std::cout << "executed " << std::endl;
 
-        auto elapsed = std::chrono::steady_clock::now() - loop_start - delay_time;
+        auto elapsed = std::chrono::steady_clock::now() - loop_start;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
-        if (elapsed_ms < traj->q.size()) {
-            
+        std::cout << "elapsed_ms " << elapsed_ms << std::endl;
+        while (elapsed_ms < traj->q.size()) {
+            elapsed = std::chrono::steady_clock::now() - loop_start;
+            elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
+            std::cout << "elapsed_ms " << elapsed_ms << std::endl;
+
             auto elapsed_time = elapsed_ms;
             std::array<Eigen::VectorXd, 2> q_r;
-            q_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_time].data(), (*traj).q[elapsed_time].size());
-            q_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).q[elapsed_time + period_ms].data(), (*traj).q[elapsed_time + period_ms].size());
+            q_r[0] = Eigen::Map<Eigen::VectorXd>(traj->q[elapsed_time].data(), traj->q[elapsed_time].size());
+            q_r[1] = Eigen::Map<Eigen::VectorXd>(traj->q[elapsed_time + period_ms].data(), traj->q[elapsed_time + period_ms].size());
             std::array<Eigen::VectorXd, 2> qd_r;
-            qd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qd[elapsed_time].data(), (*traj).qd[elapsed_time].size());
-            qd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qd[elapsed_time + period_ms].data(), (*traj).qd[elapsed_time + period_ms].size());
+            qd_r[0] = Eigen::Map<Eigen::VectorXd>(traj->qd[elapsed_time].data(), traj->qd[elapsed_time].size());
+            qd_r[1] = Eigen::Map<Eigen::VectorXd>(traj->qd[elapsed_time + period_ms].data(), traj->qd[elapsed_time + period_ms].size());
             std::array<Eigen::VectorXd, 2> qdd_r;
-            qdd_r[0] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_time].data(), (*traj).qdd[elapsed_time].size());
-            qdd_r[1] = Eigen::Map<Eigen::VectorXd>((*traj).qdd[elapsed_time + period_ms].data(), (*traj).qdd[elapsed_time + period_ms].size());
+            qdd_r[0] = Eigen::Map<Eigen::VectorXd>(traj->qdd[elapsed_time].data(), traj->qdd[elapsed_time].size());
+            qdd_r[1] = Eigen::Map<Eigen::VectorXd>(traj->qdd[elapsed_time + period_ms].data(), (*traj).qdd[elapsed_time + period_ms].size());
             
             if (!collision) {
-                std::cout << "elapsed_ms " << elapsed_ms << std::endl;
                 task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
-                delay_time_start = std::chrono::steady_clock::now();
+                // delay_time_start = std::chrono::steady_clock::now();
             }
             else {
                 std::cout << "++++++++ collision +++++++++++" << std::endl;
                 while (collision) {         
-                    std::cout << "elapsed_ms " << elapsed_ms << std::endl;           
-                    
                     task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
                 }
-                delay_time = std::chrono::steady_clock::now() - delay_time_start;
+                q_start = q_r[0];
+                t_start = elapsed_time;
+
+                break;
+                // delay_time = std::chrono::steady_clock::now() - delay_time_start;
             }
+
+            next_time += std::chrono::milliseconds(period_ms);
+            std::this_thread::sleep_until(next_time);
         }
-        else {
-            loop_start = std::chrono::steady_clock::now();
-        }
-        
-        next_time += std::chrono::milliseconds(period_ms);
-        std::this_thread::sleep_until(next_time);
+
+        next_time = std::chrono::steady_clock::now();
+        loop_start = std::chrono::steady_clock::now();
+        // delay_time_start = std::chrono::steady_clock::now();
     }
 
     for (auto &transmitter : transmitters) {
