@@ -281,7 +281,7 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
         traj_low_new.push_back(q_start_arr);
         t_low_new.push_back(0.0);
 
-        for (size_t i = 0; i < traj_low.size(); i++) {
+        for (int i = 0; i < traj_low.size(); i++) {
             if (t_start < t_low[i]) {
                 traj_low_new.push_back(traj_low[i]);
                 t_low_new.push_back(t_low[i] - t_start);
@@ -291,6 +291,16 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
         traj_low = traj_low_new;
         t_low = t_low_new;
     }
+
+    std::cout << "==================================== " << std::endl;
+        std::cout << "\n";
+        for (size_t i = 0; i < traj_low.size(); i++) {
+            for (int j=0; j<7; j++) {
+                std::cout << traj_low[i][j] << ", ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << "\n";
 
     Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
     // save_trajectory_CSV(trajectory_path + "q.csv",  traj_high.q);
@@ -331,7 +341,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     std::chrono::duration<double> delay_time{0.0};
 
     // ── Delay for loading web interface ──────────────────────────────────────────
-    // while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4.0) {;} 
+    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4.0) {;} 
     
     next_time = std::chrono::steady_clock::now();
     loop_start = std::chrono::steady_clock::now();
@@ -345,28 +355,23 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // ── Trajectory loop ──────────────────────────────────────────────────────────
     while (running) {
+        std::cout << "t_start = " << t_start << std::endl;
         traj = load_trajectory(n_traj, c_dir, t_start, q_start);
-        std::cout << "executed " << std::endl;
-        if (!traj) {
-            std::cout << "error " << std::endl;
-            return 1;
-        }
-        std::cout << traj->q[0] << std::endl;
+        if (!traj) return 1;
+        
         // Initialize simulation state
         q_real = Eigen::Map<Eigen::VectorXd>(traj->q[0].data(), traj->q[0].size());
         qd_real = Eigen::Map<Eigen::VectorXd>(traj->qd[0].data(), traj->qd[0].size());
         qdd_real = Eigen::Map<Eigen::VectorXd>(traj->qdd[0].data(), traj->qdd[0].size());
         p_real = robot.GetJointPose("panda_link8", q_real).translation().transpose();
         pd_real = robot.GetJointPose("panda_link8", qd_real).translation().transpose();
-        std::cout << "executed " << std::endl;
 
         auto elapsed = std::chrono::steady_clock::now() - loop_start;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
-        std::cout << "elapsed_ms " << elapsed_ms << std::endl;
         while (elapsed_ms < traj->q.size()) {
             elapsed = std::chrono::steady_clock::now() - loop_start;
             elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
-            std::cout << "elapsed_ms " << elapsed_ms << std::endl;
+            // std::cout << "elapsed_ms " << elapsed_ms << std::endl;
 
             auto elapsed_time = elapsed_ms;
             std::array<Eigen::VectorXd, 2> q_r;
@@ -389,7 +394,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                     task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
                 }
                 q_start = q_r[0];
-                t_start = elapsed_time;
+                t_start = elapsed_time / 1000.0;
 
                 break;
                 // delay_time = std::chrono::steady_clock::now() - delay_time_start;
