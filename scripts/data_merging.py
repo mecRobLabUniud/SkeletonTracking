@@ -19,7 +19,8 @@ Incoming data has mediapipe configuration:
 
 import sys
 import numpy as np
-from utils.kalman_filter import KalmanFilter6D
+from math import sin
+from utils.kalman_filter import SimpleMerger, KalmanFilter3D, KalmanFilter6D, ImprovedKalmanFilter6D
 from utils.data_transmitter import DataTransmitter
 from utils.decorators import set_rate
 
@@ -30,6 +31,7 @@ running = True
 n_devices = 0
 skel_len = 0
 kfs = None
+cnt = 0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +70,7 @@ def reshape_structure(skeleton):
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def merging(dtrs, dts):
+    global cnt
     skeletons = []
     confidences = []
     for dtr in dtrs:
@@ -88,7 +91,9 @@ def merging(dtrs, dts):
         confidence_marker = [confidence[i] for confidence in confidences if not confidence==None]
         merged_skeleton.append(kfs[i].step(skeleton_marker, confidence_marker).tolist())
     
-    reshaped_skeleton = reshape_structure(merged_skeleton)    
+    cnt += 0.01
+
+    reshaped_skeleton = np.asanyarray([[0.35, -0.4 + 0.1*sin(cnt), 0.5]]) # reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
 
     dts.send_data(reshaped_skeleton, merged_confidence)

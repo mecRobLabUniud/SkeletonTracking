@@ -32,12 +32,10 @@ function updateCapsule(capsule, p1, p2, radius = 0.05, rula = false) {
     const length = start.distanceTo(end);
     const mid = start.clone().add(end).multiplyScalar(0.5);
 
-    
-
-    let caps_color = '#aaaaaa';
+    let caps_color = '#00ffaa';
 
     capsule.geometry.dispose();
-    capsule.geometry = new THREE.CapsuleGeometry(radius, length, 10, 20);
+    capsule.geometry = new THREE.CapsuleGeometry(radius, length, 4, 8);
     capsule.position.copy(mid);
     capsule.material.color.set(caps_color);
 
@@ -60,7 +58,7 @@ function update_plot() {
                     distance[0],
                     { x: point.c_h[0], y: point.c_h[1], z: point.c_h[2]},
                     { x: point.c_r[0], y: point.c_r[1], z: point.c_r[2]},
-                    0.005, 
+                    0.002, 
                     true
                 );
             distance[0].visible = true;

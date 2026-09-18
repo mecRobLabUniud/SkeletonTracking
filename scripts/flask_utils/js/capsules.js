@@ -95,24 +95,7 @@ function updateCapsule(capsule, p1, p2, radius = 0.05, rula = false) {
 function update_plot() {
     socket.on('update_plot', function (point) {
         const r_sw_r = point.radius;
-        
-        for (let i = 0; i < MP_SKELETON.length; i++) {
-            const a = MP_SKELETON[i][0];
-            const b = MP_SKELETON[i][1];
-            if (point.x[a] != null && point.x[b] != null) {
-                human_caps[i] = updateCapsule(
-                        human_caps[i],
-                        { x: point.x[a], y: point.y[a], z: point.z[a] },
-                        { x: point.x[b], y: point.y[b], z: point.z[b] },
-                        r_sw_h[i], 
-                        true
-                    );
-                human_caps[i].visible = true;
-            }
-            else {
-                human_caps[i].visible = false;
-            }
-        }
+
 
         if (point.x_robot && point.y_robot && point.z_robot && point.x_robot) {
             for (let i = 0; i < ROBOT_CONFIG.length; i++) {

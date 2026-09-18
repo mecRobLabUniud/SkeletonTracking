@@ -54,7 +54,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     weight_matrix(2, 2) = 3.0;
     weight_matrix(3, 3) = 1.75;
     weight_matrix(4, 4) = 1.75;
-    weight_matrix(5, 5) = 0.1;
+    weight_matrix(5, 5) = 0.5;
     weight_matrix(6, 6) = 0.1;
 
     double dt2 = delta_t * delta_t;

@@ -148,9 +148,6 @@ void quintic_spline_interp_full(const Eigen::VectorXd& t_low,
     Eigen::VectorXd v_low = estimate_velocities(t_low, q_low);
     Eigen::VectorXd a_low = estimate_accelerations(t_low, q_low);
 
-    std::cout << "========== v Low ==========\n" << v_low.transpose() << "\n";
-    std::cout << "========== a Low ==========\n" << a_low.transpose() << "\n";
-
     q_high.resize(m);
     v_high.resize(m);
     a_high.resize(m);
@@ -186,10 +183,12 @@ Trajectory interpolate_to_1kHz_full(
     for (int i = 0; i < n;      ++i) t_low(i)  = time_low[i];
     for (int i = 0; i < n_high; ++i) t_high(i) = i / 1000.0;
 
-    Trajectory out;
-    out.q.resize(n_high);
-    out.qd.resize(n_high);
-    out.qdd.resize(n_high);
+    std::vector<std::array<double, 7>> q;
+    q.resize(n_high);
+    std::vector<std::array<double, 7>> qd;
+    qd.resize(n_high);
+    std::vector<std::array<double, 7>> qdd;
+    qdd.resize(n_high);
 
     for (int j = 0; j < 7; ++j) {
         Eigen::VectorXd q_low(n);
@@ -200,11 +199,32 @@ Trajectory interpolate_to_1kHz_full(
         quintic_spline_interp_full(t_low, q_low, t_high, q_high, v_high, a_high);
 
         for (int i = 0; i < n_high; ++i) {
-            out.q[i][j] = q_high(i);
-            out.qd[i][j] = v_high(i);
-            out.qdd[i][j] = a_high(i);
+            q[i][j] = q_high(i);
+            qd[i][j] = v_high(i);
+            qdd[i][j] = a_high(i);
         }
     }
+
+    Trajectory out;
+    out.q.resize(q.size());
+    out.qd.resize(qd.size());
+    out.qdd.resize(qdd.size());
+    std::transform(q.begin(), q.end(), out.q.begin(),
+        [](std::array<double, 7>& x) {
+            return Eigen::Map<Eigen::VectorXd>(x.data(), x.size());
+        });
+    std::transform(qd.begin(), qd.end(), out.qd.begin(),
+        [](std::array<double, 7>& x) {
+            return Eigen::Map<Eigen::VectorXd>(x.data(), x.size());
+        });
+    std::transform(qdd.begin(), qdd.end(), out.qdd.begin(),
+        [](std::array<double, 7>& x) {
+            return Eigen::Map<Eigen::VectorXd>(x.data(), x.size());
+        });
+
+    // out.q = Eigen::Map<Eigen::VectorXd>(q.data(), q.size());
+    // out.qd = Eigen::Map<Eigen::VectorXd>(qd.data(), qd.size());
+    // out.qdd = Eigen::Map<Eigen::VectorXd>(qdd.data(), qdd.size());
 
     return out;
 }
