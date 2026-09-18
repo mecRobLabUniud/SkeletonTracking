@@ -293,14 +293,14 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
     }
 
     std::cout << "==================================== " << std::endl;
-        std::cout << "\n";
-        for (size_t i = 0; i < traj_low.size(); i++) {
-            for (int j=0; j<7; j++) {
-                std::cout << traj_low[i][j] << ", ";
-            }
-            std::cout << "\n";
+    std::cout << "\n";
+    for (size_t i = 0; i < traj_low.size(); i++) {
+        for (int j=0; j<7; j++) {
+            std::cout << traj_low[i][j] << ", ";
         }
         std::cout << "\n";
+    }
+    std::cout << "\n";
 
     Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
     // save_trajectory_CSV(trajectory_path + "q.csv",  traj_high.q);
@@ -350,7 +350,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     auto traj = load_trajectory(n_traj, c_dir);
     if (!traj) return 1;
 
-    Eigen::VectorXd q_start = Eigen::Map<Eigen::VectorXd>(traj->q[0].data(), traj->q[0].size());
+    Eigen::VectorXd q_start = traj->q[0];
     double t_start = 0.0;
 
     // ── Trajectory loop ──────────────────────────────────────────────────────────
@@ -360,11 +360,11 @@ int execute_task (int n_traj, std::string c_dir="") {
         if (!traj) return 1;
         
         // Initialize simulation state
-        q_real = Eigen::Map<Eigen::VectorXd>(traj->q[0].data(), traj->q[0].size());
-        qd_real = Eigen::Map<Eigen::VectorXd>(traj->qd[0].data(), traj->qd[0].size());
-        qdd_real = Eigen::Map<Eigen::VectorXd>(traj->qdd[0].data(), traj->qdd[0].size());
-        p_real = robot.GetJointPose("panda_link8", q_real).translation().transpose();
-        pd_real = robot.GetJointPose("panda_link8", qd_real).translation().transpose();
+        q_real = traj->q[0];
+        qd_real = traj->qd[0];
+        qdd_real = traj->qdd[0];
+        p_real = robot.GetJointPose("panda_link8", traj->q[0]).translation().transpose();
+        pd_real = robot.GetJointPose("panda_link8", traj->qd[0]).translation().transpose();
 
         auto elapsed = std::chrono::steady_clock::now() - loop_start;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
@@ -375,14 +375,14 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             auto elapsed_time = elapsed_ms;
             std::array<Eigen::VectorXd, 2> q_r;
-            q_r[0] = Eigen::Map<Eigen::VectorXd>(traj->q[elapsed_time].data(), traj->q[elapsed_time].size());
-            q_r[1] = Eigen::Map<Eigen::VectorXd>(traj->q[elapsed_time + period_ms].data(), traj->q[elapsed_time + period_ms].size());
+            q_r[0] = traj->q[elapsed_time];
+            q_r[1] = traj->q[elapsed_time + period_ms];
             std::array<Eigen::VectorXd, 2> qd_r;
-            qd_r[0] = Eigen::Map<Eigen::VectorXd>(traj->qd[elapsed_time].data(), traj->qd[elapsed_time].size());
-            qd_r[1] = Eigen::Map<Eigen::VectorXd>(traj->qd[elapsed_time + period_ms].data(), traj->qd[elapsed_time + period_ms].size());
+            qd_r[0] = traj->qd[elapsed_time];
+            qd_r[1] = traj->qd[elapsed_time + period_ms];
             std::array<Eigen::VectorXd, 2> qdd_r;
-            qdd_r[0] = Eigen::Map<Eigen::VectorXd>(traj->qdd[elapsed_time].data(), traj->qdd[elapsed_time].size());
-            qdd_r[1] = Eigen::Map<Eigen::VectorXd>(traj->qdd[elapsed_time + period_ms].data(), (*traj).qdd[elapsed_time + period_ms].size());
+            qdd_r[0] = traj->qdd[elapsed_time];
+            qdd_r[1] = traj->qdd[elapsed_time + period_ms];
             
             if (!collision) {
                 task_engine(transmitters, robot, elapsed_time, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
