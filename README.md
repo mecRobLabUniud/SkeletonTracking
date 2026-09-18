@@ -6,6 +6,8 @@ The system streams skeletons from one or more Intel RealSense cameras, fuses the
 
 ## Architecture
 
+![Graph](docs/architecture.svg)
+
 ```
                     ┌───────────────────────────┐
                     │   camera_stream.py (xN)   │  1 per RealSense camera

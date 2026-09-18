@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 610" width="1000" height="610" role="img" aria-label="SkeletonTracking system architecture">
+  <title>SkeletonTracking system architecture</title>
+  <desc>Data-flow diagram: RealSense cameras stream skeletons to data_merging.py via ZMQ, then to main (C++ robot), rula_eval (C++ RULA) and web_interface.py; outputs feed a three.js web scene.</desc>
+
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #24292f; }
+    .box { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.5; }
+    .title { font-size: 16px; font-weight: bold; }
+    .sub { font-size: 13px; fill: #57606a; }
+    .label { font-size: 13px; fill: #57606a; }
+    .small { font-size: 12px; fill: #6e7781; }
+    .arrow { fill: none; stroke: #0969da; stroke-width: 2; }
+    .halo { fill: #ffffff; stroke: none; }
+  </style>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0969da"/>
+    </marker>
+  </defs>
+
+  <!-- camera_stream.py (xN) -->
+  <rect class="box" x="330" y="40" width="340" height="72" rx="8"/>
+  <text class="title" x="500" y="68" text-anchor="middle">camera_stream.py (xN)</text>
+  <text class="sub" x="500" y="91" text-anchor="middle">MediaPipe / YOLO + filters</text>
+  <text class="small" x="687" y="72">1 per RealSense camera</text>
+
+  <line class="arrow" marker-end="url(#arr)" x1="500" y1="112" x2="500" y2="168"/>
+  <text class="label" x="515" y="134">ZMQ "SINGLE_CAMERA_{n}" · port 6000+n</text>
+  <text class="small" x="515" y="152">(frames via shared memory shared_image{n})</text>
+
+  <!-- data_merging.py -->
+  <rect class="box" x="330" y="168" width="340" height="62" rx="8"/>
+  <text class="title" x="500" y="194" text-anchor="middle">data_merging.py</text>
+  <text class="sub" x="500" y="216" text-anchor="middle">Kalman fusion of N cameras</text>
+
+  <line class="arrow" marker-end="url(#arr)" x1="500" y1="230" x2="500" y2="300"/>
+  <text class="label" x="515" y="262">ZMQ "MERGED_10" · port 6010</text>
+
+  <!-- Fan-out to the three consumers -->
+  <polyline class="arrow" marker-end="url(#arr)" points="500,300 170,300 170,340"/>
+  <line class="arrow" marker-end="url(#arr)" x1="500" y1="300" x2="500" y2="340"/>
+  <polyline class="arrow" marker-end="url(#arr)" points="500,300 810,300 810,340"/>
+
+  <!-- main (C++, robot) -->
+  <rect class="box" x="60" y="340" width="220" height="80" rx="8"/>
+  <text class="title" x="170" y="372" text-anchor="middle">main</text>
+  <text class="sub" x="170" y="394" text-anchor="middle">(C++, robot)</text>
+
+  <!-- rula_eval (C++, RULA) -->
+  <rect class="box" x="400" y="340" width="160" height="80" rx="8"/>
+  <text class="title" x="480" y="372" text-anchor="middle">rula_eval</text>
+  <text class="sub" x="480" y="394" text-anchor="middle">(C++, RULA)</text>
+
+  <!-- rula_eval -> main -->
+  <line class="arrow" marker-end="url(#arr)" x1="400" y1="380" x2="280" y2="380"/>
+  <text class="label" x="340" y="366" text-anchor="middle">ZMQ "RULA_11" 6011</text>
+
+  <!-- web_interface.py (Flask + Socket.IO) -->
+  <rect class="box" x="690" y="340" width="240" height="80" rx="8"/>
+  <text class="title" x="810" y="372" text-anchor="middle">web_interface.py</text>
+  <text class="sub" x="810" y="394" text-anchor="middle">Flask + Socket.IO</text>
+
+  <!-- main -> web_interface (robot/distance/trajectory) -->
+  <polyline class="arrow" marker-end="url(#arr)" points="170,420 170,505 805,505 805,420"/>
+  <rect class="halo" x="270" y="480" width="434" height="24"/>
+  <text class="label" x="487" y="497" text-anchor="middle">ZMQ "ROBOT_12" 6012 / "DISTANCE_13" 6013 / "TRAJDATA_14" 6014</text>
+
+  <!-- WebSocket fan-out to the web scene -->
+  <line class="arrow" x1="815" y1="420" x2="815" y2="480"/>
+  <text class="label" x="830" y="448">WebSocket</text>
+  <polyline class="arrow" marker-end="url(#arr)" points="815,480 750,480 750,530"/>
+  <polyline class="arrow" marker-end="url(#arr)" points="815,480 890,480 890,530"/>
+
+  <!-- 3D scene (Three.js) -->
+  <rect class="box" x="690" y="530" width="120" height="48" rx="8"/>
+  <text class="sub" x="750" y="552" text-anchor="middle">3D scene</text>
+  <text class="sub" x="750" y="570" text-anchor="middle">(Three.js)</text>
+
+  <!-- camera frames (img) -->
+  <rect class="box" x="830" y="530" width="120" height="48" rx="8"/>
+  <text class="sub" x="890" y="552" text-anchor="middle">camera frames</text>
+  <text class="sub" x="890" y="570" text-anchor="middle">(img)</text>
+</svg>
