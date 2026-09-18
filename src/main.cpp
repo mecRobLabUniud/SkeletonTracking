@@ -90,7 +90,6 @@ int SSM_PFL_escape(RobotModel& robot,
     
     
     
-    int arrival_step = number_time_points_complete;
     int failure_flag = 0;
 
     if (!collision) {
