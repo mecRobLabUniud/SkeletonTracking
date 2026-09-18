@@ -393,7 +393,6 @@ int execute_task (int n_traj, std::string c_dir="") {
                 std::array<Eigen::VectorXd, 2> qdd_r;
                 qdd_r[0] = traj->qdd[elapsed_ms - t_start*1000.0];
                 qdd_r[1] = traj->qdd[elapsed_ms + period_ms - t_start*1000.0];
-
                 
                 if (!collision) {
                     task_engine(transmitters, robot, elapsed_ms, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
