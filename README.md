@@ -8,31 +8,6 @@ The system streams skeletons from one or more Intel RealSense cameras, fuses the
 
 ![Graph](docs/architecture.svg)
 
-```
-                    ┌───────────────────────────┐
-                    │   camera_stream.py (xN)   │  1 per RealSense camera
-                    │   MediaPipe/YOLO + filters │
-                    └─────────────┬─────────────┘
-              ZMQ "SINGLE_CAMERA_{n}"  port 6000+n    (frames via shared memory shared_image{n})
-                                  │
-                    ┌─────────────▼─────────────┐
-                    │   data_merging.py          │  Kalman fusion of N cameras
-                    └─────────────┬─────────────┘
-              ZMQ "MERGED_10"  port 6010
-                                  │
-     ┌────────────────────────────┼───────────────────────────────┐
-     │                            │                               │
-┌────▼────┐                 ┌─────▼──────┐                  ┌─────▼──────┐
-│  main   │ ◄────────────── │ rula_eval  │                  │ web_interface.py │
-│(C++,    │        ZMQ      │(C++, RULA) │          ZMQ     │  Flask + Socket.IO │
-│ robot)  │              "RULA_11" 6011  │                  └─────┬──────┘
-└────┬────┘                                                       │ WebSocket
-     │  ZMQ "ROBOT_12" 6012 / "DISTANCE_13" 6013 / "TRAJDATA_14" 6014 │
-     └──────────────────────────────────────────────────────────────┘
-                                                      ├─ 3D scene (Three.js)
-                                                      └─ camera frames (img)
-```
-
 **Communication protocol** (implemented in `scripts/utils/data_transmitter.py` and `include/data_transmitter.hpp`):
 
 | Data               | Topic             | Port  | Sender              | Receiver             |
