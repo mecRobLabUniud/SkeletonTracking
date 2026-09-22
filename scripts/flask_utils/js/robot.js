@@ -31,6 +31,7 @@ let q = READY_POSE.slice();
 let robot_base = [0.0, 0.0, 0.0];
 let gripperOpening = 0.04;
 let HAND = false;
+const opacity = true;
 const socket = io();
 
 
@@ -65,6 +66,10 @@ function loadOne(name){
           if (o.isMesh){
             o.castShadow = false;
             o.receiveShadow = false;
+            if (opacity) {
+                o.material.transparent = true;
+                o.material.opacity = 0.5;
+            }
           }
         });
         wrapper.add(collada.scene);

@@ -10,6 +10,7 @@ let traj_real = [];
 let traj_r = [];
 let curve_real = [];
 let curve_r = [];
+const traj_length = 50;
 const t_start = Date.now();
 
 
@@ -61,10 +62,10 @@ function update_plot() {
             traj_r.push(new THREE.Vector3(point.p_r[0], point.p_r[1], point.p_r[2]));
         }
 
-        if (traj_real.length >= 30) {
+        if (traj_real.length >= traj_length) {
             traj_real.splice(0, 1);
         }
-        if (traj_r.length >= 30) {
+        if (traj_r.length >= traj_length) {
             traj_r.splice(0, 1);
         }
 

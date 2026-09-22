@@ -18,7 +18,7 @@
 
 #include "SSMPFL.hpp"
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Initializations ──────────────────────────────────────────────────────────
 bool do_once = true;
 bool collision = false;
 Eigen::VectorXd q_real;
@@ -28,25 +28,20 @@ Eigen::Vector3d p_real;
 Eigen::Vector3d pd_real;
 std::atomic<bool> running{true};
 int collision_counter = 0;
+
+// ── Parameters ───────────────────────────────────────────────────────────────
 const int rate_hz = 60;
+double velocity_PFL = 0.4;
+double Qv = 0.08;
+double HR_clearance = 0.1;
+double stopping_time = 0.3;
+double pause_after_collision = 2.0;
+
 
 void signal_handler(int signum) {
     (void)signum;
     running = false;
 }
-
-struct ExperimentParams {
-    // Timing
-    double time_beginning = 0.0;
-    double time_final = 10.0;
-    double computational_frequency = static_cast<double>(rate_hz);  // Hz
-    double stopping_time = 0.3;  // seconds
-    double pause_after_collision = 2.0;  // seconds
-
-    double computational_period() const {
-        return 1.0 / computational_frequency;
-    }
-};
 
 double rms(const std::vector<double>& values) {
     if (values.empty()) return 0.0;
@@ -71,10 +66,8 @@ int SSM_PFL_escape(RobotModel& robot,
         const std::vector<Eigen::Vector3d> skeletond,
         const std::vector<Eigen::Vector3d> skeletondd) {
     
-    // Initialize parameters and utilities
-    ExperimentParams params;
-    
-    const double dt = params.computational_period();
+    // Initialize parameters and utilities    
+    const double dt = 1.0 / static_cast<double>(rate_hz);
 
     Eigen::MatrixXd J = robot.ComputeJacobian("panda_link8", q_r[0]);
 
@@ -83,12 +76,7 @@ int SSM_PFL_escape(RobotModel& robot,
     p_r[1] = robot.GetJointPose("panda_link8", q_r[1]).translation().transpose();
     std::array<Eigen::Vector3d, 2> pd_r;
     pd_r[0] = (J * qd_r[0]).tail<3>();
-    pd_r[1] = (J * qd_r[1]).tail<3>();
-
-    double velocity_PFL = 0.1;
-    double Qv = 0.008;
-    double HR_clearance = 0.1;
-    
+    pd_r[1] = (J * qd_r[1]).tail<3>();   
     
     
     int failure_flag = 0;
@@ -98,10 +86,10 @@ int SSM_PFL_escape(RobotModel& robot,
             if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
 
             // Compute safety distance delta
-            double delta_safety = HR_clearance + skeletond[i].norm() * params.stopping_time;
-            double velocity_term = -( -(delta_safety / params.stopping_time) + velocity_PFL ) * params.stopping_time;
+            double delta_safety = HR_clearance + skeletond[i].norm() * stopping_time;
+            double velocity_term = -( -(delta_safety / stopping_time) + velocity_PFL ) * stopping_time;
     
-            SSMPFLResult res = SSMPFL(robot, dt, params.stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
+            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
             
             // Check if optimization succeeded
             if (res.exitflag) {
@@ -137,7 +125,7 @@ int SSM_PFL_escape(RobotModel& robot,
         // p_real.setZero();
         pd_real.setZero();
         
-        if (collision_counter > params.pause_after_collision * params.computational_frequency) {
+        if (collision_counter > pause_after_collision * static_cast<double>(rate_hz)) {
             collision = false;
             // reference_time = 0;
         }
@@ -284,7 +272,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     std::vector<Eigen::Vector3d> skeletond(skeleton.size(), Eigen::Vector3d::Zero());
     std::vector<Eigen::Vector3d> skeletondd(skeleton.size(), Eigen::Vector3d::Zero());
 
-    const int period_ms = static_cast<int>(1.0 / rate_hz * 1000.0);
+    const int period_ms = static_cast<int>(1000.0 / rate_hz);
     auto next_time = std::chrono::steady_clock::now();
     auto loop_start = std::chrono::steady_clock::now();
     auto delay_time_start = std::chrono::steady_clock::now();
@@ -321,17 +309,9 @@ int execute_task (int n_traj, std::string c_dir="") {
         auto elapsed = std::chrono::steady_clock::now() - loop_start;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
 
-        std::cout << "==========================" << std::endl;
-        std::cout << "elapsed_ms " << elapsed_ms << std::endl;
-        std::cout << "traj_size " << traj_size << std::endl;
-        std::cout << "==========================" << std::endl;
-
         while (elapsed_ms < traj_size) {
             elapsed = std::chrono::steady_clock::now() - loop_start;
             elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
-            
-            std::cout << "elapsed_ms " << elapsed_ms << std::endl;
-            std::cout << "period_ms " << period_ms << std::endl;
 
             if (elapsed_ms + period_ms <= traj_size) {
                 std::array<Eigen::VectorXd, 2> q_r;
