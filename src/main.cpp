@@ -28,6 +28,7 @@ Eigen::Vector3d p_real;
 Eigen::Vector3d pd_real;
 std::atomic<bool> running{true};
 int collision_counter = 0;
+const int rate_hz = 60;
 
 void signal_handler(int signum) {
     (void)signum;
@@ -38,7 +39,7 @@ struct ExperimentParams {
     // Timing
     double time_beginning = 0.0;
     double time_final = 10.0;
-    double computational_frequency = 16.0;  // Hz
+    double computational_frequency = static_cast<double>(rate_hz);  // Hz
     double stopping_time = 0.3;  // seconds
     double pause_after_collision = 2.0;  // seconds
 
@@ -283,7 +284,6 @@ int execute_task (int n_traj, std::string c_dir="") {
     std::vector<Eigen::Vector3d> skeletond(skeleton.size(), Eigen::Vector3d::Zero());
     std::vector<Eigen::Vector3d> skeletondd(skeleton.size(), Eigen::Vector3d::Zero());
 
-    const int rate_hz = 16;
     const int period_ms = static_cast<int>(1.0 / rate_hz * 1000.0);
     auto next_time = std::chrono::steady_clock::now();
     auto loop_start = std::chrono::steady_clock::now();

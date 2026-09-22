@@ -6,29 +6,40 @@ import { scene } from './scene.js'
 // ─────────────────────────────────────────────────────────────────────────────
 const socket = io();
 
-let p_real = [];
-let p_r = [];
+let traj_real = [];
+let traj_r = [];
+let curve_real = [];
+let curve_r = [];
 const t_start = Date.now();
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Plot capsules mesh
+// Plot 3D point
 // ─────────────────────────────────────────────────────────────────────────────
 function createPoint(p, color) {
     const point = new THREE.Vector3(p.x, p.y, p.z);
-
-    // const geometry = new THREE.BufferGeometry(0.01, 0.01, 4, 8);
-    // const material = new THREE.Material( { color: '#aaaaaa', transparent: true, opacity: 0.5 } );
-
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( point, 3 ) );
     const material = new THREE.PointsMaterial( { color: color, size: 0.01, sizeAttenuation: true, transparent: true, opacity: 0.5 - 0.1*(t_start - Date.now()) } );
     const points = new THREE.Points( geometry, material );
     scene.add( points );
-    // console.log('Inside function')
-    // console.log(points);
 
     return points;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plot interpolated curve through waypoints
+// ─────────────────────────────────────────────────────────────────────────────
+function createCurve(p, color) {
+    const curve = new THREE.CatmullRomCurve3(p);
+    const curvePoints = curve.getPoints(100);
+    const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+    const material = new THREE.LineBasicMaterial({ color: color });
+    const curveLine = new THREE.Line(geometry, material);
+    scene.add(curveLine);
+
+    return curveLine;
 }
 
 
@@ -46,25 +57,25 @@ function update_plot() {
         }
 
         if (point.p_real != null && point.p_r != null) {
-            p_real.push(createPoint(
-                    { x: point.p_real[0], y: point.p_real[1], z: point.p_real[2]},
-                    '#0000aa'
-                )
-            );
-            p_r.push(createPoint(
-                    { x: point.p_r[0], y: point.p_r[1], z: point.p_r[2]},
-                    '#00aa00'
-                )
-            );
+            traj_real.push(new THREE.Vector3(point.p_real[0], point.p_real[1], point.p_real[2]));
+            traj_r.push(new THREE.Vector3(point.p_r[0], point.p_r[1], point.p_r[2]));
         }
 
-        if (p_real.length >= 20) {
-            scene.remove(p_real[0]);
-            p_real.splice(0, 1);
+        if (traj_real.length >= 30) {
+            traj_real.splice(0, 1);
         }
-        if (p_r.length >= 20) {
-            scene.remove(p_r[0]);
-            p_r.splice(0, 1);
+        if (traj_r.length >= 30) {
+            traj_r.splice(0, 1);
+        }
+
+        if (traj_real.length >= 2 && traj_r.length >= 2) {
+            if (curve_real != [] && curve_r != []) {
+                scene.remove(curve_real);
+                scene.remove(curve_r);
+            }
+            
+            curve_real = createCurve(traj_real, '#0000aa');
+            curve_r = createCurve(traj_r, '#00aa00');
         }
         
     });    

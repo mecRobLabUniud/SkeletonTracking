@@ -7,7 +7,7 @@ import { scene } from './scene.js'
 const socket = io();
 
 let distance = []
-distance.push(createCapsule());
+// distance.push(createCapsule());
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,6 +47,17 @@ function updateCapsule(capsule, p1, p2, radius = 0.05, rula = false) {
     return capsule;
 }
 
+function createCurve(p, color) {
+    const curve = new THREE.CatmullRomCurve3(p);
+    const curvePoints = curve.getPoints(100);
+    const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+    const material = new THREE.LineBasicMaterial({ color: color });
+    const curveLine = new THREE.Line(geometry, material);
+    scene.add(curveLine);
+
+    return curveLine;
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3D plot update
@@ -54,17 +65,26 @@ function updateCapsule(capsule, p1, p2, radius = 0.05, rula = false) {
 function update_plot() {
     socket.on('update_plot', function (point) {        
         if (point.c_h != null && point.c_r != null) {
-            distance[0] = updateCapsule(
-                    distance[0],
-                    { x: point.c_h[0], y: point.c_h[1], z: point.c_h[2]},
-                    { x: point.c_r[0], y: point.c_r[1], z: point.c_r[2]},
-                    0.002, 
-                    true
-                );
-            distance[0].visible = true;
+            const p = [
+                new THREE.Vector3(point.c_h[0], point.c_h[1], point.c_h[2]),
+                new THREE.Vector3(point.c_r[0], point.c_r[1], point.c_r[2])
+            ];
+
+            if (distance != []) {
+                scene.remove(distance);
+            }
+            distance = createCurve(p, '#00ffaa');
+            // distance[0] = updateCapsule(
+            //         distance[0],
+            //         { x: point.c_h[0], y: point.c_h[1], z: point.c_h[2]},
+            //         { x: point.c_r[0], y: point.c_r[1], z: point.c_r[2]},
+            //         0.002, 
+            //         true
+            //     );
+            distance.visible = true;
         }
         else {
-            distance[0].visible = false;
+            distance.visible = false;
         }
     });    
 }
