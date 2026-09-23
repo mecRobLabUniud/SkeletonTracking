@@ -32,7 +32,7 @@ int collision_counter = 0;
 // ── Parameters ───────────────────────────────────────────────────────────────
 const int rate_hz = 60;
 double velocity_PFL = 0.4;
-double Qv = 0.08;
+double Qv = 0.0;
 double HR_clearance = 0.1;
 double stopping_time = 0.3;
 double pause_after_collision = 2.0;
@@ -99,13 +99,11 @@ int SSM_PFL_escape(RobotModel& robot,
                     collision_counter = 0;
                     std::cout << "=== Collision detected ===" << std::endl;
                     break;
-                    // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Collision at step " << i << std::endl;
                 }
             } else {
                 // Optimization failed
                 failure_flag = 1;
                 std::cout << "Optimization failed" << std::endl;
-                // std::cout << "    Qv=" << Qv << ", PFL=" << velocity_PFL << " -> Optimization failed" << std::endl;
                 return 1;
             }
 
