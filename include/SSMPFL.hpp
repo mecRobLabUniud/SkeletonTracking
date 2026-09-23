@@ -21,6 +21,14 @@ struct KinematicsLimits {
     Eigen::MatrixXd qdd_limits;  // 2x7
 };
 
+struct OptimizationWeights {
+    OptimizationWeights();
+
+    double Qpj;
+    double Qpt;
+    double Qv;
+};
+
 struct SSMPFLResult {
     Eigen::VectorXd qdd_next;
     Eigen::VectorXd qd_next;
@@ -34,14 +42,16 @@ struct SSMPFLResult {
 // subject to kinematic/dynamic joint limits and per-link speed-and-
 // separation-monitoring safety constraints against an obstacle at `ro`.
 SSMPFLResult SSMPFL(const RobotModel& robot,
-                     double delta_t,
+                     double dt,
                      double stopping_time,
                      const Eigen::VectorXd& q_t,
                      const Eigen::VectorXd& qdot_t,
-                     const Eigen::Vector3d& x_ref_tplusone,
-                     const Eigen::Vector3d& xd_ref_tplusone,
+                     const Eigen::Vector3d& x_ref,
+                     const Eigen::Vector3d& xd_ref,
+                     const Eigen::VectorXd& q_ref,
                      Eigen::Vector3d ro,
                      const Eigen::Vector3d& vo,
                      double delta,
-                     const Eigen::VectorXd& q_des,
+                     double Qpj, 
+                     double Qpt, 
                      double Qv);

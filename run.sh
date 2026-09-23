@@ -16,6 +16,9 @@ use_robot=false
 use_traj=false
 n_test=""
 n_traj=""
+Qpj=1.0
+Qpt=1.0
+Qv=1.0
 
 print_usage() {
     cat <<EOF
@@ -81,6 +84,35 @@ while [ $# -gt 0 ]; do
             use_traj=true
             shift
             ;;
+
+
+
+
+        --params)
+            Qpj="${2:-}"
+            if [ -z "$Qpj" ]; then
+                echo "Error: --params requires three value." >&2
+                exit 1
+            fi
+            shift 
+            Qpt="${2:-}"
+            if [ -z "$Qpt" ]; then
+                echo "Error: --params requires three value." >&2
+                exit 1
+            fi
+            shift 
+            Qv="${2:-}"
+            if [ -z "$Qv" ]; then
+                echo "Error: --params requires three value." >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+
+
+
+
+
         -h|--help)
             print_usage
             exit 0
@@ -92,6 +124,7 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
 
 if [ -z "$mode" ]; then
     echo "Error: no mode specified." >&2
@@ -162,7 +195,7 @@ case "$mode" in
         $rula_evaluation &
         if [ "$use_robot" = true ]; then
             if [ "$use_traj" = true ]; then
-                $exec_trajectory "$n_traj" "$dir" &
+                $exec_trajectory "$n_traj" "$dir" "$Qpj" "$Qpt" "$Qv" &    # modified
             fi
         fi
         if [ "$use_gui" = true ]; then

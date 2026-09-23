@@ -32,10 +32,14 @@ int collision_counter = 0;
 // ── Parameters ───────────────────────────────────────────────────────────────
 const int rate_hz = 60;
 double velocity_PFL = 0.4;
-double Qv = 0.0;
 double HR_clearance = 0.1;
 double stopping_time = 0.3;
 double pause_after_collision = 2.0;
+
+
+double Qpj = 1.0;
+double Qpt = 1.0;
+double Qv = 1.0;
 
 
 void signal_handler(int signum) {
@@ -86,10 +90,12 @@ int SSM_PFL_escape(RobotModel& robot,
             if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
 
             // Compute safety distance delta
-            double delta_safety = HR_clearance + skeletond[i].norm() * stopping_time;
-            double velocity_term = -( -(delta_safety / stopping_time) + velocity_PFL ) * stopping_time;
-    
-            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], skeleton[i], skeletond[i], velocity_term, q_r[1], Qv);
+            double delta_safety = HR_clearance + skeletond[i].norm()*stopping_time;
+            double velocity_term = -( -(delta_safety/stopping_time) + velocity_PFL )*stopping_time;
+
+            std::cout << "delta_safety = " << delta_safety << std::endl;
+
+            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
             
             // Check if optimization succeeded
             if (res.exitflag) {
@@ -156,13 +162,20 @@ int task_engine(
         dist = human_to_robot_distance(skeleton, robot, q_real);
     }    
 
-    double loop_duration = 0.001 * static_cast<double>(elapsed_ms);
+    double loop_duration = 1.0/rate_hz;
 
     for (int i=0; i<skeleton.size(); i++) {
         if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
         
-        skeletond[i] = (skeleton[i] - skeleton_prev[i])/loop_duration;
-        skeletondd[i] = (skeletond[i] - skeletond_prev[i])/loop_duration;
+        skeletond[i] = (skeleton[i] - skeleton_prev[i])*rate_hz;
+        skeletondd[i] = (skeletond[i] - skeletond_prev[i])*rate_hz;
+
+        // std::cout << "======================================" << std::endl;
+        // std::cout << "skeleton[i] = " << skeleton[i] << std::endl;
+        // std::cout << "skeleton_prev[i] = " << skeleton_prev[i] << std::endl;
+        // std::cout << "skeleton[i] - skeleton_prev[i] = " << skeleton[i] - skeleton_prev[i] << std::endl;
+        // std::cout << "loop_duration = " << loop_duration << std::endl;
+        // std::cout << "skeletond[i] = " << skeletond[i] << std::endl;
     }
 
     SSM_PFL_escape(robot, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
@@ -270,7 +283,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     std::vector<Eigen::Vector3d> skeletond(skeleton.size(), Eigen::Vector3d::Zero());
     std::vector<Eigen::Vector3d> skeletondd(skeleton.size(), Eigen::Vector3d::Zero());
 
-    const int period_ms = static_cast<int>(1000.0 / rate_hz);
+    const int period_ms = static_cast<int>(1000.0/rate_hz);
     auto next_time = std::chrono::steady_clock::now();
     auto loop_start = std::chrono::steady_clock::now();
     auto delay_time_start = std::chrono::steady_clock::now();
@@ -396,6 +409,11 @@ int main(int argc, char* argv[]) {
     else {
         std::string c_dir(get_current_dir_name());
         path = c_dir + "/../";
+    }
+    if (argc > 3) {
+        Qpj = argv[3];
+        Qpt = argv[4];
+        Qv = argv[5];
     }
 
     std::signal(SIGINT, signal_handler);
