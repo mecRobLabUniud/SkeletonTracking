@@ -33,7 +33,7 @@ KinematicsLimits::KinematicsLimits() {
 // Single shared instance of the joint limits — built once instead of on
 // every call to SSMPFL().
 static const KinematicsLimits k_limits;
-static const OptimizationWeights weights;
+// static const OptimizationWeights weights;
 
 SSMPFLResult SSMPFL(const RobotModel& robot,
                      double dt,
@@ -52,13 +52,13 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     const int n = 7;
 
 
-    weights.Qpj = Qpj;
-    weights.Qpt = Qpt;
-    weights.Qv = Qv;
+    Qpj = Qpj;
+    Qpt = Qpt;
+    Qv = Qv;
 
-    std::cout << "Qpj =" << weights.Qpj << std::endl;
-    std::cout << "Qpt =" << weights.Qpt << std::endl;
-    std::cout << "Qv =" << weights.Qv << std::endl;
+    // std::cout << "Qpj =" << Qpj << std::endl;
+    // std::cout << "Qpt =" << Qpt << std::endl;
+    // std::cout << "Qv =" << Qv << std::endl;
 
     Eigen::VectorXd q_tp = q_t + dt * qdot_t;
 
@@ -81,10 +81,10 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     weight_matrix(0, 0) = 1.0;
     weight_matrix(1, 1) = 1.0;
     weight_matrix(2, 2) = 1.0;
-    weight_matrix(3, 3) = 1.0;
-    weight_matrix(4, 4) = 1.0;
-    weight_matrix(5, 5) = 1.0;
-    weight_matrix(6, 6) = 1.0;
+    weight_matrix(3, 3) = 5.0;
+    weight_matrix(4, 4) = 5.0;
+    weight_matrix(5, 5) = 10.0;
+    weight_matrix(6, 6) = 15.0;
 
     double dt2 = dt * dt;
     double dt4 = dt2 * dt2;
@@ -97,8 +97,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd fx = dt2*J_t.transpose()*(x_t + dt*J_t*qdot_t  + dt2/2.0*Jd_t*qdot_t - x_ref);
     Eigen::VectorXd fv = dt*2.0*J_t.transpose()*(J_t*qdot_t + dt*Jd_t*qdot_t - xd_ref);
 
-    Eigen::MatrixXd H = weights.Qpj*Hq + weights.Qpt*Hx + weights.Qv*Hv;
-    Eigen::VectorXd f = weights.Qpj*fq + weights.Qpt*fx + weights.Qv*fv;
+    Eigen::MatrixXd H = Qpj*Hq + Qpt*Hx + Qv*Hv;
+    Eigen::VectorXd f = Qpj*fq + Qpt*fx + Qv*fv;
 
     // --- Kinematic / dynamic bounds ------------------------------------
     Eigen::VectorXd qmin = (k_limits.q_limits.transpose().col(0) - q_t - dt * qdot_t) * 2.0 / dt2;
@@ -152,43 +152,43 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     double d2 = delta * delta;
 
-    b(0) = 1.0 / stopping_time * (std::pow(minsSSM(r5, r6, ro, delta), 2) - d2 / 4.0)
+    b(0) = 10.0 / stopping_time * (std::pow(minsSSM(r5, r6, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J5 - r5.transpose() * J5) * qdot_t).value()
            - (dt * (ro - r5).transpose() * J5d * qdot_t).value();
 
-    b(1) = 1.0 / stopping_time * (std::pow(minsSSM(r5, r6, ro, delta), 2) - d2 / 4.0)
+    b(1) = 10.0 / stopping_time * (std::pow(minsSSM(r5, r6, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J6 - r5.transpose() * J6 - (r6 - r5).transpose() * J5) * qdot_t).value()
            - (dt * (ro - r6).transpose() * J6d * qdot_t).value();
 
-    b(2) = 1.0 / stopping_time * (std::pow(minsSSM(r1, r2, ro, delta), 2) - d2 / 4.0)
+    b(2) = 10.0 / stopping_time * (std::pow(minsSSM(r1, r2, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J1 - r1.transpose() * J1) * qdot_t).value()
            - (dt * (ro - r1).transpose() * J1d * qdot_t).value();
 
-    b(3) = 1.0 / stopping_time * (std::pow(minsSSM(r1, r2, ro, delta), 2) - d2 / 4.0)
+    b(3) = 10.0 / stopping_time * (std::pow(minsSSM(r1, r2, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J2 - r1.transpose() * J2 - (r2 - r1).transpose() * J1) * qdot_t).value()
            - (dt * (ro - r2).transpose() * J2d * qdot_t).value();
 
-    b(4) = 1.0 / stopping_time * (std::pow(minsSSM(r2, r3, ro, delta), 2) - d2 / 4.0)
+    b(4) = 10.0 / stopping_time * (std::pow(minsSSM(r2, r3, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J2 - r2.transpose() * J2) * qdot_t).value()
            - (dt * (ro - r2).transpose() * J2d * qdot_t).value();
 
-    b(5) = 1.0 / stopping_time * (std::pow(minsSSM(r2, r3, ro, delta), 2) - d2 / 4.0)
+    b(5) = 10.0 / stopping_time * (std::pow(minsSSM(r2, r3, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J3 - r2.transpose() * J3 - (r3 - r2).transpose() * J2) * qdot_t).value()
            - (dt * (ro - r3).transpose() * J3d * qdot_t).value();
 
-    b(6) = 1.0 / stopping_time * (std::pow(minsSSM(r3, r4, ro, delta), 2) - d2 / 4.0)
+    b(6) = 10.0 / stopping_time * (std::pow(minsSSM(r3, r4, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J3 - r3.transpose() * J3) * qdot_t).value()
            - (dt * (ro - r3).transpose() * J3d * qdot_t).value();
 
-    b(7) = 1.0 / stopping_time * (std::pow(minsSSM(r3, r4, ro, delta), 2) - d2 / 4.0)
+    b(7) = 10.0 / stopping_time * (std::pow(minsSSM(r3, r4, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J4 - r3.transpose() * J4 - (r4 - r3).transpose() * J3) * qdot_t).value()
            - (dt * (ro - r4).transpose() * J4d * qdot_t).value();
 
-    b(8) = 1.0 / stopping_time * (std::pow(minsSSM(r4, r5, ro, delta), 2) - d2 / 4.0)
+    b(8) = 10.0 / stopping_time * (std::pow(minsSSM(r4, r5, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J4 - r4.transpose() * J4) * qdot_t).value()
            - (dt * (ro - r4).transpose() * J4d * qdot_t).value();
 
-    b(9) = 1.0 / stopping_time * (std::pow(minsSSM(r4, r5, ro, delta), 2) - d2 / 4.0)
+    b(9) = 10.0 / stopping_time * (std::pow(minsSSM(r4, r5, ro, delta), 2) - d2 / 4.0)
            - ((ro.transpose() * J5 - r4.transpose() * J5 - (r5 - r4).transpose() * J4) * qdot_t).value()
            - (dt * (ro - r5).transpose() * J5d * qdot_t).value();
 

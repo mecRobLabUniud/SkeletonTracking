@@ -411,9 +411,9 @@ int main(int argc, char* argv[]) {
         path = c_dir + "/../";
     }
     if (argc > 3) {
-        Qpj = argv[3];
-        Qpt = argv[4];
-        Qv = argv[5];
+        Qpj = std::stod(argv[3]);
+        Qpt = std::stod(argv[4]);
+        Qv = std::stod(argv[5]);
     }
 
     std::signal(SIGINT, signal_handler);
