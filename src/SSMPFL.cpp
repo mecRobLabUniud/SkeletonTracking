@@ -75,8 +75,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     weight_matrix(2, 2) = 3.0;
     weight_matrix(3, 3) = 1.75;
     weight_matrix(4, 4) = 1.75;
-    weight_matrix(5, 5) = 1.5;
-    weight_matrix(6, 6) = 0.1;
+    weight_matrix(5, 5) = 10.5;
+    weight_matrix(6, 6) = 20.1;
 
     double dt2 = dt * dt;
     double dt4 = dt2 * dt2;
@@ -226,7 +226,12 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     SSMPFLResult out;
     out.exitflag = success;
 
-    std::cout << "qddot = " << qddot << std::endl;
+    std::cout << "+++++++++++++++++++++++++++++" << std::endl;
+    std::cout << "A --------------\n" << A << std::endl;
+    std::cout << "qddot --------------\n" << qddot << std::endl;
+    std::cout << "A*qddot --------------\n" << A*qddot << std::endl;
+    std::cout << "b --------------\n" << b << std::endl;
+
 
     if (out.exitflag) {
         out.qdd_next = qddot;

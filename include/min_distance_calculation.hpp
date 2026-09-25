@@ -6,7 +6,7 @@
 
 #include "robot_model.hpp"
 
-const std::array<std::array<int, 2>, 14> MP_SKELETON = {{
+const std::array<std::array<int, 2>, 1> MP_SKELETON = {{
     {0, 1}
 }};
 

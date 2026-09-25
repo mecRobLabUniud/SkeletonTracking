@@ -99,13 +99,21 @@ int SSM_PFL_escape(RobotModel& robot,
             
             // Check if optimization succeeded
             if (res.exitflag) {
+
+                std::optional<DistanceResult> dist;
+                if (q_real.size() == 7) {
+                    dist = human_to_robot_distance(skeleton, robot, q_real);
+                    // std::cout << "dist = " << dist->length << std::endl;
+                } 
+
                 // Check collision with human (distance <= 0.1m)
-                if ((p_real - skeleton[i]).norm() <= 0.1) {
-                    collision = true;
-                    collision_counter = 0;
-                    std::cout << "=== Collision detected ===" << std::endl;
-                    break;
-                }
+                // if ((p_real - skeleton[i]).norm() <= 0.1) {
+                // if (dist->length <= 0.1) {
+                //     collision = true;
+                //     collision_counter = 0;
+                //     std::cout << "=== Collision detected ===" << std::endl;
+                //     break;
+                // }
             } else {
                 // Optimization failed
                 failure_flag = 1;
