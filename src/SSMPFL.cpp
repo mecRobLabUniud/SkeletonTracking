@@ -93,10 +93,10 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd f = Qpj*fq + Qpt*fx + Qv*fv;
 
     // --- Kinematic / dynamic bounds ------------------------------------
-    Eigen::VectorXd qmin = (k_limits.q_limits.transpose().col(0) - q_t - dt * qdot_t) * 2.0 / dt2;
-    Eigen::VectorXd qmax = (k_limits.q_limits.transpose().col(1) - q_t - dt * qdot_t) * 2.0 / dt2;
-    Eigen::VectorXd qdmin = (k_limits.qd_limits.transpose().col(0) - qdot_t) / dt;
-    Eigen::VectorXd qdmax = (k_limits.qd_limits.transpose().col(1) - qdot_t) / dt;
+    Eigen::VectorXd qmin = (k_limits.q_limits.transpose().col(0) - q_t - dt*qdot_t)*2.0/dt2;
+    Eigen::VectorXd qmax = (k_limits.q_limits.transpose().col(1) - q_t - dt*qdot_t)*2.0/dt2;
+    Eigen::VectorXd qdmin = (k_limits.qd_limits.transpose().col(0) - qdot_t)/dt;
+    Eigen::VectorXd qdmax = (k_limits.qd_limits.transpose().col(1) - qdot_t)/dt;
     Eigen::VectorXd qddmin = k_limits.qdd_limits.transpose().col(0);
     Eigen::VectorXd qddmax = k_limits.qdd_limits.transpose().col(1);
 
@@ -132,15 +132,15 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd b(10);
 
     A.row(0) = (ro.transpose()*J5 - r5.transpose()*J5)*dt;
-    A.row(1) = (ro.transpose()*J6 - r5.transpose()*J6 - (r6 - r5).transpose()*J5) * dt;
+    A.row(1) = (ro.transpose()*J6 - r5.transpose()*J6 - (r6 - r5).transpose()*J5)*dt;
     A.row(2) = (ro.transpose()*J1 - r1.transpose()*J1)*dt;
-    A.row(3) = (ro.transpose()*J2 - r1.transpose()*J2 - (r2 - r1).transpose()*J1) * dt;
+    A.row(3) = (ro.transpose()*J2 - r1.transpose()*J2 - (r2 - r1).transpose()*J1)*dt;
     A.row(4) = (ro.transpose()*J2 - r2.transpose()*J2)*dt;
-    A.row(5) = (ro.transpose()*J3 - r2.transpose()*J3 - (r3 - r2).transpose()*J2) * dt;
+    A.row(5) = (ro.transpose()*J3 - r2.transpose()*J3 - (r3 - r2).transpose()*J2)*dt;
     A.row(6) = (ro.transpose()*J3 - r3.transpose()*J3)*dt;
-    A.row(7) = (ro.transpose()*J4 - r3.transpose()*J4 - (r4 - r3).transpose()*J3) * dt;
+    A.row(7) = (ro.transpose()*J4 - r3.transpose()*J4 - (r4 - r3).transpose()*J3)*dt;
     A.row(8) = (ro.transpose()*J4 - r4.transpose()*J4)*dt;
-    A.row(9) = (ro.transpose()*J5 - r4.transpose()*J5 - (r5 - r4).transpose()*J4) * dt;
+    A.row(9) = (ro.transpose()*J5 - r4.transpose()*J5 - (r5 - r4).transpose()*J4)*dt;
 
     double d2 = delta * delta;
 
