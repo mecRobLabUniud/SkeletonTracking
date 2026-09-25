@@ -144,8 +144,8 @@ int task_engine(
         std::vector<std::unique_ptr<DataTransmitter>>& transmitters, 
         RobotModel robot,
         int elapsed_ms, 
-        const std::array<Eigen::VectorXd, 2> q_r, 
-        const std::array<Eigen::VectorXd, 2> qd_r, 
+        const std::array<Eigen::VectorXd, 2> q_r,
+        const std::array<Eigen::VectorXd, 2> qd_r,
         const std::array<Eigen::VectorXd, 2> qdd_r,
         std::vector<Eigen::Vector3d>& skeleton,
         std::vector<Eigen::Vector3d>& skeletond,
@@ -157,6 +157,7 @@ int task_engine(
     std::optional<DistanceResult> dist;
     if (q_real.size() == 7) {
         dist = human_to_robot_distance(skeleton, robot, q_real);
+        std::cout << "dist = " << dist->length << std::endl;
     }    
 
     double loop_duration = 1.0/rate_hz;
@@ -166,13 +167,6 @@ int task_engine(
         
         skeletond[i] = (skeleton[i] - skeleton_prev[i])*rate_hz;
         skeletondd[i] = (skeletond[i] - skeletond_prev[i])*rate_hz;
-
-        // std::cout << "======================================" << std::endl;
-        // std::cout << "skeleton[i] = " << skeleton[i] << std::endl;
-        // std::cout << "skeleton_prev[i] = " << skeleton_prev[i] << std::endl;
-        // std::cout << "skeleton[i] - skeleton_prev[i] = " << skeleton[i] - skeleton_prev[i] << std::endl;
-        // std::cout << "loop_duration = " << loop_duration << std::endl;
-        // std::cout << "skeletond[i] = " << skeletond[i] << std::endl;
     }
 
     SSM_PFL_escape(robot, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
@@ -424,23 +418,6 @@ int main(int argc, char* argv[]) {
     }
 
     std::signal(SIGINT, signal_handler);
-
-
-    // std::string c_dir(get_current_dir_name());
-    // const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
-    // RobotModel robot(urdf_path);
-    // 
-    // Eigen::VectorXd q_init(7);
-    // q_init << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
-    // Eigen::VectorXd q_ref(7);
-    // q_ref << 1.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
-    // std::cout << "q_ref = "<< q_ref << std::endl;
-    // Eigen::Isometry3d ee = robot.GetJointPose("panda_link8", q_ref);
-    // std::cout << "FK = "<< ee.translation() << std::endl;
-// 
-    // Eigen::VectorXd wp_q;
-    // robot.ComputeIK("panda_link8", ee, q_init, &wp_q);
-    // std::cout << "IK = "<< wp_q << std::endl;
 
     if (execute_task(n_traj, path)) return 1;
     else printf("Exiting cleanly...\n");
