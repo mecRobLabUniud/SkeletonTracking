@@ -37,9 +37,9 @@ double stopping_time = 0.3;
 double pause_after_collision = 2.0;
 
 
-double Qpj = 1.0;
-double Qpt = 1.0;
-double Qv = 1.0;
+double Qpj = 0.0;
+double Qpt = 0.0;
+double Qv = 0.0;
 
 
 void signal_handler(int signum) {
@@ -204,7 +204,7 @@ int task_engine(
 // Load trajectory
 // ─────────────────────────────────────────────────────────────────────────────
 std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double t_start = 0.0, Eigen::VectorXd q_start = {}) {
-    std::string trajectory_path = c_dir + "src/trajectories/test" + std::to_string(n_traj) + "/";
+    std::string trajectory_path = c_dir + "src/trajectories/traj" + std::to_string(n_traj) + "/";
     std::ifstream f(trajectory_path);
     if (!f) {
         std::cerr << "Error: cannot open '" << trajectory_path << "'" << std::endl;
@@ -422,6 +422,23 @@ int main(int argc, char* argv[]) {
     }
 
     std::signal(SIGINT, signal_handler);
+
+
+    // std::string c_dir(get_current_dir_name());
+    // const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
+    // RobotModel robot(urdf_path);
+    // 
+    // Eigen::VectorXd q_init(7);
+    // q_init << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
+    // Eigen::VectorXd q_ref(7);
+    // q_ref << 1.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
+    // std::cout << "q_ref = "<< q_ref << std::endl;
+    // Eigen::Isometry3d ee = robot.GetJointPose("panda_link8", q_ref);
+    // std::cout << "FK = "<< ee.translation() << std::endl;
+// 
+    // Eigen::VectorXd wp_q;
+    // robot.ComputeIK("panda_link8", ee, q_init, &wp_q);
+    // std::cout << "IK = "<< wp_q << std::endl;
 
     if (execute_task(n_traj, path)) return 1;
     else printf("Exiting cleanly...\n");

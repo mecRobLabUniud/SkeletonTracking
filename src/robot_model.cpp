@@ -9,7 +9,9 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 
 
+
 RobotModel::RobotModel(const std::string& urdf_path) {
+    std::cout << "==urdf_path = " << urdf_path << std::endl;
   pinocchio::urdf::buildModel(urdf_path, model_);
   data_ = pinocchio::Data(model_);
 }
@@ -77,4 +79,59 @@ Eigen::MatrixXd RobotModel::ComputeDerivativeJacobian(const std::string& frame_n
     Eigen::MatrixXd J_e = ComputeJacobian(frame_name, q_e);
 
     return (J_e - J)/eps;
+}
+
+bool RobotModel::ComputeIK(const std::string& frame_name,
+                            const Eigen::Isometry3d& target_pose,
+                            const Eigen::VectorXd& q_init,
+                            Eigen::VectorXd* q_result,
+                            double eps,
+                            int max_iters,
+                            double damping) const {
+  const pinocchio::FrameIndex frame_id = GetFrameIndexOrThrow(frame_name);
+
+  pinocchio::SE3 target;
+  target.rotation() = target_pose.linear();
+  target.translation() = target_pose.translation();
+
+  // Work on local copies so this method stays const w.r.t. the class.
+  pinocchio::Data data(model_);
+  Eigen::VectorXd q = q_init;
+
+  Eigen::MatrixXd J(6, model_.nv);
+  bool converged = false;
+
+  for (int i = 0; i < max_iters; ++i) {
+    pinocchio::forwardKinematics(model_, data, q);
+    pinocchio::updateFramePlacements(model_, data);
+
+    // Error twist between current and target pose, in the frame's local
+    // coordinates (standard formulation for Pinocchio-based IK loops).
+    const pinocchio::SE3 current_pose = data.oMf[frame_id];
+    const pinocchio::Motion err_motion = pinocchio::log6(current_pose.actInv(target));
+    const Eigen::Matrix<double, 6, 1> err = err_motion.toVector();
+
+    if (err.norm() < eps) {
+      converged = true;
+      break;
+    }
+
+    J.setZero();
+    pinocchio::computeFrameJacobian(model_, data, q, frame_id,
+                                     pinocchio::LOCAL, J);
+
+    // Damped least squares: dq = J^T (J J^T + lambda*I)^-1 * err
+    Eigen::MatrixXd JJt =
+        J * J.transpose() + damping * Eigen::MatrixXd::Identity(6, 6);
+    Eigen::VectorXd dq = J.transpose() * JJt.ldlt().solve(err);
+
+    Eigen::VectorXd q_next(q.size());
+    pinocchio::integrate(model_, q, dq, q_next);
+    q = q_next;
+  }
+
+  if (converged && q_result != nullptr) {
+    *q_result = q;
+  }
+  return converged;
 }
