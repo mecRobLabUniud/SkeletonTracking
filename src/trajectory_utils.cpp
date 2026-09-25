@@ -5,6 +5,16 @@
 #include <iomanip>
 
 #include "trajectory_utils.hpp"
+#include "robot_model.hpp"
+
+
+
+
+
+
+
+
+
 
 // ── CSV I/O ────────────────────────────────────────────────────────────────
 std::vector<std::array<double, 7>> load_trajectory_CSV(const std::string& path) {
@@ -13,27 +23,45 @@ std::vector<std::array<double, 7>> load_trajectory_CSV(const std::string& path) 
     std::vector<std::array<double, 7>> traj;
     std::string line;
 
+    Eigen::VectorXd q_init(7);
+    q_init << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
+
+    std::string dir(get_current_dir_name());
+    const std::string urdf_path = dir + "/src/urdf/panda.urdf";
+    RobotModel robot(urdf_path);
+
     while (std::getline(f, line)) {
         // Skip empty lines and comments
         if (line.empty() || line[0] == '#') continue;
 
+        
+
+        Eigen::Isometry3d wp_p;
+        Eigen::VectorXd wp_q;
         std::array<double, 7> wp;
         std::stringstream ss(line);
         std::string token;
         int j = 0;
 
-        while (std::getline(ss, token, ',') && j < 7) {
+        while (std::getline(ss, token, ',') && j < 3) {
             try {
-                wp[j++] = std::stod(token);
+                wp_p.translation()[j++] = std::stod(token);
             } catch (const std::exception&) {
                 throw std::runtime_error("Bad value at line: " + line);
             }
         }
 
-        if (j != 7)
+        if (j != 3)
             throw std::runtime_error("Expected 7 values, got "
                                      + std::to_string(j)
                                      + " at line: " + line);
+        
+        robot.ComputeIK("panda_link8", wp_p, q_init, &wp_q);
+
+        for (int i=0; i<7; i++) {
+            wp[i] = wp_q[i];
+        }
+        
         traj.push_back(wp);
     }
 

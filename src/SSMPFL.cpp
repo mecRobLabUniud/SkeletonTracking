@@ -70,21 +70,13 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     // --- Objective: joint-space + task-space tracking ------------------
     Eigen::MatrixXd weight_matrix = Eigen::MatrixXd::Zero(7, 7);
-    // weight_matrix(0, 0) = 1.5;
-    // weight_matrix(1, 1) = 3.0;
-    // weight_matrix(2, 2) = 3.0;
-    // weight_matrix(3, 3) = 1.75;
-    // weight_matrix(4, 4) = 1.75;
-    // weight_matrix(5, 5) = 1.5;
-    // weight_matrix(6, 6) = 0.1;
-
-    weight_matrix(0, 0) = 1.0;
-    weight_matrix(1, 1) = 1.0;
-    weight_matrix(2, 2) = 1.0;
-    weight_matrix(3, 3) = 5.0;
-    weight_matrix(4, 4) = 5.0;
-    weight_matrix(5, 5) = 10.0;
-    weight_matrix(6, 6) = 15.0;
+    weight_matrix(0, 0) = 1.5;
+    weight_matrix(1, 1) = 3.0;
+    weight_matrix(2, 2) = 3.0;
+    weight_matrix(3, 3) = 1.75;
+    weight_matrix(4, 4) = 1.75;
+    weight_matrix(5, 5) = 1.5;
+    weight_matrix(6, 6) = 0.1;
 
     double dt2 = dt * dt;
     double dt4 = dt2 * dt2;

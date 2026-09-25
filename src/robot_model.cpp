@@ -9,7 +9,9 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 
 
+
 RobotModel::RobotModel(const std::string& urdf_path) {
+    std::cout << "urdf_path = " << urdf_path << std::endl;
   pinocchio::urdf::buildModel(urdf_path, model_);
   data_ = pinocchio::Data(model_);
 }

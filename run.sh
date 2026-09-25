@@ -16,9 +16,9 @@ use_robot=false
 use_traj=false
 n_test=""
 n_traj=""
-Qpj=1.0
+Qpj=70.0
 Qpt=1.0
-Qv=1.0
+Qv=0.08
 
 print_usage() {
     cat <<EOF
