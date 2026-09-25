@@ -301,19 +301,21 @@ int execute_task (int n_traj, std::string c_dir="") {
     int traj_size = traj->q.size();
     int cnt = 0;
 
+    // Initialize simulation state
+    q_real = traj->q[0];
+    qd_real = traj->qd[0];
+    qdd_real = traj->qdd[0];
+    p_real = robot.GetJointPose("panda_link8", traj->q[0]).translation().transpose();
+    pd_real = robot.GetJointPose("panda_link8", traj->qd[0]).translation().transpose();
+
+
     // ── Trajectory loop ──────────────────────────────────────────────────────────
     while (running) {
         // std::cout << "t_start = " << t_start << std::endl;
         // traj = load_trajectory(n_traj, c_dir, t_start, q_start);
         // if (!traj) return 1;
         
-        // Initialize simulation state
-        q_real = traj->q[0];
-        qd_real = traj->qd[0];
-        qdd_real = traj->qdd[0];
-        p_real = robot.GetJointPose("panda_link8", traj->q[0]).translation().transpose();
-        pd_real = robot.GetJointPose("panda_link8", traj->qd[0]).translation().transpose();
-
+        
         auto elapsed = std::chrono::steady_clock::now() - loop_start;
         int elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
 
