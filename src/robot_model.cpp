@@ -30,6 +30,9 @@ void RobotModel::ComputeFK(const Eigen::VectorXd& q) const {
   pinocchio::updateFramePlacements(model_, data_);
 }
 
+
+
+
 Eigen::Isometry3d RobotModel::GetJointPose(const std::string& frame_name,
                                             const Eigen::VectorXd& q) const {
   ComputeFK(q);
@@ -66,12 +69,12 @@ Eigen::MatrixXd RobotModel::ComputeJacobian(const std::string& frame_name,
 
 Eigen::MatrixXd RobotModel::ComputeDerivativeJacobian(const std::string& frame_name,
                                              const Eigen::VectorXd& q) const {
-    constexpr double eps = 0.0000001;
+    constexpr double eps = 0.000001;
 
     Eigen::MatrixXd J = ComputeJacobian(frame_name, q);
 
     Eigen::VectorXd q_e = (q.array() + eps).matrix();
     Eigen::MatrixXd J_e = ComputeJacobian(frame_name, q_e);
 
-    return (J_e - J) / eps;
+    return (J_e - J)/eps;
 }

@@ -360,12 +360,11 @@ int execute_task (int n_traj, std::string c_dir="") {
             auto time2 = std::chrono::steady_clock::now() - time1;
             double task_duration = std::round(std::chrono::duration<double>(time2).count() * 1000);
 
-            std::cout << "task_duration [ms] = " << task_duration << std::endl;
+            // std::cout << "task_duration [ms] = " << task_duration << std::endl;
 
             next_time += std::chrono::milliseconds(period_ms);
             std::this_thread::sleep_until(next_time);
         }
-
 
         std::cout << "++++++++++++++++++++++++++++++++" << std::endl;
         std::cout << "+++++ Trajectory completed +++++" << std::endl;

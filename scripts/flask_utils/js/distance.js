@@ -73,7 +73,7 @@ function update_plot() {
             if (distance != []) {
                 scene.remove(distance);
             }
-            distance = createCurve(p, '#00ffaa');
+            distance = createCurve(p, '#aa0000');
             // distance[0] = updateCapsule(
             //         distance[0],
             //         { x: point.c_h[0], y: point.c_h[1], z: point.c_h[2]},
