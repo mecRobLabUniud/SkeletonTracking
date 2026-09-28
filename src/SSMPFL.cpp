@@ -75,8 +75,16 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     weight_matrix(2, 2) = 3.0;
     weight_matrix(3, 3) = 1.75;
     weight_matrix(4, 4) = 1.75;
-    weight_matrix(5, 5) = 10.5;
-    weight_matrix(6, 6) = 20.1;
+    weight_matrix(5, 5) = 0.5;
+    weight_matrix(6, 6) = 0.1;
+
+    // weight_matrix(0, 0) = 1;
+    // weight_matrix(1, 1) = 1;
+    // weight_matrix(2, 2) = 1;
+    // weight_matrix(3, 3) = 1;
+    // weight_matrix(4, 4) = 1;
+    // weight_matrix(5, 5) = 1;
+    // weight_matrix(6, 6) = 1;
 
     double dt2 = dt * dt;
     double dt4 = dt2 * dt2;
@@ -131,6 +139,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::MatrixXd A(10, n);
     Eigen::VectorXd b(10);
 
+
     A.row(0) = (ro.transpose()*J5 - r5.transpose()*J5)*dt;
     A.row(1) = (ro.transpose()*J6 - r5.transpose()*J6 - (r6 - r5).transpose()*J5)*dt;
     A.row(2) = (ro.transpose()*J1 - r1.transpose()*J1)*dt;
@@ -141,6 +150,9 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     A.row(7) = (ro.transpose()*J4 - r3.transpose()*J4 - (r4 - r3).transpose()*J3)*dt;
     A.row(8) = (ro.transpose()*J4 - r4.transpose()*J4)*dt;
     A.row(9) = (ro.transpose()*J5 - r4.transpose()*J5 - (r5 - r4).transpose()*J4)*dt;
+    
+
+
 
     double d2 = delta * delta;
 
@@ -150,6 +162,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     // std::cout << "ro.transpose()*J5 - r5.transpose()*J5 = " << ro.transpose()*J5 - r5.transpose()*J5 << std::endl;
     // std::cout << "(ro - r5).transpose()*J5d = " << (ro - r5).transpose()*J5d << std::endl;
 
+    
     b(0) = 1.0/stopping_time*(std::pow(minsSSM(r5, r6, ro, delta), 2) - d2/4.0)
            - ((ro.transpose()*J5 - r5.transpose()*J5)*qdot_t).value()
            - (dt*(ro - r5).transpose()*J5d*qdot_t).value();
@@ -189,6 +202,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     b(9) = 1.0/stopping_time*(std::pow(minsSSM(r4, r5, ro, delta), 2) - d2/4.0)
            - ((ro.transpose()*J5 - r4.transpose()*J5 - (r5 - r4).transpose()*J4)*qdot_t).value()
            - (dt*(ro - r5).transpose()*J5d*qdot_t).value();
+
+    
 
     int nV = H.rows();
     int nC = A.rows();

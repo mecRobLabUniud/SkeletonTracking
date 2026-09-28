@@ -80,8 +80,7 @@ int SSM_PFL_escape(RobotModel& robot,
     p_r[1] = robot.GetJointPose("panda_link8", q_r[1]).translation().transpose();
     std::array<Eigen::Vector3d, 2> pd_r;
     pd_r[0] = (J * qd_r[0]).tail<3>();
-    pd_r[1] = (J * qd_r[1]).tail<3>();   
-    
+    pd_r[1] = (J * qd_r[1]).tail<3>();      
     
     int failure_flag = 0;
 
@@ -95,6 +94,36 @@ int SSM_PFL_escape(RobotModel& robot,
 
             // std::cout << "delta_safety = " << delta_safety << std::endl;
 
+            q_real << -0.252419
+  0.34961
+-0.209356
+ -2.16272
+ 0.079068
+  2.49974
+ 0.256921;
+
+            std::cout << "dt = " << dt << std::endl; 
+            std::cout << "stopping_time = " << stopping_time << std::endl; 
+            std::cout << "q_real = " << q_real << std::endl; 
+            std::cout << "qd_real = " << qd_real << std::endl; 
+            std::cout << "p_r[1] = " << p_r[1] << std::endl; 
+            std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
+            std::cout << "q_r[1] = " << q_r[1] << std::endl; 
+            std::cout << "skeleton[i] = " << skeleton[i] << std::endl; 
+            std::cout << "skeletond[i] = " << skeletond[i] << std::endl; 
+            std::cout << "velocity_term = " << velocity_term << std::endl; 
+            std::cout << "Qpj = " << Qpj << std::endl; 
+            std::cout << "Qpt = " << Qpt << std::endl; 
+            std::cout << "Qv = " << Qv << std::endl; 
+
+            // std::cout << "q_r+1 = " << q_r[1] << std::endl; 
+            // std::cout << "qd_r = " << qd_r[0] << std::endl; 
+            // std::cout << "qd_r+1 = " << qd_r[1] << std::endl; 
+            // std::cout << "qdd_r = " << qdd_r[0] << std::endl; 
+            // std::cout << "qdd_r+1 = " << qdd_r[1] << std::endl; 
+            
+
+            // SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
             SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
             
             // Check if optimization succeeded
@@ -300,7 +329,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // Eigen::VectorXd q_start = traj->q[0];
     // double t_start = 0.0;
-    int traj_size = traj->q.size();
+    int traj_size = 2000; // traj->q.size();
     int cnt = 0;
 
     // Initialize simulation state
@@ -327,6 +356,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             elapsed_ms = static_cast<int>(std::round(std::chrono::duration<double>(elapsed).count() * 1000));
 
             if (cnt + period_ms < traj_size) {
+                std::cout << std::endl << std::endl << "++++++++ cnt = " << cnt << std::endl << std::endl << std::endl;
                 std::array<Eigen::VectorXd, 2> q_r;
                 q_r[0] = traj->q[cnt];
                 q_r[1] = traj->q[cnt + period_ms];
@@ -374,6 +404,8 @@ int execute_task (int n_traj, std::string c_dir="") {
         std::cout << "+++++ Trajectory completed +++++" << std::endl;
         std::cout << "++++++++++++++++++++++++++++++++" << std::endl;
 
+        return 0;
+
         next_time = std::chrono::steady_clock::now();
         loop_start = std::chrono::steady_clock::now();
         cnt = 0;
@@ -385,6 +417,33 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     return 0;
 }
+
+
+int test(std::string c_dir="") {
+
+    const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
+    RobotModel robot(urdf_path);
+    q_real.resize(1, 7);
+    q_real << -0.252419,  0.34961,-0.209356, -2.16272, 0.079068,  2.49974, 0.256921;
+
+    std::cout << "dt = " << dt << std::endl; 
+    std::cout << "stopping_time = " << stopping_time << std::endl; 
+    std::cout << "q_real = " << q_real << std::endl; 
+    std::cout << "qd_real = " << qd_real << std::endl; 
+    std::cout << "p_r[1] = " << p_r[1] << std::endl; 
+    std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
+    std::cout << "q_r[1] = " << q_r[1] << std::endl; 
+    std::cout << "skeleton[i] = " << skeleton[i] << std::endl; 
+    std::cout << "skeletond[i] = " << skeletond[i] << std::endl; 
+    std::cout << "velocity_term = " << velocity_term << std::endl; 
+    std::cout << "Qpj = " << Qpj << std::endl; 
+    std::cout << "Qpt = " << Qpt << std::endl; 
+    std::cout << "Qv = " << Qv << std::endl; 
+
+    SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
+    
+}
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -426,6 +485,9 @@ int main(int argc, char* argv[]) {
     }
 
     std::signal(SIGINT, signal_handler);
+
+    test(path);
+    return 0;
 
     if (execute_task(n_traj, path)) return 1;
     else printf("Exiting cleanly...\n");

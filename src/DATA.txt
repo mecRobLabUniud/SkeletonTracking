@@ -15,3 +15,6 @@ a0 = 0.35628
 a1 = 0.22789
 a2 = 0.148406
 a3 = 0.311219
+
+
+metti minros al posto di segmtosegmdistance e controlla se funziona
