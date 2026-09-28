@@ -242,10 +242,18 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     out.exitflag = success;
 
     std::cout << "+++++++++++++++++++++++++++++" << std::endl;
+    
+    std::cout << "Hp --------------\n" << Qpj*Hq + Qpt*Hx  << std::endl;
+    std::cout << "Hv --------------\n" << Hv << std::endl;
+    std::cout << "fp --------------\n" << Qpj*fq + Qpt*fx  << std::endl;
+    std::cout << "fv --------------\n" << fv << std::endl;
+    std::cout << "H --------------\n" << H << std::endl;
+    std::cout << "f --------------\n" << f << std::endl;
     std::cout << "A --------------\n" << A << std::endl;
+    std::cout << "b --------------\n" << b << std::endl;
+
     std::cout << "qddot --------------\n" << qddot << std::endl;
     std::cout << "A*qddot --------------\n" << A*qddot << std::endl;
-    std::cout << "b --------------\n" << b << std::endl;
 
 
     if (out.exitflag) {

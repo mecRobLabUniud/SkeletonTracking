@@ -94,13 +94,6 @@ int SSM_PFL_escape(RobotModel& robot,
 
             // std::cout << "delta_safety = " << delta_safety << std::endl;
 
-            q_real << -0.252419
-  0.34961
--0.209356
- -2.16272
- 0.079068
-  2.49974
- 0.256921;
 
             std::cout << "dt = " << dt << std::endl; 
             std::cout << "stopping_time = " << stopping_time << std::endl; 
@@ -122,8 +115,6 @@ int SSM_PFL_escape(RobotModel& robot,
             // std::cout << "qdd_r = " << qdd_r[0] << std::endl; 
             // std::cout << "qdd_r+1 = " << qdd_r[1] << std::endl; 
             
-
-            // SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
             SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
             
             // Check if optimization succeeded
@@ -423,8 +414,43 @@ int test(std::string c_dir="") {
 
     const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf_path);
-    q_real.resize(1, 7);
-    q_real << -0.252419,  0.34961,-0.209356, -2.16272, 0.079068,  2.49974, 0.256921;
+
+    const double dt = 1.0 / static_cast<double>(rate_hz);
+
+    stopping_time = 0.3;
+
+    q_real = Eigen::VectorXd(7);
+    q_real << -0.247591, 0.341241,-0.206387, -2.15328,0.0847584,  2.49884, 0.259059;
+
+    qd_real = Eigen::VectorXd(7);
+    qd_real << 0.0562014, -0.109639,  0.270759,  0.121699, -0.144036, -0.240594,  0.503352;
+
+    std::array<Eigen::Vector3d, 2> p_r;
+    p_r[1] << 0.540806, -0.180569,  0.229081;
+
+    std::array<Eigen::Vector3d, 2> pd_r;
+    pd_r[1] << 0.166107, -0.0246751,  -0.108691;
+
+    std::array<Eigen::VectorXd, 2> q_r;
+    q_r[1] = Eigen::VectorXd(7);
+    q_r[1] << -0.153826,  0.371096,  -0.16679,   -2.1469,  0.134848,   2.50848,  0.258585;
+
+    Eigen::Vector3d skeleton;
+    skeleton << 0.25, -0.108383, 0.51;
+
+    Eigen::Vector3d skeletond;
+    skeletond << 0, 0.0276359, 0;
+
+    double velocity_term = -0.0117092;
+    
+    double Qpj = 70;
+    
+    double Qpt = 1;
+    
+    double Qv = 0.08;
+
+
+
 
     std::cout << "dt = " << dt << std::endl; 
     std::cout << "stopping_time = " << stopping_time << std::endl; 
@@ -433,15 +459,16 @@ int test(std::string c_dir="") {
     std::cout << "p_r[1] = " << p_r[1] << std::endl; 
     std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
     std::cout << "q_r[1] = " << q_r[1] << std::endl; 
-    std::cout << "skeleton[i] = " << skeleton[i] << std::endl; 
-    std::cout << "skeletond[i] = " << skeletond[i] << std::endl; 
+    std::cout << "skeleton = " << skeleton << std::endl; 
+    std::cout << "skeletond = " << skeletond << std::endl; 
     std::cout << "velocity_term = " << velocity_term << std::endl; 
     std::cout << "Qpj = " << Qpj << std::endl; 
     std::cout << "Qpt = " << Qpt << std::endl; 
     std::cout << "Qv = " << Qv << std::endl; 
 
-    SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
+    SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton, skeletond, velocity_term, Qpj, Qpt, Qv);
     
+    return 0;
 }
 
 
