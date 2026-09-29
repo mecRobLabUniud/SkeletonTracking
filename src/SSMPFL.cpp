@@ -44,12 +44,15 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
                      const Eigen::Vector3d& xd_ref,
                      const Eigen::VectorXd& q_ref,
                      Eigen::Vector3d ro,
-                     const Eigen::Vector3d& vo,
+                     Eigen::Vector3d vo,
                      double delta,
                      double Qpj, 
                      double Qpt, 
                      double Qv) {
     const int n = 7;
+
+    ro = Eigen::Vector3d{0.6120, 0.6120, 0.3000};
+    vo = Eigen::Vector3d{0.5988, 0.5988, 0.0};
 
 
     Qpj = Qpj;
@@ -62,9 +65,9 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     Eigen::VectorXd q_tp = q_t + dt * qdot_t;
 
-    Eigen::Vector3d x_t = robot.GetJointPose("panda_link8", q_tp).translation();
-    Eigen::MatrixXd J_t = robot.ComputeJacobian("panda_link8", q_t).bottomRows(3);
-    Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).bottomRows(3);
+    Eigen::Vector3d x_t = robot.GetJointPose("panda_link8", q_t).translation();
+    Eigen::MatrixXd J_t = robot.ComputeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
 
     ro = ro + vo * dt;
 
@@ -89,16 +92,36 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     double dt2 = dt * dt;
     double dt4 = dt2 * dt2;
 
-    Eigen::MatrixXd Hq = dt4/4.0*weight_matrix;
-    Eigen::MatrixXd Hx = dt4/2.0*J_t.transpose()*J_t;
-    Eigen::MatrixXd Hv = dt2*2.0*J_t.transpose()*J_t;
+    
+    // std::cout << "q_t --------------\n" << q_t << std::endl;
+    // std::cout << "J_t_general --------------\n" << robot.ComputeJacobian("panda_link8", q_t) << std::endl;
+    // std::cout << "J_t --------------\n" << J_t << std::endl;
 
-    Eigen::VectorXd fq = dt2/2.0*(q_t + dt*qdot_t - q_ref);
-    Eigen::VectorXd fx = dt2*J_t.transpose()*(x_t + dt*J_t*qdot_t  + dt2/2.0*Jd_t*qdot_t - x_ref);
-    Eigen::VectorXd fv = dt*2.0*J_t.transpose()*(J_t*qdot_t + dt*Jd_t*qdot_t - xd_ref);
+    Eigen::MatrixXd Hp = 70.0 * dt4 / 4.0 * weight_matrix + 1.0 * dt4 / 2.0 * J_t.transpose() * J_t;
 
-    Eigen::MatrixXd H = Qpj*Hq + Qpt*Hx + Qv*Hv;
-    Eigen::VectorXd f = Qpj*fq + Qpt*fx + Qv*fv;
+    Eigen::VectorXd kpp = (-x_ref + dt2 / 2.0 * Jd_t * qdot_t + dt * J_t * qdot_t + x_t);
+    Eigen::VectorXd fpp = dt2 * J_t.transpose() * kpp;
+
+    Eigen::VectorXd kp = (-q_ref + dt * qdot_t + q_t);
+    Eigen::VectorXd fp = 70.0 * (dt2 / 2.0 * kp) + 1.0 * fpp;
+
+    Eigen::MatrixXd Hv = dt2 * 2.0 * J_t.transpose() * J_t;
+    Eigen::VectorXd kv = (xd_ref - J_t * qdot_t - dt * Jd_t * qdot_t);
+    Eigen::VectorXd fv = -dt * 2.0 * J_t.transpose() * kv;
+
+    Eigen::MatrixXd H = Hp + Qv * Hv;
+    Eigen::VectorXd f = fp + Qv * fv;
+
+    // Eigen::MatrixXd Hq = dt4/4.0*weight_matrix;
+    // Eigen::MatrixXd Hx = dt4/2.0*J_t.transpose()*J_t;
+    // Eigen::MatrixXd Hv = dt2*2.0*J_t.transpose()*J_t;
+// 
+    // Eigen::VectorXd fq = dt2/2.0*(q_t + dt*qdot_t - q_ref);
+    // Eigen::VectorXd fx = dt2*J_t.transpose()*(x_t + dt*J_t*qdot_t  + dt2/2.0*Jd_t*qdot_t - x_ref);
+    // Eigen::VectorXd fv = dt*2.0*J_t.transpose()*(J_t*qdot_t + dt*Jd_t*qdot_t - xd_ref);
+// 
+    // Eigen::MatrixXd H = Qpj*Hq + Qpt*Hx + Qv*Hv;
+    // Eigen::VectorXd f = Qpj*fq + Qpt*fx + Qv*fv;
 
     // --- Kinematic / dynamic bounds ------------------------------------
     Eigen::VectorXd qmin = (k_limits.q_limits.transpose().col(0) - q_t - dt*qdot_t)*2.0/dt2;
@@ -112,29 +135,30 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd q_ub = qmax.cwiseMin(qdmax).cwiseMin(qddmax);
 
     // --- SSM+PFL constraints (per-link kinematics) ----------------------
-    Eigen::MatrixXd J1 = robot.ComputeJacobian("panda_link2", q_t).bottomRows(3);
-    Eigen::MatrixXd J1d = robot.ComputeDerivativeJacobian("panda_link2", q_t).bottomRows(3);
-    Eigen::Vector3d r1 = robot.GetJointPose("panda_link2", q_t).translation();
+    Eigen::MatrixXd J1 = robot.ComputeJacobian("panda_link0", q_t).topRows(3);
+    Eigen::MatrixXd J1d = robot.ComputeDerivativeJacobian("panda_link0", q_t).topRows(3);
+    Eigen::Vector3d r1 = robot.GetJointPose("panda_link0", q_t).translation();
 
-    Eigen::MatrixXd J2 = robot.ComputeJacobian("panda_link3", q_t).bottomRows(3);
-    Eigen::MatrixXd J2d = robot.ComputeDerivativeJacobian("panda_link3", q_t).bottomRows(3);
-    Eigen::Vector3d r2 = robot.GetJointPose("panda_link3", q_t).translation();
+    Eigen::MatrixXd J2 = robot.ComputeJacobian("panda_link1", q_t).topRows(3);
+    Eigen::MatrixXd J2d = robot.ComputeDerivativeJacobian("panda_link1", q_t).topRows(3);
+    Eigen::Vector3d r2 = robot.GetJointPose("panda_link1", q_t).translation();
 
-    Eigen::MatrixXd J3 = robot.ComputeJacobian("panda_link4", q_t).bottomRows(3);
-    Eigen::MatrixXd J3d = robot.ComputeDerivativeJacobian("panda_link4", q_t).bottomRows(3);
+    Eigen::MatrixXd J3 = robot.ComputeJacobian("panda_link4", q_t).topRows(3);
+    Eigen::MatrixXd J3d = robot.ComputeDerivativeJacobian("panda_link4", q_t).topRows(3);
     Eigen::Vector3d r3 = robot.GetJointPose("panda_link4", q_t).translation();
 
-    Eigen::MatrixXd J4 = robot.ComputeJacobian("panda_link5", q_t).bottomRows(3);
-    Eigen::MatrixXd J4d = robot.ComputeDerivativeJacobian("panda_link5", q_t).bottomRows(3);
+    Eigen::MatrixXd J4 = robot.ComputeJacobian("panda_link5", q_t).topRows(3);
+    Eigen::MatrixXd J4d = robot.ComputeDerivativeJacobian("panda_link5", q_t).topRows(3);
     Eigen::Vector3d r4 = robot.GetJointPose("panda_link5", q_t).translation();
 
-    Eigen::MatrixXd J5 = robot.ComputeJacobian("panda_link7", q_t).bottomRows(3);
-    Eigen::MatrixXd J5d = robot.ComputeDerivativeJacobian("panda_link7", q_t).bottomRows(3);
+    Eigen::MatrixXd J5 = robot.ComputeJacobian("panda_link7", q_t).topRows(3);
+    Eigen::MatrixXd J5d = robot.ComputeDerivativeJacobian("panda_link7", q_t).topRows(3);
     Eigen::Vector3d r5 = robot.GetJointPose("panda_link7", q_t).translation();
 
-    Eigen::MatrixXd J6 = robot.ComputeJacobian("panda_link8", q_t).bottomRows(3);
-    Eigen::MatrixXd J6d = robot.ComputeDerivativeJacobian("panda_link8", q_t).bottomRows(3);
+    Eigen::MatrixXd J6 = robot.ComputeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::MatrixXd J6d = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
     Eigen::Vector3d r6 = robot.GetJointPose("panda_link8", q_t).translation();
+
 
     Eigen::MatrixXd A(10, n);
     Eigen::VectorXd b(10);
@@ -156,9 +180,9 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     double d2 = delta * delta;
 
-    // std::cout << "+++++++++++++++++++++++++++++++++++++" << std::endl;
-    // std::cout << "ro = " << ro << std::endl;
-    // std::cout << "vo = " << vo << std::endl;
+    std::cout << "+++++++++++++++++++++++++++++++++++++" << std::endl;
+    std::cout << "ro = " << ro << std::endl;
+    std::cout << "vo = " << vo << std::endl;
     // std::cout << "ro.transpose()*J5 - r5.transpose()*J5 = " << ro.transpose()*J5 - r5.transpose()*J5 << std::endl;
     // std::cout << "(ro - r5).transpose()*J5d = " << (ro - r5).transpose()*J5d << std::endl;
 
@@ -203,6 +227,13 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
            - ((ro.transpose()*J5 - r4.transpose()*J5 - (r5 - r4).transpose()*J4)*qdot_t).value()
            - (dt*(ro - r5).transpose()*J5d*qdot_t).value();
 
+
+    std::cout << "H --------------\n" << H << std::endl;
+    std::cout << "f --------------\n" << f << std::endl;
+    std::cout << "A --------------\n" << A << std::endl;
+    std::cout << "b --------------\n" << b << std::endl;
+    std::cout << "q_lb --------------\n" << q_lb << std::endl;
+    std::cout << "q_ub --------------\n" << q_ub << std::endl;
     
 
     int nV = H.rows();
@@ -211,6 +242,9 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> H_rm = H;
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> A_rm = A;
 
+    std::cout << "H_rm --------------\n" << H_rm << std::endl;
+    std::cout << "A_rm --------------\n" << A_rm << std::endl;
+
     qpOASES::QProblem qp(nV, nC);
 
     qpOASES::Options options;
@@ -218,10 +252,9 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     options.terminationTolerance = 1e-6;
     qp.setOptions(options);
 
-    int nWSR = 30;
+    int nWSR = 1000;
 
     Eigen::VectorXd lbA = Eigen::VectorXd::Constant(nC, -qpOASES::INFTY);
-    Eigen::VectorXd ubA = Eigen::VectorXd::Constant(nC, qpOASES::INFTY);
 
     qpOASES::returnValue status = qp.init(H_rm.data(), f.data(), A_rm.data(),
                                            q_lb.data(), q_ub.data(),
@@ -241,19 +274,27 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     SSMPFLResult out;
     out.exitflag = success;
 
-    std::cout << "+++++++++++++++++++++++++++++" << std::endl;
-    
-    std::cout << "Hp --------------\n" << Qpj*Hq + Qpt*Hx  << std::endl;
-    std::cout << "Hv --------------\n" << Hv << std::endl;
-    std::cout << "fp --------------\n" << Qpj*fq + Qpt*fx  << std::endl;
-    std::cout << "fv --------------\n" << fv << std::endl;
-    std::cout << "H --------------\n" << H << std::endl;
-    std::cout << "f --------------\n" << f << std::endl;
-    std::cout << "A --------------\n" << A << std::endl;
-    std::cout << "b --------------\n" << b << std::endl;
-
+    // std::cout << "+++++++++++++++++++++++++++++" << std::endl;
+    // std::cout << "r5 --------------\n" << r5 << std::endl;
+    // std::cout << "r6 --------------\n" << r6 << std::endl;
+    // std::cout << "ro --------------\n" << ro << std::endl;
+    // std::cout << "delta --------------\n" << delta << std::endl;
+    // std::cout << "minsSSM(r5, r6, ro, delta) --------------\n" << minsSSM(r5, r6, ro, delta) << std::endl;
+    // // std::cout << "Hp --------------\n" << Qpj*Hq + Qpt*Hx  << std::endl;
+    // std::cout << "Hp --------------\n" << Hp << std::endl;
+    // std::cout << "Hv --------------\n" << Hv << std::endl;
+    // // std::cout << "fp --------------\n" << Qpj*fq + Qpt*fx  << std::endl;
+    // std::cout << "fp --------------\n" << fp << std::endl;
+    // std::cout << "fv --------------\n" << fv << std::endl;
+    // std::cout << "H --------------\n" << H << std::endl;
+    // std::cout << "f --------------\n" << f << std::endl;
+    // std::cout << "A --------------\n" << A << std::endl;
+    // std::cout << "b --------------\n" << b << std::endl;
     std::cout << "qddot --------------\n" << qddot << std::endl;
     std::cout << "A*qddot --------------\n" << A*qddot << std::endl;
+
+
+
 
 
     if (out.exitflag) {
@@ -263,7 +304,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
         out.p_next = robot.GetJointPose("panda_link8", out.q_next).translation();
 
-        Eigen::MatrixXd J_next = robot.ComputeJacobian("panda_link8", out.q_next).bottomRows(3);
+        Eigen::MatrixXd J_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3);
         out.pd_next = J_next * out.qd_next;
     } else {
         out.qdd_next = Eigen::VectorXd::Zero(n);

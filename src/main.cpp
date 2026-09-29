@@ -15,6 +15,7 @@
 #include "utils.hpp"
 #include "min_distance_calculation.hpp"
 #include "robot_model.hpp"
+#include "quintic_trajectory.hpp"
 
 #include "SSMPFL.hpp"
 
@@ -236,6 +237,11 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
     std::vector<std::array<double, 7>> traj_low = load_trajectory_CSV(trajectory_path + "q_ref.csv");
     std::vector<double> t_low = load_timestamps_CSV(trajectory_path + "t_ref.csv");
 
+    traj_low[0] = {{0.2082, 0.6204, -0.0830, -1.5158, 0.0570, 2.1339, 0.1102}};
+    traj_low[1] = {{1.6896, 0.5525, -0.3451, -1.3974, 0.1899, 1.9174, 1.3274}};
+
+
+
     if (t_start != 0.0) {
         if (q_start.size() != 7) {
             std::cerr << "Error: q_start must have 7 elements when t_start != 0" << std::endl;
@@ -271,7 +277,9 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
     }
     std::cout << "\n";
 
-    Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
+    // Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
+    Trajectory traj_high = interpolateQuintic(traj_low, t_low);
+
     // save_trajectory_CSV(trajectory_path + "q.csv",  traj_high.q);
     // save_trajectory_CSV(trajectory_path + "qd.csv",  traj_high.qd);
     // save_trajectory_CSV(trajectory_path + "qdd.csv",  traj_high.qdd);
@@ -320,7 +328,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // Eigen::VectorXd q_start = traj->q[0];
     // double t_start = 0.0;
-    int traj_size = 2000; // traj->q.size();
+    int traj_size = traj->q.size();
     int cnt = 0;
 
     // Initialize simulation state
@@ -395,7 +403,6 @@ int execute_task (int n_traj, std::string c_dir="") {
         std::cout << "+++++ Trajectory completed +++++" << std::endl;
         std::cout << "++++++++++++++++++++++++++++++++" << std::endl;
 
-        return 0;
 
         next_time = std::chrono::steady_clock::now();
         loop_start = std::chrono::steady_clock::now();
@@ -415,33 +422,33 @@ int test(std::string c_dir="") {
     const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf_path);
 
-    const double dt = 1.0 / static_cast<double>(rate_hz);
+    const double dt = 0.005;
 
-    stopping_time = 0.3;
+    stopping_time = 0.25;
 
     q_real = Eigen::VectorXd(7);
-    q_real << -0.247591, 0.341241,-0.206387, -2.15328,0.0847584,  2.49884, 0.259059;
+    q_real << 0.6152, 0.5977, -0.1659, -1.4862, 0.0936, 2.0707, 0.4532;
 
     qd_real = Eigen::VectorXd(7);
-    qd_real << 0.0562014, -0.109639,  0.270759,  0.121699, -0.144036, -0.240594,  0.503352;
+    qd_real << 0.4543, -0.0319, -0.1200, 0.0271, 0.0409, -0.0969, 0.2976;
 
     std::array<Eigen::Vector3d, 2> p_r;
-    p_r[1] << 0.540806, -0.180569,  0.229081;
+    p_r[1] << 0.6207, 0.3424, 0.3264;
 
     std::array<Eigen::Vector3d, 2> pd_r;
-    pd_r[1] << 0.166107, -0.0246751,  -0.108691;
+    pd_r[1] << -0.1450, 0.2656, 0.0321;
 
     std::array<Eigen::VectorXd, 2> q_r;
     q_r[1] = Eigen::VectorXd(7);
-    q_r[1] << -0.153826,  0.371096,  -0.16679,   -2.1469,  0.134848,   2.50848,  0.258585;
+    q_r[1] << 0.6282, 0.6011, -0.1573, -1.4823, 0.0947, 2.0725, 0.4552;
 
     Eigen::Vector3d skeleton;
-    skeleton << 0.25, -0.108383, 0.51;
+    skeleton << 0.6120, 0.6120, 0.3000;
 
     Eigen::Vector3d skeletond;
-    skeletond << 0, 0.0276359, 0;
+    skeletond << 0.5988, 0.5988, 0;
 
-    double velocity_term = -0.0117092;
+    double velocity_term = 0.2290;
     
     double Qpj = 70;
     
@@ -452,19 +459,19 @@ int test(std::string c_dir="") {
 
 
 
-    std::cout << "dt = " << dt << std::endl; 
-    std::cout << "stopping_time = " << stopping_time << std::endl; 
-    std::cout << "q_real = " << q_real << std::endl; 
-    std::cout << "qd_real = " << qd_real << std::endl; 
-    std::cout << "p_r[1] = " << p_r[1] << std::endl; 
-    std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
-    std::cout << "q_r[1] = " << q_r[1] << std::endl; 
-    std::cout << "skeleton = " << skeleton << std::endl; 
-    std::cout << "skeletond = " << skeletond << std::endl; 
-    std::cout << "velocity_term = " << velocity_term << std::endl; 
-    std::cout << "Qpj = " << Qpj << std::endl; 
-    std::cout << "Qpt = " << Qpt << std::endl; 
-    std::cout << "Qv = " << Qv << std::endl; 
+    // std::cout << "dt = " << dt << std::endl; 
+    // std::cout << "stopping_time = " << stopping_time << std::endl; 
+    // std::cout << "q_real = " << q_real << std::endl; 
+    // std::cout << "qd_real = " << qd_real << std::endl; 
+    // std::cout << "p_r[1] = " << p_r[1] << std::endl; 
+    // std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
+    // std::cout << "q_r[1] = " << q_r[1] << std::endl; 
+    // std::cout << "skeleton = " << skeleton << std::endl; 
+    // std::cout << "skeletond = " << skeletond << std::endl; 
+    // std::cout << "velocity_term = " << velocity_term << std::endl; 
+    // std::cout << "Qpj = " << Qpj << std::endl; 
+    // std::cout << "Qpt = " << Qpt << std::endl; 
+    // std::cout << "Qv = " << Qv << std::endl; 
 
     SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton, skeletond, velocity_term, Qpj, Qpt, Qv);
     
@@ -513,8 +520,8 @@ int main(int argc, char* argv[]) {
 
     std::signal(SIGINT, signal_handler);
 
-    test(path);
-    return 0;
+    // test(path);
+    // return 0;
 
     if (execute_task(n_traj, path)) return 1;
     else printf("Exiting cleanly...\n");
