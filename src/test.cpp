@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
   // ---------------------------------------------------------------- Parameters
   const double time_final = 5.0;
   const double time_experiment = 30.0;
-  const double freq = 200.0;
+  const double freq = 150.0;
   const double dt = 1.0 / freq;
   const double stopping_time = 0.25;
   const double pause_after_collision = 3.75;
@@ -230,7 +230,8 @@ int main(int argc, char** argv) {
   std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
 
   // ------------------------------------------------------ Human trajectory
-  const double t_move = 1.25, t_pause = 2.5;
+  // const double t_move = 1.25, t_pause = 2.5;
+  const double t_move = 1.75, t_pause = 1.5;
   const int Nm = static_cast<int>(std::lround(t_move * freq)) + 1;  // 251
   const int Nh = static_cast<int>(std::lround((2 * t_move + t_pause) * freq)) + 1;  // 1001
 
