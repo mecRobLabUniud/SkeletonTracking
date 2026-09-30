@@ -51,17 +51,19 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
                      double Qv) {
     const int n = 7;
 
-    ro = Eigen::Vector3d{0.6120, 0.6120, 0.3000};
-    vo = Eigen::Vector3d{0.5988, 0.5988, 0.0};
-
-
-    Qpj = Qpj;
-    Qpt = Qpt;
-    Qv = Qv;
-
-    // std::cout << "Qpj =" << Qpj << std::endl;
-    // std::cout << "Qpt =" << Qpt << std::endl;
-    // std::cout << "Qv =" << Qv << std::endl;
+    std::cout << "dt = " << dt << std::endl; 
+    std::cout << "stopping_time = " << stopping_time << std::endl; 
+    std::cout << "q_t = " << q_t << std::endl; 
+    std::cout << "qdot_t = " << qdot_t << std::endl; 
+    std::cout << "x_ref = " << x_ref << std::endl; 
+    std::cout << "xd_ref = " << xd_ref << std::endl; 
+    std::cout << "q_ref = " << q_ref << std::endl; 
+    std::cout << "ro = " << ro << std::endl; 
+    std::cout << "vo = " << vo << std::endl; 
+    std::cout << "delta = " << delta << std::endl; 
+    std::cout << "Qpj = " << Qpj << std::endl; 
+    std::cout << "Qpt = " << Qpt << std::endl; 
+    std::cout << "Qv = " << Qv << std::endl; 
 
     Eigen::VectorXd q_tp = q_t + dt * qdot_t;
 
@@ -183,9 +185,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     std::cout << "+++++++++++++++++++++++++++++++++++++" << std::endl;
     std::cout << "ro = " << ro << std::endl;
     std::cout << "vo = " << vo << std::endl;
-    // std::cout << "ro.transpose()*J5 - r5.transpose()*J5 = " << ro.transpose()*J5 - r5.transpose()*J5 << std::endl;
-    // std::cout << "(ro - r5).transpose()*J5d = " << (ro - r5).transpose()*J5d << std::endl;
-
     
     b(0) = 1.0/stopping_time*(std::pow(minsSSM(r5, r6, ro, delta), 2) - d2/4.0)
            - ((ro.transpose()*J5 - r5.transpose()*J5)*qdot_t).value()
@@ -228,12 +227,12 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
            - (dt*(ro - r5).transpose()*J5d*qdot_t).value();
 
 
-    std::cout << "H --------------\n" << H << std::endl;
-    std::cout << "f --------------\n" << f << std::endl;
-    std::cout << "A --------------\n" << A << std::endl;
-    std::cout << "b --------------\n" << b << std::endl;
-    std::cout << "q_lb --------------\n" << q_lb << std::endl;
-    std::cout << "q_ub --------------\n" << q_ub << std::endl;
+    // std::cout << "H --------------\n" << H << std::endl;
+    // std::cout << "f --------------\n" << f << std::endl;
+    // std::cout << "A --------------\n" << A << std::endl;
+    // std::cout << "b --------------\n" << b << std::endl;
+    // std::cout << "q_lb --------------\n" << q_lb << std::endl;
+    // std::cout << "q_ub --------------\n" << q_ub << std::endl;
     
 
     int nV = H.rows();
@@ -241,9 +240,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> H_rm = H;
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> A_rm = A;
-
-    std::cout << "H_rm --------------\n" << H_rm << std::endl;
-    std::cout << "A_rm --------------\n" << A_rm << std::endl;
 
     qpOASES::QProblem qp(nV, nC);
 
@@ -290,8 +286,10 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     // std::cout << "f --------------\n" << f << std::endl;
     // std::cout << "A --------------\n" << A << std::endl;
     // std::cout << "b --------------\n" << b << std::endl;
-    std::cout << "qddot --------------\n" << qddot << std::endl;
-    std::cout << "A*qddot --------------\n" << A*qddot << std::endl;
+    
+    
+    // std::cout << "qddot --------------\n" << qddot << std::endl;
+    // std::cout << "A*qddot --------------\n" << A*qddot << std::endl;
 
 
 

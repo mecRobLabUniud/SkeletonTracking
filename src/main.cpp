@@ -34,13 +34,13 @@ int collision_counter = 0;
 const int rate_hz = 60;
 double velocity_PFL = 0.4;
 double HR_clearance = 0.1;
-double stopping_time = 0.3;
-double pause_after_collision = 2.0;
+double stopping_time = 0.25;
+double pause_after_collision = 3.75;
 
 
-double Qpj = 0.0;
-double Qpt = 0.0;
-double Qv = 0.0;
+double Qpj = 70.0;
+double Qpt = 1.0;
+double Qv = 0.08;
 
 
 void signal_handler(int signum) {
@@ -89,34 +89,48 @@ int SSM_PFL_escape(RobotModel& robot,
         for (int i=0; i<skeleton.size(); i++) {
             if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
 
+
+            // ro = skeleton[i] 
+            // vo = skeletond[i] 
+
+            Eigen::Vector3d ro = Eigen::Vector3d{0.5, 0.5, 0.3};
+            Eigen::Vector3d vo = Eigen::Vector3d{0.0, 0.0, 0.0};
+
+
+
             // Compute safety distance delta
             double delta_safety = HR_clearance + skeletond[i].norm()*stopping_time;
             double velocity_term = -( -(delta_safety/stopping_time) + velocity_PFL )*stopping_time;
 
+
             // std::cout << "delta_safety = " << delta_safety << std::endl;
 
 
-            std::cout << "dt = " << dt << std::endl; 
-            std::cout << "stopping_time = " << stopping_time << std::endl; 
-            std::cout << "q_real = " << q_real << std::endl; 
-            std::cout << "qd_real = " << qd_real << std::endl; 
-            std::cout << "p_r[1] = " << p_r[1] << std::endl; 
-            std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
-            std::cout << "q_r[1] = " << q_r[1] << std::endl; 
-            std::cout << "skeleton[i] = " << skeleton[i] << std::endl; 
-            std::cout << "skeletond[i] = " << skeletond[i] << std::endl; 
-            std::cout << "velocity_term = " << velocity_term << std::endl; 
-            std::cout << "Qpj = " << Qpj << std::endl; 
-            std::cout << "Qpt = " << Qpt << std::endl; 
-            std::cout << "Qv = " << Qv << std::endl; 
+            // std::cout << "dt = " << dt << std::endl; 
+            // std::cout << "stopping_time = " << stopping_time << std::endl; 
+            // std::cout << "q_real = " << q_real << std::endl; 
+            // std::cout << "qd_real = " << qd_real << std::endl; 
+            // std::cout << "p_r[1] = " << p_r[1] << std::endl; 
+            // std::cout << "pd_r[1] = " << pd_r[1] << std::endl; 
+            // std::cout << "q_r[1] = " << q_r[1] << std::endl; 
+            // std::cout << "skeleton[i] = " << skeleton[i] << std::endl; 
+            // std::cout << "skeletond[i] = " << skeletond[i] << std::endl; 
+            // std::cout << "velocity_term = " << velocity_term << std::endl; 
+            // std::cout << "Qpj = " << Qpj << std::endl; 
+            // std::cout << "Qpt = " << Qpt << std::endl; 
+            // std::cout << "Qv = " << Qv << std::endl; 
 
             // std::cout << "q_r+1 = " << q_r[1] << std::endl; 
             // std::cout << "qd_r = " << qd_r[0] << std::endl; 
             // std::cout << "qd_r+1 = " << qd_r[1] << std::endl; 
             // std::cout << "qdd_r = " << qdd_r[0] << std::endl; 
             // std::cout << "qdd_r+1 = " << qdd_r[1] << std::endl; 
+
+
+
             
-            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], skeleton[i], skeletond[i], velocity_term, Qpj, Qpt, Qv);
+            
+            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real, qd_real, p_r[1], pd_r[1], q_r[1], ro, vo, velocity_term, Qpj, Qpt, Qv);
             
             // Check if optimization succeeded
             if (res.exitflag) {
@@ -186,7 +200,6 @@ int task_engine(
     std::optional<DistanceResult> dist;
     if (q_real.size() == 7) {
         dist = human_to_robot_distance(skeleton, robot, q_real);
-        std::cout << "dist = " << dist->length << std::endl;
     }    
 
     double loop_duration = 1.0/rate_hz;
@@ -267,15 +280,10 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
         t_low = t_low_new;
     }
 
-    std::cout << "==================================== " << std::endl;
-    std::cout << "\n";
     for (size_t i = 0; i < traj_low.size(); i++) {
         for (int j=0; j<7; j++) {
-            std::cout << traj_low[i][j] << ", ";
         }
-        std::cout << "\n";
     }
-    std::cout << "\n";
 
     // Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
     Trajectory traj_high = interpolateQuintic(traj_low, t_low);
@@ -328,7 +336,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // Eigen::VectorXd q_start = traj->q[0];
     // double t_start = 0.0;
-    int traj_size = traj->q.size();
+    int traj_size = 2400; // traj->q.size();
     int cnt = 0;
 
     // Initialize simulation state
@@ -370,14 +378,14 @@ int execute_task (int n_traj, std::string c_dir="") {
                     task_engine(transmitters, robot, cnt, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
                 }
                 else {
-                    std::cout << "++++++++ collision +++++++++++" << std::endl;
-                    auto collision_time = std::chrono::steady_clock::now();
-                    while (collision) {        
-                        task_engine(transmitters, robot, cnt, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
-                    }
-                    auto delay_time = std::chrono::steady_clock::now() - collision_time;
-                    loop_start += delay_time;
-                    next_time += delay_time;
+                    // std::cout << "++++++++ collision +++++++++++" << std::endl;
+                    // auto collision_time = std::chrono::steady_clock::now();
+                    // while (collision) {        
+                    //     task_engine(transmitters, robot, cnt, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
+                    // }
+                    // auto delay_time = std::chrono::steady_clock::now() - collision_time;
+                    // loop_start += delay_time;
+                    // next_time += delay_time;
 
                     continue;
                 }
@@ -403,6 +411,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         std::cout << "+++++ Trajectory completed +++++" << std::endl;
         std::cout << "++++++++++++++++++++++++++++++++" << std::endl;
 
+        return 0;
 
         next_time = std::chrono::steady_clock::now();
         loop_start = std::chrono::steady_clock::now();
@@ -511,11 +520,6 @@ int main(int argc, char* argv[]) {
     else {
         std::string c_dir(get_current_dir_name());
         path = c_dir + "/../";
-    }
-    if (argc > 3) {
-        Qpj = std::stod(argv[3]);
-        Qpt = std::stod(argv[4]);
-        Qv = std::stod(argv[5]);
     }
 
     std::signal(SIGINT, signal_handler);

@@ -62,3 +62,24 @@ target_link_libraries(main PRIVATE
     qpOASES
     pinocchio::pinocchio
 )
+
+
+# ── Test ─────────────────────────────────────────────────────────────────────
+add_executable(test 
+    src/test.cpp
+    src/trajectory_utils.cpp
+    src/robot_model.cpp
+    src/min_distance_calculation.cpp
+	src/SSMPFL.cpp
+)
+target_link_libraries(test PRIVATE 
+    Eigen3::Eigen
+    ${ZMQ_LIBRARIES}
+    Threads::Threads
+    ${OpenCV_LIBS}
+    nlohmann_json::nlohmann_json
+    pthread
+    rt
+    qpOASES
+    pinocchio::pinocchio
+)

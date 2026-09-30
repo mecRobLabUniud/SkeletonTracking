@@ -42,7 +42,7 @@ EOF
 # --- Parse arguments (order-independent) ---
 while [ $# -gt 0 ]; do
     case "$1" in
-        --track|--record|--stream|--calibrate)
+        --track|--record|--stream|--calibrate| --experiment)
             if [ -n "$mode" ]; then
                 echo "Error: only one mode may be specified (got '$mode' and '$1')." >&2
                 exit 1
@@ -143,6 +143,7 @@ web_interface="python3 $dir/scripts/web_interface.py"
 calibration="python3 $dir/scripts/calibration.py"
 rula_evaluation="$dir/build/rula_evaluation"
 exec_trajectory="$dir/build/main"
+test_trajectory="$dir/build/test"
 
 case "$mode" in
     --track)
@@ -154,6 +155,41 @@ case "$mode" in
         if [ "$use_robot" = true ]; then
             if [ "$use_traj" = true ]; then
                 $exec_trajectory "$n_traj" "$dir" &
+            fi
+        fi
+        if [ "$use_gui" = true ]; then
+            sleep 1
+            if [ "$use_robot" = true ]; then
+                $web_interface "$n_devices" "--robot"
+            else
+                $web_interface "$n_devices"
+            fi
+        else
+            wait
+        fi
+        ;;
+
+    --experiment)
+        
+        if [ -z "$n_test" ]; then
+            echo -n "Enter the value of the test to stream: "
+            read -r n_test
+        fi
+
+        n_devices=$(ls "$dir"/scripts/data/skeleton_data/test"$n_test"/skeleton* 2>/dev/null | wc -l)
+        echo "Found $n_devices skeleton data for test $n_test."
+        if [ "$n_devices" -eq 0 ]; then
+            echo "Error: no skeleton data found for test $n_test." >&2
+            exit 1
+        fi
+
+        echo "Starting test procedure..."
+        $data_recording "$n_devices" "-s" "$n_test" &
+        $data_merging "$n_devices" &
+        $rula_evaluation &
+        if [ "$use_robot" = true ]; then
+            if [ "$use_traj" = true ]; then
+                $test_trajectory "src/urdf/panda.urdf" &
             fi
         fi
         if [ "$use_gui" = true ]; then

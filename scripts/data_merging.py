@@ -94,9 +94,9 @@ def merging(dtrs, dts):
     cnt += 0.01
 
     # p1 = [0.5, 0.2 - 0.1*sin(cnt), 0.5]
-    p1 = [0.6120, 0.6120, 0.3000]
+    p1 = [0.5, 0.5, 0.3]
     # p1 = [0.8 - 0.4*abs(sin(cnt)), 0.8 - 0.4*abs(sin(cnt)), 0.3]
-    p2 = [p1[0], p1[1], p1[2]-0.01]
+    p2 = [p1[0], p1[1], p1[2]+0.01]
     reshaped_skeleton = np.asanyarray([p1, p2]) # reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
 
