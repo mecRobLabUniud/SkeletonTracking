@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
   const int Nm = static_cast<int>(std::lround(t_move * freq)) + 1;  // 251
   const int Nh = static_cast<int>(std::lround((2 * t_move + t_pause) * freq)) + 1;  // 1001
 
-  const Eigen::Vector3d hA(0.5, 0.5, 0.3), hB(0.5, 0.5, 0.31);
+  const Eigen::Vector3d hA(0.8, 0.8, 0.3), hB(0.4, 0.4, 0.3);
   Traj hf = QuinticPolyTraj(hA, hB, t_move, dt, Nm);  // A -> B
   Traj hs = QuinticPolyTraj(hB, hA, t_move, dt, Nm);  // B -> A
 
@@ -286,8 +286,8 @@ int main(int argc, char** argv) {
     // ro = Eigen::Vector3d{0.6120, 0.6120, 0.3000};
     // vo = Eigen::Vector3d{0.5988, 0.5988, 0.0};
 
-    ro = Eigen::Vector3d{0.5, 0.5, 0.3};
-    vo = Eigen::Vector3d{0.0, 0.0, 0.0};
+    // ro = Eigen::Vector3d{0.5, 0.5, 0.3};
+    // vo = Eigen::Vector3d{0.0, 0.0, 0.0};
 
 
 
