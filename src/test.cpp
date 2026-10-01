@@ -270,6 +270,7 @@ int main(int argc, char** argv) {
   int collision_counter = 0;
   bool collision = false, forward = true;
   int r = 1;  // MATLAB reference_time (reference column used is r, 0-based)
+  Eigen::Vector3d ro_prev = p_int.col(0);
 
   for (int i = 1; i <= n_steps; ++i) {
     const int k = i - 1;  // index of the latest state (MATLAB column i)
@@ -281,7 +282,13 @@ int main(int argc, char** argv) {
       const int rr = std::min(r, M - 1);
 
       Eigen::Vector3d ro = p_int.col(k);
-      Eigen::Vector3d vo = v_int.col(k);
+      // Eigen::Vector3d vo = v_int.col(k);
+      Eigen::Vector3d vo = (ro - ro_prev)/dt;
+
+        std::cout << "===============================" << "\n";
+        std::cout << "v_int = " << v_int.col(k) << "\n";
+        std::cout << "vo = " << vo << "\n";
+        std::cout << "===============================" << "\n";
 
 
     // ro = Eigen::Vector3d{0.6120, 0.6120, 0.3000};
@@ -330,7 +337,7 @@ int main(int argc, char** argv) {
     transmitters[2]->send_data(payload);
 
 
-
+    ro_prev = ro;
 
 
       if (res.exitflag) {

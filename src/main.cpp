@@ -242,8 +242,8 @@ int task_engine(
     for (int i=0; i<skeleton.size(); i++) {
         if (std::isnan(skeleton[i][0]) || std::isnan(skeleton[i][1]) || std::isnan(skeleton[i][2])) continue;
         
-        skeletond[i] = (skeleton[i] - skeleton_prev[i])*rate_hz;
-        skeletondd[i] = (skeletond[i] - skeletond_prev[i])*rate_hz;
+        skeletond[i] = (skeleton[i] - skeleton_prev[i])*period_ms;
+        skeletondd[i] = (skeletond[i] - skeletond_prev[i])*period_ms;
     }
 
     SSM_PFL_escape(robot, q_r, qd_r, skeleton, skeletond);
@@ -269,7 +269,7 @@ int task_engine(
     
     return 0;
 };
-
+*/
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Load trajectory
@@ -328,7 +328,7 @@ std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double 
     // save_trajectory_CSV(trajectory_path + "qdd.csv",  traj_high.qdd);
 
     return traj_high;
-}*/
+}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -471,7 +471,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     double v_rms = 0;
     for (double x : v_norm) v_rms += x * x;
     v_rms = std::sqrt(v_rms / v_norm.size());
-    std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
+    // std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
 
     // ------------------------------------------------------ Human trajectory
     const double t_move = 1.75, t_pause = 1.5;
@@ -518,6 +518,11 @@ int execute_task (int n_traj, std::string c_dir="") {
     int collision_counter = 0;
     bool collision = false, forward = true;
     int cnt = 0;
+    Eigen::Vector3d skeleton_prev = p_int.col(cnt);
+
+
+    auto traj = load_trajectory(n_traj, c_dir);
+    if (!traj) return 1;
 
 
     loop_start = std::chrono::steady_clock::now();
@@ -543,16 +548,16 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             // if (cnt + period_ms < traj_size) {
             if (true) {
-                // std::cout << std::endl << std::endl << "++++++++ cnt = " << cnt << std::endl << std::endl << std::endl;
-                // std::array<Eigen::VectorXd, 2> q_r;
-                // q_r[0] = traj->q[cnt];
-                // q_r[1] = traj->q[cnt + period_ms];
-                // std::array<Eigen::VectorXd, 2> qd_r;
-                // qd_r[0] = traj->qd[cnt];
-                // qd_r[1] = traj->qd[cnt + period_ms];
-                // std::array<Eigen::VectorXd, 2> qdd_r;
-                // qdd_r[0] = traj->qdd[cnt];
-                // qdd_r[1] = traj->qdd[cnt + period_ms];
+                std::cout << std::endl << std::endl << "++++++++ cnt = " << cnt << std::endl << std::endl << std::endl;
+                std::array<Eigen::VectorXd, 2> q_r;
+                q_r[0] = traj->q[cnt*period_ms];
+                q_r[1] = traj->q[cnt*period_ms + period_ms];
+                std::array<Eigen::VectorXd, 2> qd_r;
+                qd_r[0] = traj->qd[cnt*period_ms];
+                qd_r[1] = traj->qd[cnt*period_ms + period_ms];
+                std::array<Eigen::VectorXd, 2> qdd_r;
+                qdd_r[0] = traj->qdd[cnt*period_ms];
+                qdd_r[1] = traj->qdd[cnt*period_ms + period_ms];
                 
                 if (!collision) {
                     // task_engine(transmitters, robot, cnt, q_r, qd_r, qdd_r, skeleton, skeletond, skeletondd);
@@ -568,16 +573,22 @@ int execute_task (int n_traj, std::string c_dir="") {
                     // std::array<Eigen::VectorXd, 2> p_r;
                     // p_r[0] = Pr.col(cnt);
                     // p_r[1] = Pr.col(cnt+1);
-                    std::array<Eigen::VectorXd, 2> q_r;
-                    q_r[0] = Qr.col(cnt);
-                    q_r[1] = Qr.col(cnt+1);
-                    std::array<Eigen::VectorXd, 2> qd_r;
-                    qd_r[0] = Qdr.col(cnt);
-                    qd_r[1] = Qdr.col(cnt+1);
+                    // std::array<Eigen::VectorXd, 2> q_r;
+                    // q_r[0] = Qr.col(cnt);
+                    // q_r[1] = Qr.col(cnt+1);
+                    // std::array<Eigen::VectorXd, 2> qd_r;
+                    // qd_r[0] = Qdr.col(cnt);
+                    // qd_r[1] = Qdr.col(cnt+1);
                     std::vector<Eigen::Vector3d> skeleton;
                     skeleton.push_back(p_int.col(cnt));
                     std::vector<Eigen::Vector3d> skeletond;
-                    skeletond.push_back(v_int.col(cnt));
+                    // skeletond.push_back(v_int.col(cnt));
+                    skeletond.push_back((skeleton[0] - skeleton_prev)/dt);
+
+                    std::cout << "===============================" << "\n";
+                    std::cout << "v_int = " << v_int.col(cnt) << "\n";
+                    std::cout << "skeletond = " << skeletond[0] << "\n";
+                    std::cout << "===============================" << "\n";
 
 
 
@@ -612,6 +623,9 @@ int execute_task (int n_traj, std::string c_dir="") {
                     transmitters[2]->send_data(payload);
 
                 
+                    skeleton_prev = skeleton[0];
+
+
                     if (forward) {
                         if ((p_real - pf.col(N - 1)).norm() <= 0.01) {
                             cnt = 0;
