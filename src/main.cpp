@@ -388,10 +388,11 @@ int execute_task (int n_traj, std::string c_dir="") {
     const std::string ee = "panda_link8";
 
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
-    transmitters.reserve(2);
+    transmitters.reserve(4);
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED"));
 
     // ---------------------------------------------------------------- Parameters
     const double time_final = 5.0;
@@ -473,30 +474,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     v_rms = std::sqrt(v_rms / v_norm.size());
     // std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
 
-    // ------------------------------------------------------ Human trajectory
-    const double t_move = 1.75, t_pause = 1.5;
-    const int Nm = static_cast<int>(std::lround(t_move * freq)) + 1;  // 251
-    const int Nh = static_cast<int>(std::lround((2 * t_move + t_pause) * freq)) + 1;  // 1001
-
-    const Eigen::Vector3d hA(0.8, 0.8, 0.3), hB(0.4, 0.4, 0.3);
-    Traj hf = QuinticPolyTraj(hA, hB, t_move, dt, Nm);  // A -> B
-    Traj hs = QuinticPolyTraj(hB, hA, t_move, dt, Nm);  // B -> A
-
-    Eigen::MatrixXd p_unit(3, Nh), v_unit = Eigen::MatrixXd::Zero(3, Nh);
-    for (int k = 0; k < Nh; ++k) p_unit.col(k) = hA;
-    const int m = Nm - 1;  // 250: last index of first move / first of second
-    p_unit.block(0, 0, 3, Nm) = hf.p;
-    v_unit.block(0, 0, 3, Nm) = hf.v;
-    p_unit.block(0, m, 3, Nm) = hs.p;
-    v_unit.block(0, m, 3, Nm) = hs.v;
-
-    Eigen::MatrixXd p_int = Eigen::MatrixXd::Zero(3, Nc), v_int = Eigen::MatrixXd::Zero(3, Nc);
-    const int reps = static_cast<int>(std::lround(time_experiment / time_final));
-    for (int j = 0; j < reps; ++j) {
-        const int start = j * static_cast<int>(freq * time_final);
-        p_int.block(0, start, 3, Nh) = p_unit;
-        v_int.block(0, start, 3, Nh) = v_unit;
-    }
+    
 
     // -------------------------------------- PFL & SSM & Escape simulation
     auto t0 = std::chrono::steady_clock::now();
@@ -518,7 +496,9 @@ int execute_task (int n_traj, std::string c_dir="") {
     int collision_counter = 0;
     bool collision = false, forward = true;
     int cnt = 0;
-    Eigen::Vector3d skeleton_prev = p_int.col(cnt);
+    std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[3]->receive_data()[0]);
+    Eigen::Vector3d skeleton_prev = skeleton[0];
+
 
 
     auto traj = load_trajectory(n_traj, c_dir);
@@ -579,16 +559,19 @@ int execute_task (int n_traj, std::string c_dir="") {
                     // std::array<Eigen::VectorXd, 2> qd_r;
                     // qd_r[0] = Qdr.col(cnt);
                     // qd_r[1] = Qdr.col(cnt+1);
-                    std::vector<Eigen::Vector3d> skeleton;
-                    skeleton.push_back(p_int.col(cnt));
+
+
+                    // std::vector<Eigen::Vector3d> skeleton;
+                    // skeleton.push_back(p_int.col(cnt));
+                    skeleton = json_to_keypoints(transmitters[3]->receive_data()[0]);
                     std::vector<Eigen::Vector3d> skeletond;
                     // skeletond.push_back(v_int.col(cnt));
                     skeletond.push_back((skeleton[0] - skeleton_prev)/dt);
 
-                    std::cout << "===============================" << "\n";
-                    std::cout << "v_int = " << v_int.col(cnt) << "\n";
-                    std::cout << "skeletond = " << skeletond[0] << "\n";
-                    std::cout << "===============================" << "\n";
+                    // std::cout << "===============================" << "\n";
+                    // std::cout << "v_int = " << v_int.col(cnt) << "\n";
+                    // std::cout << "skeletond = " << skeletond[0] << "\n";
+                    // std::cout << "===============================" << "\n";
 
 
 
