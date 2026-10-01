@@ -63,8 +63,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd q_tp = q_t + dt * qdot_t;
 
     Eigen::Vector3d x_t = robot.GetJointPose("panda_link8", q_tp).translation();
-    Eigen::MatrixXd J_t = robot.ComputeJacobian("panda_link8", q_t).bottomRows(3);
-    Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).bottomRows(3);
+    Eigen::MatrixXd J_t = robot.ComputeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
 
     ro = ro + vo * dt;
 
@@ -112,28 +112,28 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd q_ub = qmax.cwiseMin(qdmax).cwiseMin(qddmax);
 
     // --- SSM+PFL constraints (per-link kinematics) ----------------------
-    Eigen::MatrixXd J1 = robot.ComputeJacobian("panda_link2", q_t).bottomRows(3);
-    Eigen::MatrixXd J1d = robot.ComputeDerivativeJacobian("panda_link2", q_t).bottomRows(3);
+    Eigen::MatrixXd J1 = robot.ComputeJacobian("panda_link2", q_t).topRows(3);
+    Eigen::MatrixXd J1d = robot.ComputeDerivativeJacobian("panda_link2", q_t).topRows(3);
     Eigen::Vector3d r1 = robot.GetJointPose("panda_link2", q_t).translation();
 
-    Eigen::MatrixXd J2 = robot.ComputeJacobian("panda_link3", q_t).bottomRows(3);
-    Eigen::MatrixXd J2d = robot.ComputeDerivativeJacobian("panda_link3", q_t).bottomRows(3);
+    Eigen::MatrixXd J2 = robot.ComputeJacobian("panda_link3", q_t).topRows(3);
+    Eigen::MatrixXd J2d = robot.ComputeDerivativeJacobian("panda_link3", q_t).topRows(3);
     Eigen::Vector3d r2 = robot.GetJointPose("panda_link3", q_t).translation();
 
-    Eigen::MatrixXd J3 = robot.ComputeJacobian("panda_link4", q_t).bottomRows(3);
-    Eigen::MatrixXd J3d = robot.ComputeDerivativeJacobian("panda_link4", q_t).bottomRows(3);
+    Eigen::MatrixXd J3 = robot.ComputeJacobian("panda_link4", q_t).topRows(3);
+    Eigen::MatrixXd J3d = robot.ComputeDerivativeJacobian("panda_link4", q_t).topRows(3);
     Eigen::Vector3d r3 = robot.GetJointPose("panda_link4", q_t).translation();
 
-    Eigen::MatrixXd J4 = robot.ComputeJacobian("panda_link5", q_t).bottomRows(3);
-    Eigen::MatrixXd J4d = robot.ComputeDerivativeJacobian("panda_link5", q_t).bottomRows(3);
+    Eigen::MatrixXd J4 = robot.ComputeJacobian("panda_link5", q_t).topRows(3);
+    Eigen::MatrixXd J4d = robot.ComputeDerivativeJacobian("panda_link5", q_t).topRows(3);
     Eigen::Vector3d r4 = robot.GetJointPose("panda_link5", q_t).translation();
 
-    Eigen::MatrixXd J5 = robot.ComputeJacobian("panda_link7", q_t).bottomRows(3);
-    Eigen::MatrixXd J5d = robot.ComputeDerivativeJacobian("panda_link7", q_t).bottomRows(3);
+    Eigen::MatrixXd J5 = robot.ComputeJacobian("panda_link7", q_t).topRows(3);
+    Eigen::MatrixXd J5d = robot.ComputeDerivativeJacobian("panda_link7", q_t).topRows(3);
     Eigen::Vector3d r5 = robot.GetJointPose("panda_link7", q_t).translation();
 
-    Eigen::MatrixXd J6 = robot.ComputeJacobian("panda_link8", q_t).bottomRows(3);
-    Eigen::MatrixXd J6d = robot.ComputeDerivativeJacobian("panda_link8", q_t).bottomRows(3);
+    Eigen::MatrixXd J6 = robot.ComputeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::MatrixXd J6d = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
     Eigen::Vector3d r6 = robot.GetJointPose("panda_link8", q_t).translation();
 
     Eigen::MatrixXd A(10, n);
@@ -234,7 +234,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
         out.p_next = robot.GetJointPose("panda_link8", out.q_next).translation();
 
-        Eigen::MatrixXd J_next = robot.ComputeJacobian("panda_link8", out.q_next).bottomRows(3);
+        Eigen::MatrixXd J_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3);
         out.pd_next = J_next * out.qd_next;
     } else {
         out.qdd_next = Eigen::VectorXd::Zero(n);
