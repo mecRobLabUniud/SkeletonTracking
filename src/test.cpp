@@ -71,6 +71,69 @@ void PlotPaths(const std::vector<Eigen::Vector3d>& p_real, const Eigen::MatrixXd
 
 
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Load trajectory
+// ─────────────────────────────────────────────────────────────────────────────
+std::optional<Trajectory> load_trajectory(int n_traj, std::string c_dir, double t_start = 0.0, Eigen::VectorXd q_start = {}) {
+    std::string trajectory_path = c_dir + "src/trajectories/traj" + std::to_string(n_traj) + "/";
+    std::ifstream f(trajectory_path);
+    if (!f) {
+        std::cerr << "Error: cannot open '" << trajectory_path << "'" << std::endl;
+        return std::nullopt;
+    }
+
+    std::vector<std::array<double, 7>> traj_low = load_trajectory_CSV(trajectory_path + "q_ref.csv");
+    std::vector<double> t_low = load_timestamps_CSV(trajectory_path + "t_ref.csv");
+
+    traj_low[0] = {{0.2082, 0.6204, -0.0830, -1.5158, 0.0570, 2.1339, 0.1102}};
+    traj_low[1] = {{1.6896, 0.5525, -0.3451, -1.3974, 0.1899, 1.9174, 1.3274}};
+
+
+
+    if (t_start != 0.0) {
+        if (q_start.size() != 7) {
+            std::cerr << "Error: q_start must have 7 elements when t_start != 0" << std::endl;
+            return std::nullopt;
+        }
+
+        std::array<double, 7> q_start_arr;
+        Eigen::VectorXd::Map(q_start_arr.data(), 7) = q_start;
+
+        std::vector<std::array<double, 7>> traj_low_new;
+        std::vector<double> t_low_new;
+        traj_low_new.push_back(q_start_arr);
+        t_low_new.push_back(0.0);
+
+        for (int i = 0; i < traj_low.size(); i++) {
+            if (t_start < t_low[i]) {
+                traj_low_new.push_back(traj_low[i]);
+                t_low_new.push_back(t_low[i] - t_start);
+            }
+        }
+
+        traj_low = traj_low_new;
+        t_low = t_low_new;
+    }
+
+    for (size_t i = 0; i < traj_low.size(); i++) {
+        for (int j=0; j<7; j++) {
+        }
+    }
+
+    // Trajectory traj_high = interpolate_to_1kHz_full(traj_low, t_low);
+    Trajectory traj_high = interpolateQuintic(traj_low, t_low);
+
+    // save_trajectory_CSV(trajectory_path + "q.csv",  traj_high.q);
+    // save_trajectory_CSV(trajectory_path + "qd.csv",  traj_high.qd);
+    // save_trajectory_CSV(trajectory_path + "qdd.csv",  traj_high.qdd);
+
+    return traj_high;
+}
+
+
+
+
 // ----------------------------------------------------------------------------
 // Quintic polynomial trajectory between two points (zero vel/acc at the ends),
 // equivalent to quinticpolytraj(...) with 2 waypoints.
@@ -183,6 +246,25 @@ int main(int argc, char** argv) {
   RobotModel robot(urdf);
 
 
+
+
+
+
+
+    int n_traj = 1;
+    std::string c_dir = "./";
+    auto traj = load_trajectory(n_traj, c_dir);
+    if (!traj) return 1;
+
+    // Eigen::VectorXd q_start = traj->q[0];
+    // double t_start = 0.0;
+    int traj_size = traj->q.size();
+    int cnt = 0;
+
+
+
+
+    /*
   
 
   // --------------------------------------------------- Robot trajectory (IK)
@@ -239,7 +321,7 @@ int main(int argc, char** argv) {
   std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
 
 
-  /*
+  
 
   // ------------------------------------------------------ Human trajectory
   // const double t_move = 1.25, t_pause = 2.5;
@@ -279,17 +361,19 @@ int main(int argc, char** argv) {
 
 
 
-
+  Eigen::Vector3d p = robot.GetJointPose("panda_link8", traj->q[0]).translation().transpose();
+  Eigen::MatrixXd J = robot.ComputeJacobian("panda_link8", traj->q[0]);
+  Eigen::Vector3d v = (J * traj->qd[0]).tail<3>();
   
 
   // -------------------------------------- PFL & SSM & Escape simulation
   auto t0 = std::chrono::steady_clock::now();
 
   std::vector<Eigen::VectorXd> qdd_real{Eigen::VectorXd::Zero(7)};
-  std::vector<Eigen::VectorXd> qd_real{qdf.col(0)};
-  std::vector<Eigen::VectorXd> q_real{qf.col(0)};
-  std::vector<Eigen::Vector3d> p_real{pf.col(0)};
-  std::vector<Eigen::Vector3d> v_real{vf.col(0).head<3>()};
+  std::vector<Eigen::VectorXd> qd_real{traj->qd[0]};
+  std::vector<Eigen::VectorXd> q_real{traj->q[0]};
+  std::vector<Eigen::Vector3d> p_real{p};
+  std::vector<Eigen::Vector3d> v_real{v};
   std::vector<int> flag;
 
   int R_STOP_collision = 0, R_STOP_computational = 0, R_CYCLES = 0;
@@ -310,10 +394,10 @@ int main(int argc, char** argv) {
     const int k = i - 1;  // index of the latest state (MATLAB column i)
 
     if (!collision) {
-      const Eigen::MatrixXd& Pr = forward ? pf : ps;
-      const Eigen::MatrixXd& Vr = forward ? vf : vs;
-      const Eigen::MatrixXd& Qr = forward ? qf : qs;
-      const int rr = std::min(r, M - 1);
+      // const Eigen::MatrixXd& Pr = forward ? pf : ps;
+      // const Eigen::MatrixXd& Vr = forward ? vf : vs;
+      // const Eigen::MatrixXd& Qr = forward ? qf : qs;
+      // const int rr = std::min(r, M - 1);
 
       // Eigen::Vector3d ro_old = p_int.col(k);
       // Eigen::Vector3d vo_old = v_int.col(k);
@@ -339,13 +423,19 @@ int main(int argc, char** argv) {
     // ro = ro_old;
     // vo = vo_old;
 
+    Eigen::VectorXd qr = traj->q[k*period_ms];
+    Eigen::Vector3d pr = robot.GetJointPose("panda_link8", qr).translation().transpose();
+    Eigen::MatrixXd Jr = robot.ComputeJacobian("panda_link8", qr);
+    Eigen::Vector3d vr = (J * traj->qd[k*period_ms]).tail<3>();
+    
+
 
       const double delta =
           -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
           stopping_time;
 
       SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real[k], qd_real[k],
-                                Pr.col(rr), Vr.col(rr).head<3>(), Qr.col(rr),
+                                pr, vr, qr,
                                 ro, vo, delta, Qpj, Qpt, Qv_PFL);
       qdd_real.push_back(res.qdd_next);
       qd_real.push_back(res.qd_next);
@@ -368,12 +458,9 @@ int main(int argc, char** argv) {
     payload.push_back(std::array<double, 3>{{res.p_next[0], res.p_next[1], res.p_next[2]}});
     transmitters[1]->send_data(payload);
 
-    Eigen::Vector3d p_r;
-    p_r = robot.GetJointPose("panda_link8", Qr.col(rr)).translation().transpose();
-
     payload.clear();
     payload.push_back(std::vector<double>(res.p_next.data(), res.p_next.data() + res.p_next.size()));
-    payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
+    payload.push_back(std::vector<double>(pr.data(), pr.data() + pr.size()));
     transmitters[2]->send_data(payload);
 
 
@@ -386,19 +473,20 @@ int main(int argc, char** argv) {
         //   collision = true;
         //   collision_counter = 0;
         // }
-        if (forward) {
-          if ((p_real[k] - pf.col(N - 1)).norm() <= 0.01) {
-            r = 1;
-            forward = false;
-          }
-        } else {
-          if ((p_real[k] - ps.col(N - 1)).norm() <= 0.01) {
-            r = 1;
-            forward = true;
-            ++R_CYCLES;
-            T_TIME.push_back(i);
-          }
-        }
+        // if (forward) {
+        //   if ((p_real[k] - pf.col(N - 1)).norm() <= 0.01) {
+        //     r = 1;
+        //     forward = false;
+        //   }
+        // } else {
+        //   if ((p_real[k] - ps.col(N - 1)).norm() <= 0.01) {
+        //     r = 1;
+        //     forward = true;
+        //     ++R_CYCLES;
+        //     T_TIME.push_back(i);
+        //   }
+        // }
+        ;
       } else {
         collision = true;
         collision_counter = 0;
