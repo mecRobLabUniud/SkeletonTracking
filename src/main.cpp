@@ -31,7 +31,7 @@ std::atomic<bool> running{true};
 int collision_counter = 0;
 
 // ── Parameters ───────────────────────────────────────────────────────────────
-const int rate_hz = 60;
+const int rate_hz = 60.0;
 double velocity_PFL = 0.4;
 double HR_clearance = 0.1;
 double stopping_time = 0.25;

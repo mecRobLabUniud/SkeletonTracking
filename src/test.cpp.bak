@@ -182,9 +182,6 @@ int main(int argc, char** argv) {
 
   RobotModel robot(urdf);
 
-
-  
-
   // --------------------------------------------------- Robot trajectory (IK)
   Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
   R(1, 1) = -1.0;
@@ -238,9 +235,6 @@ int main(int argc, char** argv) {
   v_rms = std::sqrt(v_rms / v_norm.size());
   std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
 
-
-  /*
-
   // ------------------------------------------------------ Human trajectory
   // const double t_move = 1.25, t_pause = 2.5;
   const double t_move = 1.75, t_pause = 1.5;
@@ -267,21 +261,6 @@ int main(int argc, char** argv) {
     v_int.block(0, start, 3, Nh) = v_unit;
   }
 
-
-
-  */
-
-
-
-
-
-
-
-
-
-
-  
-
   // -------------------------------------- PFL & SSM & Escape simulation
   auto t0 = std::chrono::steady_clock::now();
 
@@ -301,11 +280,6 @@ int main(int argc, char** argv) {
   Eigen::Vector3d ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
   Eigen::Vector3d ro_prev = ro;
 
-
-
-  const int period_ms = static_cast<int>(dt*1000.0);
-  auto next_time = std::chrono::steady_clock::now();
-
   for (int i = 1; i <= n_steps; ++i) {
     const int k = i - 1;  // index of the latest state (MATLAB column i)
 
@@ -315,16 +289,17 @@ int main(int argc, char** argv) {
       const Eigen::MatrixXd& Qr = forward ? qf : qs;
       const int rr = std::min(r, M - 1);
 
-      // Eigen::Vector3d ro_old = p_int.col(k);
-      // Eigen::Vector3d vo_old = v_int.col(k);
+      Eigen::Vector3d ro_old = p_int.col(k);
+      Eigen::Vector3d vo_old = v_int.col(k);
+      // Eigen::Vector3d vo_old = (ro - ro_prev)/dt;
 
       ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
       Eigen::Vector3d vo = (ro - ro_prev)/dt;
 
         std::cout << "===============================" << "\n";
-        // std::cout << "ro_old = " << ro_old << "\n";
+        std::cout << "ro_old = " << ro_old << "\n";
         std::cout << "ro = " << ro << "\n";
-        // std::cout << "vo_old = " << vo_old << "\n";
+        std::cout << "vo_old = " << vo_old << "\n";
         std::cout << "vo = " << vo << "\n";
         std::cout << "===============================" << "\n";
 
@@ -417,9 +392,6 @@ int main(int argc, char** argv) {
       v_real.push_back(Eigen::Vector3d::Zero());
       if (collision_counter > pause_after_collision * freq) collision = false;
     }
-
-    next_time += std::chrono::milliseconds(period_ms);
-    std::this_thread::sleep_until(next_time);
   }
 
   auto t1 = std::chrono::steady_clock::now();
@@ -430,14 +402,14 @@ int main(int argc, char** argv) {
             << "elapsed: " << std::chrono::duration<double>(t1 - t0).count() << " s\n";
 
   // Replacement for plot3(): dump the paths for external plotting.
-  // WriteCsv("path_real.csv", p_real);
-  // WriteCsv("path_human.csv", p_int);
-  // WriteCsv("path_nominal_forward.csv", pf);
-  // WriteCsv("path_nominal_backward.csv", ps);
-  // std::cout << "wrote path_*.csv\n";
+  WriteCsv("path_real.csv", p_real);
+  WriteCsv("path_human.csv", p_int);
+  WriteCsv("path_nominal_forward.csv", pf);
+  WriteCsv("path_nominal_backward.csv", ps);
+  std::cout << "wrote path_*.csv\n";
 
 
-  // PlotPaths(p_real, p_int, pf, ps);
+  PlotPaths(p_real, p_int, pf, ps);
 
 
   return 0;
