@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
     auto loop_start = std::chrono::steady_clock::now();
 
     // ── Delay for loading web interface ──────────────────────────────────────────
-    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 6.0) {;} 
+    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 3.2) {;} 
     
   // ---------------------------------------------------------------- Parameters
   const double time_final = 5.0;
@@ -298,8 +298,15 @@ int main(int argc, char** argv) {
   bool collision = false, forward = true;
   int r = 1;  // MATLAB reference_time (reference column used is r, 0-based)
   // Eigen::Vector3d ro_prev = p_int.col(0);
-  Eigen::Vector3d ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
-  Eigen::Vector3d ro_prev = ro;
+  // Eigen::Vector3d ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
+  // Eigen::Vector3d ro_prev = ro;
+  std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[3]->receive_data()[0]);
+  std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
+
+
+
+
+  int keypoint_index = 0;
 
 
 
@@ -318,8 +325,12 @@ int main(int argc, char** argv) {
       // Eigen::Vector3d ro_old = p_int.col(k);
       // Eigen::Vector3d vo_old = v_int.col(k);
 
-      ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
-      Eigen::Vector3d vo = (ro - ro_prev)/dt;
+
+
+      skeleton = json_to_keypoints(transmitters[3]->receive_data()[0]);
+
+      Eigen::Vector3d ro = skeleton[keypoint_index];
+      Eigen::Vector3d vo = (skeleton[keypoint_index] - skeleton_prev[keypoint_index])/dt;
 
         std::cout << "===============================" << "\n";
         // std::cout << "ro_old = " << ro_old << "\n";
@@ -377,7 +388,8 @@ int main(int argc, char** argv) {
     transmitters[2]->send_data(payload);
 
 
-    ro_prev = ro;
+    // ro_prev = ro;
+    skeleton_prev = skeleton;
 
 
       if (res.exitflag) {
