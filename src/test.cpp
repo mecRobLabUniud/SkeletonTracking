@@ -25,9 +25,14 @@
 #include <vector>
 #include <cstdio>
 
-#include "robot_model.hpp"  // RobotModel
-#include "SSMPFL.hpp"       // SSMPFLResult, SSMPFL
+#include "trajectory_utils.hpp"
 #include "data_transmitter.hpp"
+#include "utils.hpp"
+#include "min_distance_calculation.hpp"
+#include "robot_model.hpp"
+#include "quintic_trajectory.hpp"
+
+#include "SSMPFL.hpp"
 
 
 // Sends one 3D dataset to an open gnuplot pipe, terminated with "e".
@@ -138,10 +143,11 @@ int main(int argc, char** argv) {
   const std::string ee = "panda_link8";
 
   std::vector<std::unique_ptr<DataTransmitter>> transmitters;
-    transmitters.reserve(2);
+    transmitters.reserve(4);
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED"));
 
     auto loop_start = std::chrono::steady_clock::now();
 
@@ -270,7 +276,9 @@ int main(int argc, char** argv) {
   int collision_counter = 0;
   bool collision = false, forward = true;
   int r = 1;  // MATLAB reference_time (reference column used is r, 0-based)
-  Eigen::Vector3d ro_prev = p_int.col(0);
+  // Eigen::Vector3d ro_prev = p_int.col(0);
+  Eigen::Vector3d ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
+  Eigen::Vector3d ro_prev = ro;
 
   for (int i = 1; i <= n_steps; ++i) {
     const int k = i - 1;  // index of the latest state (MATLAB column i)
@@ -281,12 +289,17 @@ int main(int argc, char** argv) {
       const Eigen::MatrixXd& Qr = forward ? qf : qs;
       const int rr = std::min(r, M - 1);
 
-      Eigen::Vector3d ro = p_int.col(k);
-      // Eigen::Vector3d vo = v_int.col(k);
+      Eigen::Vector3d ro_old = p_int.col(k);
+      Eigen::Vector3d vo_old = v_int.col(k);
+      // Eigen::Vector3d vo_old = (ro - ro_prev)/dt;
+
+      ro = json_to_keypoints(transmitters[3]->receive_data()[0])[0];
       Eigen::Vector3d vo = (ro - ro_prev)/dt;
 
         std::cout << "===============================" << "\n";
-        std::cout << "v_int = " << v_int.col(k) << "\n";
+        std::cout << "ro_old = " << ro_old << "\n";
+        std::cout << "ro = " << ro << "\n";
+        std::cout << "vo_old = " << vo_old << "\n";
         std::cout << "vo = " << vo << "\n";
         std::cout << "===============================" << "\n";
 
@@ -298,6 +311,8 @@ int main(int argc, char** argv) {
     // vo = Eigen::Vector3d{0.0, 0.0, 0.0};
 
 
+    // ro = ro_old;
+    // vo = vo_old;
 
 
       const double delta =

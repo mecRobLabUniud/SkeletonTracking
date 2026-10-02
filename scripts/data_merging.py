@@ -134,7 +134,7 @@ def merging(dtrs, dts):
         return int(np.floor(x + 0.5)) if x >= 0 else int(np.ceil(x - 0.5))
 
 
-    freq = 60
+    freq = 150
     dt = 1.0 / freq
     time_final = 5.0
     time_experiment = 30.0
