@@ -248,7 +248,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     options.terminationTolerance = 1e-6;
     qp.setOptions(options);
 
-    int nWSR = 1000;
+    int nWSR = 10000;
 
     Eigen::VectorXd lbA = Eigen::VectorXd::Constant(nC, -qpOASES::INFTY);
 

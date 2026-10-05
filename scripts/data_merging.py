@@ -126,7 +126,7 @@ def merging(dtrs, dts):
         confidence_marker = [confidence[i] for confidence in confidences if not confidence==None]
         merged_skeleton.append(kfs[i].step(skeleton_marker, confidence_marker).tolist())
     
-    cnt += 1
+    """cnt += 1
 
 
     def lround(x):
@@ -218,8 +218,14 @@ def merging(dtrs, dts):
     p3 = p_int[:, cnt]
     # p1 = [0.8 - 0.4*abs(sin(cnt)), 0.8 - 0.4*abs(sin(cnt)), 0.3]
     p4 = [p3[0], p3[1], p3[2]-0.01]
-    reshaped_skeleton = np.asanyarray([p1, p2, p3, p4]) # reshape_structure(merged_skeleton)    
+    
+    reshaped_skeleton = np.asanyarray([p1, p2, p3, p4])"""
+
+
+    reshaped_skeleton = reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
+
+    # print(reshaped_skeleton[8])
 
     dts.send_data(reshaped_skeleton, merged_confidence)
 

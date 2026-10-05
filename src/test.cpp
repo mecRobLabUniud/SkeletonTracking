@@ -302,11 +302,14 @@ int main(int argc, char** argv) {
   // Eigen::Vector3d ro_prev = ro;
   std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[3]->receive_data()[0]);
   std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
+    Eigen::Vector3d ro;
+    Eigen::Vector3d vo;
+    Eigen::Vector3d ro_prev;
+    Eigen::Vector3d vo_prev;
 
 
 
-
-  int keypoint_index = 2;
+  int keypoint_index = 8;
 
 
 
@@ -329,8 +332,14 @@ int main(int argc, char** argv) {
 
       skeleton = json_to_keypoints(transmitters[3]->receive_data()[0]);
 
-      Eigen::Vector3d ro = skeleton[keypoint_index];
-      Eigen::Vector3d vo = (skeleton[keypoint_index] - skeleton_prev[keypoint_index])/dt;
+
+        if (std::isnan(skeleton[keypoint_index][0])) {
+            ro = ro_prev;
+            vo = vo_prev;
+        } else {
+            ro = skeleton[keypoint_index];
+            vo = (skeleton[keypoint_index] - skeleton_prev[keypoint_index])/dt;
+        }
 
         std::cout << "===============================" << "\n";
         // std::cout << "ro_old = " << ro_old << "\n";
@@ -388,7 +397,8 @@ int main(int argc, char** argv) {
     transmitters[2]->send_data(payload);
 
 
-    // ro_prev = ro;
+    ro_prev = ro;
+    vo_prev = vo;
     skeleton_prev = skeleton;
 
 
