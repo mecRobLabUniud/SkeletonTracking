@@ -7,6 +7,13 @@
 #include <Eigen/Geometry>
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
+#include <pinocchio/algorithm/joint-configuration.hpp>
+
+
+
+// std::string c_dir(get_current_dir_name());
+// const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
+
 
 class RobotModel {
     public:
@@ -40,6 +47,14 @@ class RobotModel {
 
     Eigen::MatrixXd ComputeDerivativeJacobian(const std::string& frame_name,
                                     const Eigen::VectorXd& q) const;
+
+    bool ComputeIK(const std::string& frame_name,
+                    const Eigen::Isometry3d& target_pose,
+                    const Eigen::VectorXd& q_init,
+                    Eigen::VectorXd* q_result,
+                    double eps = 1e-4,
+                    int max_iters = 1000,
+                    double damping = 1e-6) const;
 
     private:
     pinocchio::FrameIndex GetFrameIndexOrThrow(

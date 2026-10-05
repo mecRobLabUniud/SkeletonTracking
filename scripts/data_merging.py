@@ -126,7 +126,7 @@ def merging(dtrs, dts):
         confidence_marker = [confidence[i] for confidence in confidences if not confidence==None]
         merged_skeleton.append(kfs[i].step(skeleton_marker, confidence_marker).tolist())
     
-    cnt += 1
+    """cnt += 1
 
 
     def lround(x):
@@ -134,7 +134,7 @@ def merging(dtrs, dts):
         return int(np.floor(x + 0.5)) if x >= 0 else int(np.ceil(x - 0.5))
 
 
-    freq = 60
+    freq = 150
     dt = 1.0 / freq
     time_final = 5.0
     time_experiment = 30.0
@@ -179,8 +179,53 @@ def merging(dtrs, dts):
     p1 = p_int[:, cnt]
     # p1 = [0.8 - 0.4*abs(sin(cnt)), 0.8 - 0.4*abs(sin(cnt)), 0.3]
     p2 = [p1[0], p1[1], p1[2]-0.01]
-    reshaped_skeleton = np.asanyarray([p1, p2]) # reshape_structure(merged_skeleton)    
+
+
+
+    # ------------------------------------------------------ Human trajectory
+    t_move, t_pause = 1.75, 1.5
+    Nm = lround(t_move * freq) + 1                 # 251
+    Nh = lround((2 * t_move + t_pause) * freq) + 1  # 1001
+
+    hA = np.array([1.0, 0.7, 0.3])
+    hB = np.array([0.6, 0.3, 0.3])
+
+    hf = quintic_poly_traj(hA, hB, t_move, dt, Nm)  # A -> B
+    hs = quintic_poly_traj(hB, hA, t_move, dt, Nm)  # B -> A
+
+    p_unit = np.tile(hA.reshape(3, 1), (1, Nh))     # every column = hA
+    v_unit = np.zeros((3, Nh))
+
+    m = Nm - 1  # 250: last index of first move / first of second
+    p_unit[:, 0:Nm] = hf.p
+    v_unit[:, 0:Nm] = hf.v
+    p_unit[:, m:m + Nm] = hs.p   # overwrites the shared sample at index m
+    v_unit[:, m:m + Nm] = hs.v
+
+    p_int = np.zeros((3, Nc))
+    v_int = np.zeros((3, Nc))
+
+    reps = lround(time_experiment / time_final)
+    for j in range(reps):
+        start = j * int(freq * time_final)
+        p_int[:, start:start + Nh] = p_unit
+        v_int[:, start:start + Nh] = v_unit
+
+    if cnt >= Nc:
+        cnt = 0
+
+    # p1 = [0.5, 0.2 - 0.1*sin(cnt), 0.5]
+    p3 = p_int[:, cnt]
+    # p1 = [0.8 - 0.4*abs(sin(cnt)), 0.8 - 0.4*abs(sin(cnt)), 0.3]
+    p4 = [p3[0], p3[1], p3[2]-0.01]
+    
+    reshaped_skeleton = np.asanyarray([p1, p2, p3, p4])"""
+
+
+    reshaped_skeleton = reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
+
+    # print(reshaped_skeleton[8])
 
     dts.send_data(reshaped_skeleton, merged_confidence)
 
