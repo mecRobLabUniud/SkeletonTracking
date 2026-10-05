@@ -70,6 +70,8 @@ inline Trajectory interpolateQuintic(
     traj.q.reserve(N + 1);
     traj.qd.reserve(N + 1);
     traj.qdd.reserve(N + 1);
+    traj.p.reserve(N + 1);
+    traj.pd.reserve(N + 1);
 
     size_t seg = 0;
     auto sample = [&](double t) {
@@ -104,6 +106,8 @@ inline Trajectory interpolateQuintic(
         traj.q.push_back(std::move(q));
         traj.qd.push_back(std::move(qd));
         traj.qdd.push_back(std::move(qdd));
+
+        
     };
 
     for (size_t k = 0; k < N; ++k)

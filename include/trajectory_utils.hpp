@@ -84,6 +84,16 @@ struct Trajectory {
     std::vector<Eigen::VectorXd> q;       // position
     std::vector<Eigen::VectorXd> qd;      // velocity
     std::vector<Eigen::VectorXd> qdd;     // acceleration
+    std::vector<Eigen::Vector3d> p;       // position
+    std::vector<Eigen::Vector3d> pd;      // velocity
+};
+
+struct Waypoint {
+    Eigen::VectorXd q;       // position
+    Eigen::VectorXd qd;      // velocity
+    Eigen::VectorXd qdd;     // acceleration
+    Eigen::Vector3d p;       // position
+    Eigen::Vector3d pd;      // velocity
 };
 
 Trajectory interpolate_to_1kHz_full(
