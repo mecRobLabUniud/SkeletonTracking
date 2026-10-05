@@ -50,12 +50,12 @@ function createCurve(p, color) {
 function update_plot() {
     socket.on('update_plot', function (point) {    
         
-        if (point.x != null) {
-            createPoint(
-                { x: point.x[0], y: point.y[0], z: point.z[0]},
-                '#aa0000'
-            );
-        }
+        // if (point.x != null) {
+        //     createPoint(
+        //         { x: point.x[0], y: point.y[0], z: point.z[0]},
+        //         '#aa0000'
+        //     );
+        // }
 
         if (point.p_real != null && point.p_r != null) {
             traj_real.push(new THREE.Vector3(point.p_real[0], point.p_real[1], point.p_real[2]));

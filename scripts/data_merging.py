@@ -217,7 +217,7 @@ def merging(dtrs, dts):
     # p1 = [0.5, 0.2 - 0.1*sin(cnt), 0.5]
     p3 = p_int[:, cnt]
     # p1 = [0.8 - 0.4*abs(sin(cnt)), 0.8 - 0.4*abs(sin(cnt)), 0.3]
-    p4 = [p1[0], p1[1], p1[2]-0.01]
+    p4 = [p3[0], p3[1], p3[2]-0.01]
     reshaped_skeleton = np.asanyarray([p1, p2, p3, p4]) # reshape_structure(merged_skeleton)    
     merged_confidence = np.ones(skel_len).astype(np.float32)
 

@@ -306,7 +306,7 @@ int main(int argc, char** argv) {
 
 
 
-  int keypoint_index = 0;
+  int keypoint_index = 2;
 
 
 
