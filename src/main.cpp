@@ -229,8 +229,8 @@ static void WriteCsv(const std::string& path, const std::vector<Eigen::Vector3d>
 // ─────────────────────────────────────────────────────────────────────────────
 // Load trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_final, double dt, int N, int M) {
-    assert(N <= M);
+std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_final, double dt, int N) {
+    // assert(N <= M);
     const std::string ee = "panda_link8";
 
     std::vector<Eigen::Vector3d> robot_p;
@@ -251,35 +251,16 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
         Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
         T.linear() = R;  T.translation() = robot_p[i];
 
-        if (!robot.ComputeIK(ee, T, q_base, &robot_q[i])) throw std::runtime_error("IK failed for start pose");
-    
+        Eigen::VectorXd q;
+        if (!robot.ComputeIK(ee, T, q_base, &q)) throw std::runtime_error("IK failed for start pose");
+        robot_q.push_back(q);
     }
-    // // --------------------------------------------------- Robot trajectory (IK)
-    // Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
-    // R(1, 1) = -1.0;
-    // R(2, 2) = -1.0;
-    // Eigen::Isometry3d T1 = Eigen::Isometry3d::Identity();
-    // Eigen::Isometry3d T2 = Eigen::Isometry3d::Identity();
-    // T1.linear() = R;  T1.translation() = robot_state[0];
-    // T2.linear() = R;  T2.translation() = robot_state[1];
-// 
-    // Eigen::VectorXd q1, q2;
-    // if (!robot.ComputeIK(ee, T1, q_base, &q1)) throw std::runtime_error("IK failed for start pose");
-    // if (!robot.ComputeIK(ee, T2, q_base, &q2)) throw std::runtime_error("IK failed for end pose");
 
     auto build_traj = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
-                          std::vector<double>* vnorm) -> Trajectory {
+                          std::vector<double>* vnorm, Trajectory& out, double& t) {
         Traj tr = QuinticPolyTraj(a, b, time_final, dt, N);
 
-        Trajectory out;
-        out.q.reserve(M);
-        out.qd.reserve(M);
-        out.qdd.reserve(M);
-        out.p.reserve(M);
-        out.pd.reserve(M);
-        out.t.reserve(M);
-
-        double t = 0;
+        
         for (int k = 0; k < N; ++k) {
             const Eigen::VectorXd q = tr.p.col(k);
             const Eigen::VectorXd qd = tr.v.col(k);
@@ -296,19 +277,48 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
             if (vnorm) vnorm->push_back(v.norm());
         }
 
-        for (int k = N; k < M; ++k) {
-            out.q.push_back(out.q[N - 1]);
-            out.qd.push_back(Eigen::VectorXd::Zero(7));
-            out.qdd.push_back(Eigen::VectorXd::Zero(7));
-            out.p.push_back(out.p[N - 1]);
-            out.pd.push_back(Eigen::Vector3d::Zero());
-            out.t.push_back(dt*t++);
-        }
+        // for (int k = N; k < M; ++k) {
+        //     out.q.push_back(out.q[N - 1]);
+        //     out.qd.push_back(Eigen::VectorXd::Zero(7));
+        //     out.qdd.push_back(Eigen::VectorXd::Zero(7));
+        //     out.p.push_back(out.p[N - 1]);
+        //     out.pd.push_back(Eigen::Vector3d::Zero());
+        //     out.t.push_back(dt*t++);
+        // }
         return out;
     };
 
+    std::cout << "+++++++++++++++++++++++++++++" << "\n";
+    std::cout << "robot_p.size() = " << robot_p.size() << "\n";
+    std::cout << "robot_q.size() = " << robot_q.size() << "\n";
+
     std::vector<double> v_norm;
-    Trajectory forward  = build_traj(robot_q[0], robot_q[1], &v_norm);
+    Trajectory traj;
+    traj.q.reserve(N*(robot_q.size() - 1));
+    traj.qd.reserve(N*(robot_q.size() - 1));
+    traj.qdd.reserve(N*(robot_q.size() - 1));
+    traj.p.reserve(N*(robot_q.size() - 1));
+    traj.pd.reserve(N*(robot_q.size() - 1));
+    traj.t.reserve(N*(robot_q.size() - 1));
+
+    std::cout << "+++++++++++++++++++++++++++++" << "\n";
+    std::cout << "robot_q[0] = " << robot_q[0] << "\n";
+    std::cout << "robot_q[1] = " << robot_q[1] << "\n";
+    std::cout << "robot_q[2] = " << robot_q[2] << "\n";
+    std::cout << "M*(robot_q.size() - 1) = " << N*(robot_q.size() - 1) << "\n";
+
+    double t = 0;
+    
+    build_traj(robot_q[1], robot_q[2], &v_norm, traj, t);
+    build_traj(robot_q[0], robot_q[1], &v_norm, traj, t);
+
+    std::cout << "traj = " << traj.q.size() << "\n";
+    std::cout << "N = " << N << "\n";
+
+    std::cout << "traj.q.[N-1] = " << traj.q[N-1] << "\n";
+    std::cout << "traj.q.[N] = " << traj.q[N] << "\n";
+    std::cout << "traj.q.[N+1] = " << traj.q[N+1] << "\n";
+    std::cout << "traj.q.[N+2] = " << traj.q[N+2] << "\n";
     // Trajectory backward = build_traj(q2, q1, nullptr);
     // (void)backward;  // computed but not returned; remove if not needed
 
@@ -318,7 +328,7 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
     v_rms = std::sqrt(v_rms / v_norm.size());
     std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
 
-    return forward;
+    return traj;
 }
 
 
@@ -422,7 +432,7 @@ std::optional<Trajectory> load_trajectory(RobotModel robot, int n_traj, std::str
 // ─────────────────────────────────────────────────────────────────────────────
 // Main loop implementing chosen strategy
 // ─────────────────────────────────────────────────────────────────────────────
-int task_engine() {}
+// int task_engine() {}
 
 
 
@@ -452,15 +462,15 @@ int execute_task (int n_traj, std::string c_dir="") {
     
     double time_final = 5.0;
 
-    const int n_steps = static_cast<int>(freq*time_final);
+    
 
     const int N = static_cast<int>(std::lround(time_final / dt)) + 1;  // 1001
     const int Nc = static_cast<int>(std::lround(time_final / dt)) + 1;
-    const int M = (N - 1) * 3 + 1;  // padded trajectory length
 
-    auto traj = load_p2p_trajectory(robot, time_final, dt, N, M);
+    auto traj = load_p2p_trajectory(robot, time_final, dt, N);
     if (!traj) return 1;
 
+    const int n_steps = static_cast<int>(freq*time_final*traj->t.size()/N);
 
     // ── PFL & SSM & Escape traj simulation ───────────────────────────────────────
     std::vector<Eigen::VectorXd> q_real{traj->q[0]};
@@ -491,7 +501,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         const int k = i - 1;  // index of the latest state (MATLAB column i)
 
         if (!collision) {
-        const int rr = std::min(r, M - 1);
+        const int rr = r; // std::min(r, M - 1);
 
         skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
@@ -551,9 +561,9 @@ int execute_task (int n_traj, std::string c_dir="") {
             if (!CollisionFree(robot, q_real[k], ro, HR_clearance)) {
               collision = true;
             }
-            if ((p_real[k] - traj->p[N - 1]).norm() <= 0.01) {
-                r = 1;
-            }
+            // if ((p_real[k] - traj->p[N - 1]).norm() <= 0.01) {
+            //     r = 1;
+            // }
 
         } else {
             collision = true;
