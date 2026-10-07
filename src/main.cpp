@@ -229,8 +229,7 @@ static void WriteCsv(const std::string& path, const std::vector<Eigen::Vector3d>
 // ─────────────────────────────────────────────────────────────────────────────
 // Load trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_final, double dt, int N) {
-    // assert(N <= M);
+Trajectory load_p2p_trajectory(RobotModel robot, double time_final, double dt, int N) {
     const std::string ee = "panda_link8";
 
     std::vector<Eigen::Vector3d> robot_p;
@@ -244,7 +243,6 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
     std::vector<Eigen::VectorXd> robot_q;
     robot_q.reserve(robot_p.size());
     for (int i=0; i<robot_p.size(); i++) {
-        // --------------------------------------------------- Robot trajectory (IK)
         Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
         R(1, 1) = -1.0;
         R(2, 2) = -1.0;
@@ -260,7 +258,6 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
                           std::vector<double>* vnorm, Trajectory& out, double& t) {
         Traj tr = QuinticPolyTraj(a, b, time_final, dt, N);
 
-        
         for (int k = 0; k < N; ++k) {
             const Eigen::VectorXd q = tr.p.col(k);
             const Eigen::VectorXd qd = tr.v.col(k);
@@ -277,20 +274,8 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
             if (vnorm) vnorm->push_back(v.norm());
         }
 
-        // for (int k = N; k < M; ++k) {
-        //     out.q.push_back(out.q[N - 1]);
-        //     out.qd.push_back(Eigen::VectorXd::Zero(7));
-        //     out.qdd.push_back(Eigen::VectorXd::Zero(7));
-        //     out.p.push_back(out.p[N - 1]);
-        //     out.pd.push_back(Eigen::Vector3d::Zero());
-        //     out.t.push_back(dt*t++);
-        // }
         return out;
     };
-
-    std::cout << "+++++++++++++++++++++++++++++" << "\n";
-    std::cout << "robot_p.size() = " << robot_p.size() << "\n";
-    std::cout << "robot_q.size() = " << robot_q.size() << "\n";
 
     std::vector<double> v_norm;
     Trajectory traj;
@@ -301,27 +286,12 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
     traj.pd.reserve(N*(robot_q.size() - 1));
     traj.t.reserve(N*(robot_q.size() - 1));
 
-    std::cout << "+++++++++++++++++++++++++++++" << "\n";
-    std::cout << "robot_q[0] = " << robot_q[0] << "\n";
-    std::cout << "robot_q[1] = " << robot_q[1] << "\n";
-    std::cout << "robot_q[2] = " << robot_q[2] << "\n";
-    std::cout << "M*(robot_q.size() - 1) = " << N*(robot_q.size() - 1) << "\n";
-
     double t = 0;
-    
+    build_traj(robot_q[0], robot_q[1], &v_norm, traj, t);
     build_traj(robot_q[1], robot_q[2], &v_norm, traj, t);
     build_traj(robot_q[0], robot_q[1], &v_norm, traj, t);
-
-    std::cout << "traj = " << traj.q.size() << "\n";
-    std::cout << "N = " << N << "\n";
-
-    std::cout << "traj.q.[N-1] = " << traj.q[N-1] << "\n";
-    std::cout << "traj.q.[N] = " << traj.q[N] << "\n";
-    std::cout << "traj.q.[N+1] = " << traj.q[N+1] << "\n";
-    std::cout << "traj.q.[N+2] = " << traj.q[N+2] << "\n";
-    // Trajectory backward = build_traj(q2, q1, nullptr);
-    // (void)backward;  // computed but not returned; remove if not needed
-
+    build_traj(robot_q[1], robot_q[2], &v_norm, traj, t);
+    
     double v_max = *std::max_element(v_norm.begin(), v_norm.end());
     double v_rms = 0;
     for (double x : v_norm) v_rms += x * x;
@@ -460,24 +430,22 @@ int execute_task (int n_traj, std::string c_dir="") {
     // if (!traj) return 1;
     
     
-    double time_final = 5.0;
-
-    
+    double time_final = 5.0;    
 
     const int N = static_cast<int>(std::lround(time_final / dt)) + 1;  // 1001
     const int Nc = static_cast<int>(std::lround(time_final / dt)) + 1;
 
-    auto traj = load_p2p_trajectory(robot, time_final, dt, N);
-    if (!traj) return 1;
+    Trajectory nominal_traj = load_p2p_trajectory(robot, time_final, dt, N);
 
-    const int n_steps = static_cast<int>(freq*time_final*traj->t.size()/N);
+    const int n_steps = static_cast<int>(freq*time_final*nominal_traj.t.size()/N);
 
     // ── PFL & SSM & Escape traj simulation ───────────────────────────────────────
-    std::vector<Eigen::VectorXd> q_real{traj->q[0]};
-    std::vector<Eigen::VectorXd> qd_real{traj->qd[0]};
-    std::vector<Eigen::VectorXd> qdd_real{Eigen::VectorXd::Zero(7)};
-    std::vector<Eigen::Vector3d> p_real{traj->p[0]};
-    std::vector<Eigen::Vector3d> pd_real{traj->pd[0]};
+    Trajectory real_traj;
+    real_traj.q.push_back(nominal_traj.q[0]);
+    real_traj.qd.push_back(nominal_traj.qd[0]);
+    real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
+    real_traj.p.push_back(nominal_traj.p[0]);
+    real_traj.pd.push_back(nominal_traj.pd[0]);
 
     bool collision = false;
     int r = 1;
@@ -488,11 +456,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     Eigen::Vector3d ro_prev;
     Eigen::Vector3d vo_prev;
 
-
-
     int keypoint_index = 8;
-
-
 
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
@@ -519,14 +483,14 @@ int execute_task (int n_traj, std::string c_dir="") {
             -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
             stopping_time;
 
-        SSMPFLResult res = SSMPFL(robot, dt, stopping_time, q_real[k], qd_real[k],
-                                    traj->p[rr], traj->pd[rr], traj->q[rr],
+        SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
+                                    nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
                                     ro, vo, delta, Qpj, Qpt, Qv);
-        qdd_real.push_back(res.qdd_next);
-        qd_real.push_back(res.qd_next);
-        q_real.push_back(res.q_next);
-        p_real.push_back(res.p_next);
-        pd_real.push_back(res.pd_next);
+        real_traj.qdd.push_back(res.qdd_next);
+        real_traj.qd.push_back(res.qd_next);
+        real_traj.q.push_back(res.q_next);
+        real_traj.p.push_back(res.p_next);
+        real_traj.pd.push_back(res.pd_next);
         // flag.push_back(res.exitflag ? 1 : 0);
         ++r;
 
@@ -544,7 +508,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         transmitters[2]->send_data(payload);
 
         Eigen::Vector3d p_r;
-        p_r = robot.GetJointPose("panda_link8", traj->q[rr]).translation().transpose();
+        p_r = robot.GetJointPose("panda_link8", nominal_traj.q[rr]).translation().transpose();
 
         payload.clear();
         payload.push_back(std::vector<double>(res.p_next.data(), res.p_next.data() + res.p_next.size()));
@@ -558,10 +522,10 @@ int execute_task (int n_traj, std::string c_dir="") {
 
 
         if (res.exitflag) {
-            if (!CollisionFree(robot, q_real[k], ro, HR_clearance)) {
+            if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
               collision = true;
             }
-            // if ((p_real[k] - traj->p[N - 1]).norm() <= 0.01) {
+            // if ((real_traj.p[k] - nominal_traj.p[N - 1]).norm() <= 0.01) {
             //     r = 1;
             // }
 
@@ -570,15 +534,15 @@ int execute_task (int n_traj, std::string c_dir="") {
 
         }
         } else {
-        qdd_real.push_back(Eigen::VectorXd::Zero(7));
-        qd_real.push_back(Eigen::VectorXd::Zero(7));
-        // NOTE: faithful to MATLAB `q_real(:,end-1)` / `p_real(:,end-1)`, which
+        real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
+        real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
+        // NOTE: faithful to MATLAB `real_traj.q(:,end-1)` / `real_traj.p(:,end-1)`, which
         // repeats the sample *before* the latest one. Use [k] instead if you
         // actually intend the robot to hold its current pose during the pause.
         const int prev = k > 0 ? k - 1 : k;
-        q_real.push_back(q_real[prev]);
-        p_real.push_back(p_real[prev]);
-        pd_real.push_back(Eigen::Vector3d::Zero());
+        real_traj.q.push_back(real_traj.q[prev]);
+        real_traj.p.push_back(real_traj.p[prev]);
+        real_traj.pd.push_back(Eigen::Vector3d::Zero());
         // if (collision_counter > pause_after_collision * freq) collision = false;
         collision = false;
         }
