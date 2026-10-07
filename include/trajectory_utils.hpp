@@ -8,7 +8,7 @@
 
 
 // ── CSV I/O ────────────────────────────────────────────────────────────────
-std::vector<std::array<double, 7>> load_trajectory_CSV(const std::string& path);
+std::vector<std::array<double, 3>> load_trajectory_CSV(const std::string& path);
 
 
 void save_trajectory_CSV(const std::string& path,
@@ -81,19 +81,12 @@ void quintic_spline_interp_full(const Eigen::VectorXd& t_low,
 
 // ── Main interpolation entry point ─────────────────────────────────────────
 struct Trajectory {
-    std::vector<Eigen::VectorXd> q;       // position
-    std::vector<Eigen::VectorXd> qd;      // velocity
-    std::vector<Eigen::VectorXd> qdd;     // acceleration
-    std::vector<Eigen::Vector3d> p;       // position
-    std::vector<Eigen::Vector3d> pd;      // velocity
-};
-
-struct Waypoint {
-    Eigen::VectorXd q;       // position
-    Eigen::VectorXd qd;      // velocity
-    Eigen::VectorXd qdd;     // acceleration
-    Eigen::Vector3d p;       // position
-    Eigen::Vector3d pd;      // velocity
+    std::vector<Eigen::VectorXd> q;
+    std::vector<Eigen::VectorXd> qd;
+    std::vector<Eigen::VectorXd> qdd;
+    std::vector<Eigen::Vector3d> p;
+    std::vector<Eigen::Vector3d> pd;
+    std::vector<double> t;
 };
 
 Trajectory interpolate_to_1kHz_full(

@@ -84,35 +84,6 @@ while [ $# -gt 0 ]; do
             use_traj=true
             shift
             ;;
-
-
-
-
-        --params)
-            Qpj="${2:-}"
-            if [ -z "$Qpj" ]; then
-                echo "Error: --params requires three value." >&2
-                exit 1
-            fi
-            shift 
-            Qpt="${2:-}"
-            if [ -z "$Qpt" ]; then
-                echo "Error: --params requires three value." >&2
-                exit 1
-            fi
-            shift 
-            Qv="${2:-}"
-            if [ -z "$Qv" ]; then
-                echo "Error: --params requires three value." >&2
-                exit 1
-            fi
-            shift 2
-            ;;
-
-
-
-
-
         -h|--help)
             print_usage
             exit 0
@@ -195,7 +166,7 @@ case "$mode" in
         $rula_evaluation &
         if [ "$use_robot" = true ]; then
             if [ "$use_traj" = true ]; then
-                $exec_trajectory "$n_traj" "$dir" "$Qpj" "$Qpt" "$Qv" &    # modified
+                $exec_trajectory "$n_traj" "$dir" &
             fi
         fi
         if [ "$use_gui" = true ]; then

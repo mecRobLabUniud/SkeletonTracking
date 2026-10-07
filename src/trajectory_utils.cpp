@@ -7,22 +7,22 @@
 #include "trajectory_utils.hpp"
 
 // ── CSV I/O ────────────────────────────────────────────────────────────────
-std::vector<std::array<double, 7>> load_trajectory_CSV(const std::string& path) {
+std::vector<std::array<double, 3>> load_trajectory_CSV(const std::string& path) {
     std::ifstream f(path);
 
-    std::vector<std::array<double, 7>> traj;
+    std::vector<std::array<double, 3>> traj;
     std::string line;
 
     while (std::getline(f, line)) {
         // Skip empty lines and comments
         if (line.empty() || line[0] == '#') continue;
 
-        std::array<double, 7> wp;
+        std::array<double, 3> wp;
         std::stringstream ss(line);
         std::string token;
         int j = 0;
 
-        while (std::getline(ss, token, ',') && j < 7) {
+        while (std::getline(ss, token, ',') && j < 3) {
             try {
                 wp[j++] = std::stod(token);
             } catch (const std::exception&) {
@@ -30,8 +30,8 @@ std::vector<std::array<double, 7>> load_trajectory_CSV(const std::string& path) 
             }
         }
 
-        if (j != 7)
-            throw std::runtime_error("Expected 7 values, got "
+        if (j != 3)
+            throw std::runtime_error("Expected 3 values, got "
                                      + std::to_string(j)
                                      + " at line: " + line);
         traj.push_back(wp);
