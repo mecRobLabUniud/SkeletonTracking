@@ -233,29 +233,40 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
     assert(N <= M);
     const std::string ee = "panda_link8";
 
-    const Eigen::Vector3d robot_start(0.7, 0.1, 0.3);
-    const Eigen::Vector3d robot_end(0.1, 0.7, 0.4);
+    std::vector<Eigen::Vector3d> robot_p;
+    robot_p.push_back(Eigen::Vector3d{0.7, 0.1, 0.3});
+    robot_p.push_back(Eigen::Vector3d{0.1, 0.7, 0.4});
+    robot_p.push_back(Eigen::Vector3d{0.7, 0.1, 0.3});
 
     Eigen::VectorXd q_base(7);
     q_base << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
 
-    // --------------------------------------------------- Robot trajectory (IK)
-    Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
-    R(1, 1) = -1.0;
-    R(2, 2) = -1.0;
-    Eigen::Isometry3d T1 = Eigen::Isometry3d::Identity();
-    Eigen::Isometry3d T2 = Eigen::Isometry3d::Identity();
-    T1.linear() = R;  T1.translation() = robot_start;
-    T2.linear() = R;  T2.translation() = robot_end;
+    std::vector<Eigen::VectorXd> robot_q;
+    robot_q.reserve(robot_p.size());
+    for (int i=0; i<robot_p.size(); i++) {
+        // --------------------------------------------------- Robot trajectory (IK)
+        Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+        R(1, 1) = -1.0;
+        R(2, 2) = -1.0;
+        Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+        T.linear() = R;  T.translation() = robot_p[i];
 
-    Eigen::VectorXd q1, q2;
-    if (!robot.ComputeIK(ee, T1, q_base, &q1)) throw std::runtime_error("IK failed for start pose");
-    if (!robot.ComputeIK(ee, T2, q_base, &q2)) throw std::runtime_error("IK failed for end pose");
+        if (!robot.ComputeIK(ee, T, q_base, &robot_q[i])) throw std::runtime_error("IK failed for start pose");
+    
+    }
+    // // --------------------------------------------------- Robot trajectory (IK)
+    // Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+    // R(1, 1) = -1.0;
+    // R(2, 2) = -1.0;
+    // Eigen::Isometry3d T1 = Eigen::Isometry3d::Identity();
+    // Eigen::Isometry3d T2 = Eigen::Isometry3d::Identity();
+    // T1.linear() = R;  T1.translation() = robot_state[0];
+    // T2.linear() = R;  T2.translation() = robot_state[1];
+// 
+    // Eigen::VectorXd q1, q2;
+    // if (!robot.ComputeIK(ee, T1, q_base, &q1)) throw std::runtime_error("IK failed for start pose");
+    // if (!robot.ComputeIK(ee, T2, q_base, &q2)) throw std::runtime_error("IK failed for end pose");
 
-    // Builds a full Trajectory from a -> b. The first N samples come from the quintic
-    // polynomial; samples N..M-1 hold the last position (zero velocity/acceleration).
-    // pd stores only the linear part of the 6D end-effector velocity ([linear; angular]).
-    // If vnorm is given, it receives the norm of the full 6D velocity for k < N.
     auto build_traj = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
                           std::vector<double>* vnorm) -> Trajectory {
         Traj tr = QuinticPolyTraj(a, b, time_final, dt, N);
@@ -297,9 +308,9 @@ std::optional<Trajectory> load_p2p_trajectory(RobotModel robot, double time_fina
     };
 
     std::vector<double> v_norm;
-    Trajectory forward  = build_traj(q1, q2, &v_norm);
-    Trajectory backward = build_traj(q2, q1, nullptr);
-    (void)backward;  // computed but not returned; remove if not needed
+    Trajectory forward  = build_traj(robot_q[0], robot_q[1], &v_norm);
+    // Trajectory backward = build_traj(q2, q1, nullptr);
+    // (void)backward;  // computed but not returned; remove if not needed
 
     double v_max = *std::max_element(v_norm.begin(), v_norm.end());
     double v_rms = 0;
@@ -457,12 +468,8 @@ int execute_task (int n_traj, std::string c_dir="") {
     std::vector<Eigen::VectorXd> qdd_real{Eigen::VectorXd::Zero(7)};
     std::vector<Eigen::Vector3d> p_real{traj->p[0]};
     std::vector<Eigen::Vector3d> pd_real{traj->pd[0]};
-    std::vector<int> flag;
 
-    int R_STOP_collision = 0, R_STOP_computational = 0, R_CYCLES = 0;
-    std::vector<int> T_TIME;
-    int collision_counter = 0;
-    bool collision = false, forward = true;
+    bool collision = false;
     int r = 1;
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     Eigen::Vector3d ro;
@@ -510,7 +517,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         q_real.push_back(res.q_next);
         p_real.push_back(res.p_next);
         pd_real.push_back(res.pd_next);
-        flag.push_back(res.exitflag ? 1 : 0);
+        // flag.push_back(res.exitflag ? 1 : 0);
         ++r;
 
 
@@ -542,30 +549,17 @@ int execute_task (int n_traj, std::string c_dir="") {
 
         if (res.exitflag) {
             if (!CollisionFree(robot, q_real[k], ro, HR_clearance)) {
-              ++R_STOP_collision;
               collision = true;
-              collision_counter = 0;
             }
-            if (forward) {
             if ((p_real[k] - traj->p[N - 1]).norm() <= 0.01) {
                 r = 1;
-                forward = false;
             }
-            } else {
-            if ((p_real[k] - traj->p[N - 1]).norm() <= 0.01) {
-                r = 1;
-                forward = true;
-                ++R_CYCLES;
-                T_TIME.push_back(i);
-            }
-            }
+
         } else {
             collision = true;
-            collision_counter = 0;
-            ++R_STOP_computational;
+
         }
         } else {
-        ++collision_counter;
         qdd_real.push_back(Eigen::VectorXd::Zero(7));
         qd_real.push_back(Eigen::VectorXd::Zero(7));
         // NOTE: faithful to MATLAB `q_real(:,end-1)` / `p_real(:,end-1)`, which
