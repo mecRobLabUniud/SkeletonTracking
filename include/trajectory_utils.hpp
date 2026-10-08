@@ -6,6 +6,8 @@
 #include <array>
 #include <string>
 
+class RobotModel;
+
 
 // ── CSV I/O ────────────────────────────────────────────────────────────────
 std::vector<std::array<double, 3>> load_trajectory_CSV(const std::string& path);
@@ -79,6 +81,16 @@ void quintic_spline_interp_full(const Eigen::VectorXd& t_low,
                                  Eigen::VectorXd& a_high);
 
 
+// ── Quintic polynomial trajectory between two points (zero vel/acc at the
+//    ends), equivalent to quinticpolytraj(...) with 2 waypoints ─────────────
+struct Traj {
+    Eigen::MatrixXd p, v, a;  // dim x n
+};
+
+Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1,
+                     double T, double dt, int n);
+
+
 // ── Main interpolation entry point ─────────────────────────────────────────
 struct Trajectory {
     std::vector<Eigen::VectorXd> q;
@@ -92,3 +104,11 @@ struct Trajectory {
 Trajectory interpolate_to_1kHz_full(
         const std::vector<std::array<double, 7>>& traj_low,
         std::vector<double> time_low);
+
+
+// ── Point-to-point trajectory from CSV waypoints + IK ──────────────────────
+// Samples every segment at `dt` for N samples per segment.
+Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir,
+                               int n_traj, int N, double dt,
+                               const std::string& p_csv = "p_ref.csv",
+                               const std::string& t_csv = "t_ref.csv");
