@@ -24,6 +24,11 @@
 #include <optional>
 #include <charconv>
 #include <cmath>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <algorithm>
+#include <Eigen/Dense>
 
 #include "trajectory_utils.hpp"
 #include "data_transmitter.hpp"
@@ -147,85 +152,143 @@ bool CollisionFree(const RobotModel& robot, const Eigen::VectorXd& q,
     return true;
 }
 
-static void WriteCsv(const std::string& path, const std::vector<Eigen::Vector3d>& v) {
-    std::ofstream f(path);
-    f << "x,y,z\n";
-    for (const auto& p : v) f << p.x() << "," << p.y() << "," << p.z() << "\n";
+
+
+
+
+
+static std::vector<std::vector<double>> read_csv(const std::string& path) {
+    std::ifstream file(path);
+    if (!file) throw std::runtime_error("Cannot open " + path);
+
+    std::vector<std::vector<double>> rows;
+    std::string line;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();   // Windows line endings
+        if (line.find_first_not_of(" \t") == std::string::npos) continue;  // blank line
+
+        std::vector<double> row;
+        std::stringstream ss(line);
+        std::string cell;
+        bool ok = true;
+        while (std::getline(ss, cell, ',')) {
+            try { row.push_back(std::stod(cell)); }
+            catch (...) { ok = false; break; }   // non-numeric -> treat as header and skip
+        }
+        if (ok && !row.empty()) rows.push_back(row);
     }
-    static void WriteCsv(const std::string& path, const Eigen::MatrixXd& m) {
-    std::ofstream f(path);
-    f << "x,y,z\n";
-    for (int k = 0; k < m.cols(); ++k)
-        f << m(0, k) << "," << m(1, k) << "," << m(2, k) << "\n";
+    return rows;
+}
+
+static std::vector<Eigen::Vector3d> load_waypoints(const std::string& path) {
+    std::vector<Eigen::Vector3d> pts;
+    for (const auto& r : read_csv(path)) {
+        if (r.size() != 3)
+            throw std::runtime_error(path + ": each row must have exactly 3 values (x,y,z)");
+        pts.emplace_back(r[0], r[1], r[2]);
+    }
+    if (pts.size() < 2)
+        throw std::runtime_error(path + ": need at least 2 waypoints");
+    return pts;
+}
+
+static  std::vector<double> load_time_final(const std::string& path) {
+    std::vector<double> ts;
+    for (const auto& r : read_csv(path)) {
+        if (r.empty())
+            throw std::runtime_error(path + ": no time value found");
+        ts.emplace_back(r[0]);
+    }
+    if (ts.size() < 2)
+        throw std::runtime_error(path + ": need at least 2 waypoints");
+    return ts;
 }
 
 
+Trajectory load_p2p_trajectory(RobotModel& robot, std::string c_dir, int n_traj, int N,
+                               const std::string& p_csv = "p_ref.csv",
+                               const std::string& t_csv = "t_ref.csv") {
 
+    std::string trajectory_path = c_dir + "src/trajectories/test" + std::to_string(n_traj) + "/";
+    std::ifstream f(trajectory_path);
+    if (!f) {
+        throw std::runtime_error("Error: cannot open '" + trajectory_path + "'");
+    }
 
-/*Trajectory_new load_p2p_trajectory(RobotModel robot, double time_final, double dt, int N, int M) {
-    const std::string ee = "panda_link8";
-
-    const Eigen::Vector3d robot_start(0.7, 0.1, 0.3);
-    const Eigen::Vector3d robot_end(0.1, 0.7, 0.4);
+    const std::vector<Eigen::Vector3d> robot_p = load_waypoints(trajectory_path + p_csv);
+    const std::vector<double> robot_t = load_time_final(trajectory_path + t_csv);
 
     Eigen::VectorXd q_base(7);
     q_base << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
 
-    // --------------------------------------------------- Robot trajectory (IK)
     Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
     R(1, 1) = -1.0;
     R(2, 2) = -1.0;
-    Eigen::Isometry3d T1 = Eigen::Isometry3d::Identity();
-    Eigen::Isometry3d T2 = Eigen::Isometry3d::Identity();
-    T1.linear() = R;  T1.translation() = robot_start;
-    T2.linear() = R;  T2.translation() = robot_end;
 
-    Eigen::VectorXd q1, q2;
-    if (!robot.ComputeIK(ee, T1, q_base, &q1)) throw std::runtime_error("IK failed for start pose");
-    if (!robot.ComputeIK(ee, T2, q_base, &q2)) throw std::runtime_error("IK failed for end pose");
+    std::vector<Eigen::VectorXd> robot_q;
+    robot_q.reserve(robot_p.size());
+    for (size_t i = 0; i < robot_p.size(); ++i) {
+        Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+        T.linear() = R;
+        T.translation() = robot_p[i];
 
-    // Forward (q1->q2) and backward (q2->q1) joint trajectories, padded by holding
-    // the last position (velocities/accelerations stay zero, as in MATLAB).
-    auto build_joint_traj = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b, Eigen::MatrixXd& q,
-                                Eigen::MatrixXd& qd, Eigen::MatrixXd& qdd) {
-        Traj tr = QuinticPolyTraj(a, b, time_final, dt, N);
-        q = Eigen::MatrixXd::Zero(7, M);
-        qd = Eigen::MatrixXd::Zero(7, M);
-        qdd = Eigen::MatrixXd::Zero(7, M);
-        q.leftCols(N) = tr.p;
-        qd.leftCols(N) = tr.v;
-        qdd.leftCols(N) = tr.a;
-        for (int k = N; k < M; ++k) q.col(k) = q.col(N - 1);
-    };
-    Eigen::MatrixXd qf, qdf, qddf, qs, qds, qdds;
-    build_joint_traj(q1, q2, qf, qdf, qddf);
-    build_joint_traj(q2, q1, qs, qds, qdds);
+        Eigen::VectorXd q;
+        if (!robot.ComputeIK("panda_link8", T, q_base, &q))
+            throw std::runtime_error("IK failed for waypoint " + std::to_string(i));
+        robot_q.push_back(q);
+    }
 
-    // Cartesian analysis: position and 6D velocity (Pinocchio: [linear; angular]).
-    auto build_cart = [&](const Eigen::MatrixXd& q, const Eigen::MatrixXd& qd, Eigen::MatrixXd& p,
-                            Eigen::MatrixXd& v, std::vector<double>* vnorm) {
-        p = Eigen::MatrixXd::Zero(3, M);
-        v = Eigen::MatrixXd::Zero(6, M);  // stays zero past N, as in MATLAB
+    auto build_traj = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
+                          std::vector<double>* vnorm, Trajectory& out, const double t_end, double& t) {
+        Traj tr = QuinticPolyTraj(a, b, t_end, dt, N);
+
         for (int k = 0; k < N; ++k) {
-        v.col(k) = robot.ComputeJacobian(ee, q.col(k)) * qd.col(k);
-        p.col(k) = robot.GetJointPose(ee, q.col(k)).translation();
-        if (vnorm) vnorm->push_back(v.col(k).norm());
+            const Eigen::VectorXd q   = tr.p.col(k);
+            const Eigen::VectorXd qd  = tr.v.col(k);
+            const Eigen::VectorXd qdd = tr.a.col(k);
+
+            const Eigen::Matrix<double, 6, 1> v = robot.ComputeJacobian("panda_link8", q) * qd;
+
+            out.q.push_back(q);
+            out.qd.push_back(qd);
+            out.qdd.push_back(qdd);
+            out.p.push_back(robot.GetJointPose("panda_link8", q).translation());
+            out.pd.push_back(v.head<3>());
+            out.t.push_back(dt * t++);
+            if (vnorm) vnorm->push_back(v.norm());
         }
-        for (int k = N; k < M; ++k) p.col(k) = p.col(N - 1);
     };
-    Eigen::MatrixXd pf, vf, ps, vs;
+
+    const size_t n_seg = robot_q.size() - 1;
     std::vector<double> v_norm;
-    build_cart(qf, qdf, pf, vf, &v_norm);
-    build_cart(qs, qds, ps, vs, nullptr);
+    Trajectory traj;
+    traj.q.reserve(N * n_seg);
+    traj.qd.reserve(N * n_seg);
+    traj.qdd.reserve(N * n_seg);
+    traj.p.reserve(N * n_seg);
+    traj.pd.reserve(N * n_seg);
+    traj.t.reserve(N * n_seg);
+
+    double t = 0;
+    for (size_t i = 0; i < n_seg; ++i)
+        build_traj(robot_q[i], robot_q[i + 1], &v_norm, traj, robot_t[i + 1] - robot_t[i], t);
 
     double v_max = *std::max_element(v_norm.begin(), v_norm.end());
     double v_rms = 0;
     for (double x : v_norm) v_rms += x * x;
     v_rms = std::sqrt(v_rms / v_norm.size());
     std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
-}*/
+
+    return traj;
+}
 
 
+
+
+
+
+
+/*
 // ─────────────────────────────────────────────────────────────────────────────
 // Load trajectory
 // ─────────────────────────────────────────────────────────────────────────────
@@ -300,7 +363,7 @@ Trajectory load_p2p_trajectory(RobotModel robot, double time_final, double dt, i
 
     return traj;
 }
-
+*/
 
 
 /*
@@ -435,7 +498,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     const int N = static_cast<int>(std::lround(time_final / dt)) + 1;  // 1001
     const int Nc = static_cast<int>(std::lround(time_final / dt)) + 1;
 
-    Trajectory nominal_traj = load_p2p_trajectory(robot, time_final, dt, N);
+    Trajectory nominal_traj = load_p2p_trajectory(robot, c_dir, n_traj, N);
 
     const int n_steps = static_cast<int>(nominal_traj.t.size());
 
