@@ -486,7 +486,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // ── Delay for loading web interface ──────────────────────────────────────────
     auto loop_start = std::chrono::steady_clock::now();
-    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 3.2) {;} 
+    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4) {;} 
         
     // ── Load trajectory ──────────────────────────────────────────────────────────
     // auto traj = load_trajectory(robot, n_traj, c_dir);
