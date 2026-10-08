@@ -546,6 +546,8 @@ int execute_task (int n_traj, std::string c_dir="") {
             -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
             stopping_time;
 
+        auto t0 = std::chrono::steady_clock::now();
+
         SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
                                     nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
                                     ro, vo, delta, Qpj, Qpt, Qv);
@@ -554,6 +556,11 @@ int execute_task (int n_traj, std::string c_dir="") {
         real_traj.q.push_back(res.q_next);
         real_traj.p.push_back(res.p_next);
         real_traj.pd.push_back(res.pd_next);
+
+        auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+        std::cout << "SSMPFL elapsed time = " << elapsed.count() << "\n";
+
+
         // flag.push_back(res.exitflag ? 1 : 0);
         ++r;
 
