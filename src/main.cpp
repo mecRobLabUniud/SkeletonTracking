@@ -437,7 +437,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     Trajectory nominal_traj = load_p2p_trajectory(robot, time_final, dt, N);
 
-    const int n_steps = static_cast<int>(freq*time_final*nominal_traj.t.size()/N);
+    const int n_steps = static_cast<int>(nominal_traj.t.size());
 
     // ── PFL & SSM & Escape traj simulation ───────────────────────────────────────
     Trajectory real_traj;
@@ -533,7 +533,8 @@ int execute_task (int n_traj, std::string c_dir="") {
             collision = true;
 
         }
-        } else {
+        } 
+    else {
         real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
         real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
         // NOTE: faithful to MATLAB `real_traj.q(:,end-1)` / `real_traj.p(:,end-1)`, which
