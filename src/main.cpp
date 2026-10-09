@@ -4,10 +4,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <array>
 #include <charconv>
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <omp.h>
 #include <Eigen/Dense>
 
 #include "trajectory_utils.hpp"
@@ -126,32 +128,66 @@ int execute_task (int n_traj, std::string c_dir="") {
             bool exitflag = false;
             int joint = 0;
 
-            for (int j=0; j<=10; j++) {
-                if (std::isnan(skeleton[j][0])) {
-                    continue;
-                } else {
-                    ro = skeleton[j];
-                    vo = (skeleton[j] - skeleton_prev[j])/dt;
-                }
+            constexpr int kNumKeypoints = 11;
+            std::array<bool, kNumKeypoints> valid_marker{};
+            std::array<bool, kNumKeypoints> qp_ok{};
+            std::array<Eigen::VectorXd, kNumKeypoints> res_q, res_qd, res_qdd;
+            std::array<Eigen::Vector3d, kNumKeypoints> res_p, res_pd;
+            std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
 
-                const double delta = -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
-
-                SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
-                                        nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
-                                        ro, vo, delta, Qpj, Qpt, Qv);
-
-                // ── Check error between real and nominal qdd ─────────────────
-                if (res.exitflag) {
-                    if ((res.qdd_next - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) { 
-                        temp.q[0] = res.q_next;
-                        temp.qd[0] = res.qd_next;
-                        temp.qdd[0] = res.qdd_next;
-                        temp.p[0] = res.p_next;
-                        temp.pd[0] = res.pd_next;
-
-                        exitflag = true;
-                        joint = j;
+            // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
+            // One RobotModel copy per thread: its mutable Pinocchio Data makes
+            // concurrent calls on a single instance unsafe.
+            #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads()))
+            {
+                RobotModel robot_local = robot;
+                #pragma omp for schedule(static)
+                for (int j = 0; j <= 10; ++j) {
+                    if (std::isnan(skeleton[j][0])) {
+                        continue;
                     }
+                    valid_marker[j] = true;
+                    const Eigen::Vector3d p_obs = skeleton[j];
+                    const Eigen::Vector3d v_obs = (skeleton[j] - skeleton_prev[j]) / dt;
+                    obs_p[j] = p_obs;
+                    obs_v[j] = v_obs;
+
+                    const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
+
+                    SSMPFLResult res = SSMPFL(robot_local, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
+                                            nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
+                                            p_obs, v_obs, delta, Qpj, Qpt, Qv);
+
+                    qp_ok[j] = res.exitflag;
+                    res_q[j] = res.q_next;
+                    res_qd[j] = res.qd_next;
+                    res_qdd[j] = res.qdd_next;
+                    res_p[j] = res.p_next;
+                    res_pd[j] = res.pd_next;
+                }
+            }
+
+            // ── Serial merge preserving the original best-result selection ──
+            for (int j = 0; j <= 10; ++j) {
+                if (!qp_ok[j]) continue;
+                if ((res_qdd[j] - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) {
+                    temp.q[0] = res_q[j];
+                    temp.qd[0] = res_qd[j];
+                    temp.qdd[0] = res_qdd[j];
+                    temp.p[0] = res_p[j];
+                    temp.pd[0] = res_pd[j];
+
+                    exitflag = true;
+                    joint = j;
+                }
+            }
+
+            // ── Obstacle state for publishing = last valid keypoint ─────────
+            for (int j = 10; j >= 0; --j) {
+                if (valid_marker[j]) {
+                    ro = obs_p[j];
+                    vo = obs_v[j];
+                    break;
                 }
             }
             

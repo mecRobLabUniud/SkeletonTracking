@@ -13,6 +13,7 @@ find_package(nlohmann_json REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(pinocchio REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
+find_package(OpenMP REQUIRED)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Includes
@@ -57,4 +58,5 @@ target_link_libraries(main PRIVATE
     rt
     qpOASES
     pinocchio::pinocchio
+    OpenMP::OpenMP_CXX
 )
