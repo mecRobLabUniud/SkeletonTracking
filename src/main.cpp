@@ -21,7 +21,7 @@
 
 
 // ── Parameters ──────────────────────────────────────────────────────────────
-const double rate_hz = 20.0;
+const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
@@ -136,8 +136,6 @@ int execute_task (int n_traj, std::string c_dir="") {
             std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
 
             // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
-            // One RobotModel copy per thread: its mutable Pinocchio Data makes
-            // concurrent calls on a single instance unsafe.
             #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads()))
             {
                 RobotModel robot_local = robot;
@@ -170,6 +168,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             // ── Serial merge preserving the original best-result selection ──
             for (int j = 0; j <= 10; ++j) {
                 if (!qp_ok[j]) continue;
+
                 if ((res_qdd[j] - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) {
                     temp.q[0] = res_q[j];
                     temp.qd[0] = res_qd[j];
@@ -179,8 +178,15 @@ int execute_task (int n_traj, std::string c_dir="") {
 
                     exitflag = true;
                     joint = j;
+
+                    if (j != 1) {
+                        std::cout << "Joint " << j << " -> " << (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
+                        << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
+                    }
                 }
             }
+
+            
 
             // ── Obstacle state for publishing = last valid keypoint ─────────
             for (int j = 10; j >= 0; --j) {
@@ -197,8 +203,6 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.p.push_back(temp.p[0]);
             real_traj.pd.push_back(temp.pd[0]);
 
-            std::cout << "Joint: " << joint << std::endl;
-
             ++r;
 
             // ── Publish robot state, obstacle distance and trajectory ───────
@@ -209,16 +213,13 @@ int execute_task (int n_traj, std::string c_dir="") {
             transmitters[1]->send_data(payload);
 
             payload.clear();
-            payload.push_back(std::array<double, 3>{{ro[0], ro[1], ro[2]}});
+            payload.push_back(std::array<double, 3>{{skeleton[joint][0], skeleton[joint][1], skeleton[joint][2]}});
             payload.push_back(std::array<double, 3>{{real_traj.p[k][0], real_traj.p[k][1], real_traj.p[k][2]}});
             transmitters[2]->send_data(payload);
 
-            Eigen::Vector3d p_r;
-            p_r = robot.GetJointPose("panda_link8", nominal_traj.q[rr]).translation().transpose();
-
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.p[k].data(), real_traj.p[k].data() + real_traj.p[k].size()));
-            payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
+            payload.push_back(std::vector<double>(nominal_traj.p[k].data(), nominal_traj.p[k].data() + nominal_traj.p[k].size()));
             transmitters[3]->send_data(payload);
 
             skeleton_prev = skeleton;
