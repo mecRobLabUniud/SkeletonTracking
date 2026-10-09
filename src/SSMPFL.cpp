@@ -195,9 +195,9 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     bool success = (status == qpOASES::SUCCESSFUL_RETURN);
     int simpleStatus = qpOASES::getSimpleStatus(status);
 
-    if (!success) {
-        std::cout << "QP failed to solve. Status: " << simpleStatus << std::endl;
-    }
+    // if (!success) {
+    //     std::cout << "QP failed to solve. Status: " << simpleStatus << std::endl;
+    // }
 
     SSMPFLResult out;
     out.exitflag = success;

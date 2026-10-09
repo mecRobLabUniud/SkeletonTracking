@@ -35,7 +35,8 @@
 
 
 // ───────────────────────────────────────────────────────────────────────────
-const double dt = 1.0 / 60.0;
+const double rate_hz = 20.0;
+const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
 const double HR_clearance = 0.1;
@@ -99,7 +100,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     const int n_steps = static_cast<int>(nominal_traj.t.size());
 
-    // ── PFL & SSM & Escape traj simulation ───────────────────────────────────────
+    // ── PFL & SSM & escape traj simulation ───────────────────────────────────────
     Trajectory real_traj;
     real_traj.q.push_back(nominal_traj.q[0]);
     real_traj.qd.push_back(nominal_traj.qd[0]);
@@ -113,10 +114,8 @@ int execute_task (int n_traj, std::string c_dir="") {
     Eigen::Vector3d ro;
     Eigen::Vector3d vo;
     std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
-    Eigen::Vector3d ro_prev;
-    Eigen::Vector3d vo_prev;
-
-    int keypoint_index = 8;
+    // Eigen::Vector3d ro_prev;
+    // Eigen::Vector3d vo_prev;
 
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
@@ -125,81 +124,119 @@ int execute_task (int n_traj, std::string c_dir="") {
         const int k = i - 1;  // index of the latest state (MATLAB column i)
 
         if (!collision) {
-        const int rr = r;
+            const int rr = r;
 
-        skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
+            skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
 
-            if (std::isnan(skeleton[keypoint_index][0])) {
-                ro = ro_prev;
-                vo = vo_prev;
-            } else {
-                ro = skeleton[keypoint_index];
-                vo = (skeleton[keypoint_index] - skeleton_prev[keypoint_index])/dt;
+
+
+
+            
+
+            // ── Core SSM + PFL + escape traj computation ───────────────────────────────
+            Trajectory temp;
+            temp.q.push_back(nominal_traj.q[rr]);
+            temp.qd.push_back(nominal_traj.qd[rr]);
+            temp.qdd.push_back(nominal_traj.qdd[rr]);
+            temp.p.push_back(nominal_traj.p[rr]);
+            temp.pd.push_back(nominal_traj.pd[rr]);
+
+            bool exitflag = false;
+            int joint = 0;
+
+            for (int j=0; j<=10; j++) {
+                if (std::isnan(skeleton[j][0])) {
+                    continue;
+                    // ro = ro_prev;
+                    // vo = vo_prev;
+                } else {
+                    ro = skeleton[j];
+                    vo = (skeleton[j] - skeleton_prev[j])/dt;
+                }
+
+                const double delta = -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
+
+                SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
+                                        nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
+                                        ro, vo, delta, Qpj, Qpt, Qv);
+
+                
+                // ── Check error between real and nominal qdd ─────────────────────────────────
+                if (res.exitflag) {
+                    if ((res.qdd_next - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) { 
+                        temp.q[0] = res.q_next;
+                        temp.qd[0] = res.qd_next;
+                        temp.qdd[0] = res.qdd_next;
+                        temp.p[0] = res.p_next;
+                        temp.pd[0] = res.pd_next;
+
+                        exitflag = true;
+                        joint = j;
+                    }
+                }
             }
+            
+            real_traj.q.push_back(temp.q[0]);
+            real_traj.qd.push_back(temp.qd[0]);
+            real_traj.qdd.push_back(temp.qdd[0]);
+            real_traj.p.push_back(temp.p[0]);
+            real_traj.pd.push_back(temp.pd[0]);
 
-
-        const double delta =
-            -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
-            stopping_time;
-
-        SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
-                                    nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
-                                    ro, vo, delta, Qpj, Qpt, Qv);
-        real_traj.qdd.push_back(res.qdd_next);
-        real_traj.qd.push_back(res.qd_next);
-        real_traj.q.push_back(res.q_next);
-        real_traj.p.push_back(res.p_next);
-        real_traj.pd.push_back(res.pd_next);
-        ++r;
+            std::cout << "Joint: " << joint << std::endl;
 
 
 
-        std::vector<nlohmann::json> payload;
-        payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
-        payload.push_back(std::vector<double>(res.q_next.data(), res.q_next.data() + res.q_next.size()));
-        payload.push_back(std::vector<int>{});
-        transmitters[1]->send_data(payload);
-
-        payload.clear();
-        payload.push_back(std::array<double, 3>{{ro[0], ro[1], ro[2]}});
-        payload.push_back(std::array<double, 3>{{res.p_next[0], res.p_next[1], res.p_next[2]}});
-        transmitters[2]->send_data(payload);
-
-        Eigen::Vector3d p_r;
-        p_r = robot.GetJointPose("panda_link8", nominal_traj.q[rr]).translation().transpose();
-
-        payload.clear();
-        payload.push_back(std::vector<double>(res.p_next.data(), res.p_next.data() + res.p_next.size()));
-        payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
-        transmitters[3]->send_data(payload);
 
 
-        ro_prev = ro;
-        vo_prev = vo;
-        skeleton_prev = skeleton;
+
+            ++r;
+
+            std::vector<nlohmann::json> payload;
+            payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
+            payload.push_back(std::vector<double>(real_traj.q[k].data(), real_traj.q[k].data() + real_traj.q[k].size()));
+            payload.push_back(std::vector<int>{});
+            transmitters[1]->send_data(payload);
+
+            payload.clear();
+            payload.push_back(std::array<double, 3>{{ro[0], ro[1], ro[2]}});
+            payload.push_back(std::array<double, 3>{{real_traj.p[k][0], real_traj.p[k][1], real_traj.p[k][2]}});
+            transmitters[2]->send_data(payload);
+
+            Eigen::Vector3d p_r;
+            p_r = robot.GetJointPose("panda_link8", nominal_traj.q[rr]).translation().transpose();
+
+            payload.clear();
+            payload.push_back(std::vector<double>(real_traj.p[k].data(), real_traj.p[k].data() + real_traj.p[k].size()));
+            payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
+            transmitters[3]->send_data(payload);
 
 
-        if (res.exitflag) {
-            if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
-              collision = true;
+            // ro_prev = ro;
+            // vo_prev = vo;
+            skeleton_prev = skeleton;
+
+
+            if (exitflag) {
+                if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
+                collision = true;
+                }
+            } 
+            else {
+                collision = true;
             }
-
-        } else {
-            collision = true;
-        }
         } 
-    else {
-        real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
-        real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
-        // NOTE: faithful to MATLAB `real_traj.q(:,end-1)` / `real_traj.p(:,end-1)`, which
-        // repeats the sample *before* the latest one. Use [k] instead if you
-        // actually intend the robot to hold its current pose during the pause.
-        const int prev = k > 0 ? k - 1 : k;
-        real_traj.q.push_back(real_traj.q[prev]);
-        real_traj.p.push_back(real_traj.p[prev]);
-        real_traj.pd.push_back(Eigen::Vector3d::Zero());
-        collision = false;
+        else {
+            real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
+            real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
+            // NOTE: faithful to MATLAB `real_traj.q(:,end-1)` / `real_traj.p(:,end-1)`, which
+            // repeats the sample *before* the latest one. Use [k] instead if you
+            // actually intend the robot to hold its current pose during the pause.
+            const int prev = k > 0 ? k - 1 : k;
+            real_traj.q.push_back(real_traj.q[prev]);
+            real_traj.p.push_back(real_traj.p[prev]);
+            real_traj.pd.push_back(Eigen::Vector3d::Zero());
+            collision = false;
         }
 
         next_time += std::chrono::milliseconds(period_ms);
