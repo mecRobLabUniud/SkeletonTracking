@@ -4,23 +4,20 @@
 
 #include "robot_model.hpp"
 
-// Kinematic/dynamic joint limits for the Franka Panda arm.
-//
-// NOTE: previously this was written as a struct whose members were
-// initialized inline with constructor-style syntax
-// (e.g. `Eigen::MatrixXd q_limits(2, 7);`) and then accessed via
-// `KinematicsLimits.q_limits` as though `KinematicsLimits` were an
-// object rather than a type. That does not compile. This version gives
-// the struct a real constructor and is meant to be instantiated once
-// (see the `static const KinematicsLimits` instance in SSMPFL.cpp).
+// ─────────────────────────────────────────────────────────────────────────────
+// Kinematic and dynamic joint limits for the Franka Panda arm
+// ─────────────────────────────────────────────────────────────────────────────
 struct KinematicsLimits {
     KinematicsLimits();
 
-    Eigen::MatrixXd q_limits;    // 2x7: row 0 = min, row 1 = max
-    Eigen::MatrixXd qd_limits;   // 2x7
-    Eigen::MatrixXd qdd_limits;  // 2x7
+    Eigen::MatrixXd q_limits;
+    Eigen::MatrixXd qd_limits;
+    Eigen::MatrixXd qdd_limits;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Output of one SSM+PFL QP step
+// ─────────────────────────────────────────────────────────────────────────────
 struct SSMPFLResult {
     Eigen::VectorXd qdd_next;
     Eigen::VectorXd qd_next;
@@ -30,9 +27,10 @@ struct SSMPFLResult {
     bool exitflag;
 };
 
-// Solves one step of the SSM+PFL QP (Eq. 2.70) for joint acceleration,
-// subject to kinematic/dynamic joint limits and per-link speed-and-
-// separation-monitoring safety constraints against an obstacle at `ro`.
+// ─────────────────────────────────────────────────────────────────────────────
+// Solve one SSM+PFL QP step for joint acceleration subject to joint limits
+// and per-link safety constraints against an obstacle at ro
+// ─────────────────────────────────────────────────────────────────────────────
 SSMPFLResult SSMPFL(const RobotModel& robot,
                      double dt,
                      double stopping_time,

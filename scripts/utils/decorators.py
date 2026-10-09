@@ -10,10 +10,16 @@ import time
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Requires
+# Decorator that only runs the wrapped method when the transmitter mode matches
 # ─────────────────────────────────────────────────────────────────────────────
 def requires(mode):
+    # ─────────────────────────────────────────────────────────────────────────
+    # Wrap the target method with a mode check
+    # ─────────────────────────────────────────────────────────────────────────
     def decorator(func):
+        # ─────────────────────────────────────────────────────────────────────
+        # Call the method only when the mode matches, otherwise raise
+        # ─────────────────────────────────────────────────────────────────────
         def wrapper(self, *args):
             if self.mode == mode:
                 return func(self, *args)
@@ -24,10 +30,16 @@ def requires(mode):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Set rate
+# Decorator that throttles the wrapped function to the configured rate
 # ─────────────────────────────────────────────────────────────────────────────
 def set_rate(rate):
+    # ─────────────────────────────────────────────────────────────────────────
+    # Wrap the target function with a rate limiter
+    # ─────────────────────────────────────────────────────────────────────────
     def decorator(func):
+        # ─────────────────────────────────────────────────────────────────────
+        # Run the function, then sleep for the remaining period
+        # ─────────────────────────────────────────────────────────────────────
         def wrapper(*args):
             t0 = time.time()
             func(*args)

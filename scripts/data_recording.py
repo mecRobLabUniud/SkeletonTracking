@@ -17,9 +17,8 @@ from utils.data_transmitter import DataTransmitter
 from utils.video_recorder import VideoRecorder
 from utils.decorators import set_rate
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Parameters
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Parameters ───────────────────────────────────────────────────────────────
 running = True
 
 stream_cnt = 0
@@ -32,7 +31,7 @@ t0 = time.time()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Recording
+# Append one skeleton message and one video frame per camera to disk
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def record_data(dtrs, skeleton_data_writers, color_writers):
@@ -48,7 +47,7 @@ def record_data(dtrs, skeleton_data_writers, color_writers):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Streaming
+# Replay recorded skeleton messages and video frames to the sockets
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def stream_data(dtss, skeleton_data_readers, color_readers):
@@ -73,7 +72,7 @@ def stream_data(dtss, skeleton_data_readers, color_readers):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Entry point 
+# Entry point: parse the arguments and run the recording or streaming mode
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     global n_devices, stream_cnt, reset
@@ -82,13 +81,14 @@ def main():
     arg2 = sys.argv[2] if len(sys.argv) > 2 else None
     arg3 = sys.argv[3] if len(sys.argv) > 3 else None
 
-    # Clear shutdown logic
+    # ── Clear shutdown logic ────────────────────────────────────────────────
     def signal_handler(sig, frame):
         global running
         running = False
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # ── Detect the next free test index ─────────────────────────────────────
     try:
         skeleton_data_dir = os.path.join(data_dir, "skeleton_data")
         media_dir = os.path.join(data_dir, "media")

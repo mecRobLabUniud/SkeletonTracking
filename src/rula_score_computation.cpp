@@ -10,9 +10,7 @@
 
 #include "rula_score_computation.hpp"
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parameters
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Parameters and shared state ─────────────────────────────────────────────
 int prevUpperArmScore = 0;
 int prevNeckScore = 0;
 int prevTrunkScore = 0;
@@ -22,15 +20,19 @@ auto startB = std::chrono::steady_clock::now();
 bool started = false;
 
 
+// ── Conversions ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Conversions
+// Angle in degrees between two vectors
 // ─────────────────────────────────────────────────────────────────────────────
 double angleDeg(const Vec3& a, const Vec3& b) {
     double c = a.normalized().dot(b.normalized());
-    c = std::max(-1.0, std::min(1.0, c));   // clamp for numerical safety
+    c = std::max(-1.0, std::min(1.0, c));
     return std::acos(c) * 180.0 / M_PI;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Convert an Eigen 3D point to a Vec3
+// ─────────────────────────────────────────────────────────────────────────────
 Vec3 toVec3(const Eigen::Vector3d& p) {
     return {p[0], p[1], p[2]};
 }
@@ -38,34 +40,27 @@ Vec3 toVec3(const Eigen::Vector3d& p) {
 const Vec3 WORLD_UP = {0.0, 0.0, 1.0};
 
 
+// ── Group A scoring ─────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Group A scoring
+// Score the upper arm from the shoulder, elbow and torso landmarks
 // ─────────────────────────────────────────────────────────────────────────────
 int scoreUpperArm(const Vec3& shoulder, const Vec3& elbow,
                    const Vec3& upperTorso, const Vec3& lowerTorso,
                    const AdjustmentFlags& f)
 {
-    // Vector from shoulder downward along trunk (reference for 0°)
+    // ── Flexion angle relative to the trunk ─────────────────────────────────
     Vec3 trunkDown = (lowerTorso - upperTorso).normalized();
     Vec3 upperArm  = (elbow - shoulder).normalized();
 
-    // Angle between upper arm and the trunk-down direction
     double ang = angleDeg(upperArm, trunkDown);
 
-    // ang ≈ 0  → arm hanging straight down (neutral)
-    // ang ≈ 90 → arm horizontal
-    // ang ≈ 180→ arm fully raised overhead
-
-    // RULA defines flexion relative to the trunk:
-    // neutral (arm down) = 0°, fully raised forward = 180°
-    // We map the raw angle to RULA convention:
-    //   <20° ≈ arm near vertical → score 1
     int score;
     if      (ang <= 20)  score = 1;
     else if (ang <= 45)  score = 2;
     else if (ang <= 90)  score = 3;
     else                 score = 4;
 
+    // ── Adjustment flags ────────────────────────────────────────────────────
     if (f.shoulderRaised)   ++score;
     if (f.upperArmAbducted) ++score;
     if (f.armSupported)     --score;
@@ -73,69 +68,74 @@ int scoreUpperArm(const Vec3& shoulder, const Vec3& elbow,
     return std::max(1, score);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the lower arm from the shoulder, elbow and wrist landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreLowerArm(const Vec3& shoulder, const Vec3& elbow,
                    const Vec3& wrist,
                    const AdjustmentFlags& f)
 {
+    // ── Elbow flexion angle ─────────────────────────────────────────────────
     Vec3 upper = (shoulder - elbow).normalized();
     Vec3 lower = (wrist    - elbow).normalized();
     double ang = angleDeg(upper, lower);
 
-    // ang is the elbow flexion angle (0°=fully extended, 180°=fully flexed)
-    // RULA uses flexion from 0°: score 1 for 60-100°, score 2 otherwise
-    // Note: angleDeg gives supplementary angle relative to straight line.
-    // elbow angle in RULA = 180° - ang (flexion from straight)
     double flexion = 180.0 - ang;
 
     int score = (flexion >= 60 && flexion <= 100) ? 1 : 2;
 
+    // ── Adjustment flags ────────────────────────────────────────────────────
     if (f.crossingMidlineOrOut) ++score;
 
     return score;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the wrist from the elbow, wrist and hand landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreWrist(const Vec3& elbow, const Vec3& wrist,
                 const Vec3& hand,
                 const AdjustmentFlags& f)
 {
-    // Approximate wrist flexion: angle between forearm and world vertical
+    // ── Wrist flexion angle ─────────────────────────────────────────────────
     Vec3 forearm = (elbow - wrist).normalized();
     Vec3 handLine = (hand - wrist).normalized();
     double ang = angleDeg(forearm, handLine);
 
-    // When forearm is horizontal (90° from up) and wrist is neutral,
-    // deviation from 90° approximates flexion/extension
     double flexion = 180.0 - ang;
 
     int score;
-    if      (flexion <= 5)  score = 1;   // near neutral
+    if      (flexion <= 5)  score = 1;
     else if (flexion <= 15) score = 2;
-    else                          score = 3;
+    else                    score = 3;
 
+    // ── Adjustment flags ────────────────────────────────────────────────────
     if (f.wristDeviated) ++score;
 
     return score;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the wrist twist from its end-of-range state
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreWristTwist(bool atEndOfRange) {
     return atEndOfRange ? 2 : 1;
 }
 
 static const int GROUP_A_TABLE[4][2][4][2] = {
-    // Upper Arm 1
     { { {1,2},{2,2},{2,3},{3,3} },
       { {2,2},{2,2},{3,3},{3,3} } },
-    // Upper Arm 2
     { { {2,3},{3,3},{3,3},{4,4} },
       { {3,3},{3,3},{3,4},{4,4} } },
-    // Upper Arm 3
     { { {3,3},{4,4},{4,4},{5,5} },
       { {3,4},{4,4},{4,4},{5,5} } },
-    // Upper Arm 4
     { { {4,4},{4,4},{4,5},{5,5} },
       { {4,4},{4,4},{5,5},{6,6} } }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Look up the Group A posture score from its four sub-scores
+// ─────────────────────────────────────────────────────────────────────────────
 int lookupGroupA(int upperArm, int lowerArm, int wrist, int wristTwist)
 {
     int ua = std::min(std::max(upperArm,  1), 4) - 1;
@@ -146,52 +146,62 @@ int lookupGroupA(int upperArm, int lowerArm, int wrist, int wristTwist)
 }
 
 
+// ── Group B scoring ─────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Group B scoring
+// Score the neck from the head and torso landmarks
 // ─────────────────────────────────────────────────────────────────────────────
 int scoreNeck(const Vec3& head, const Vec3& upperTorso,
                const Vec3& lowerTorso, const AdjustmentFlags& f)
 {
+    // ── Neck flexion angle ──────────────────────────────────────────────────
     Vec3 neck = (head - upperTorso).normalized();
     Vec3 trunk = (upperTorso - lowerTorso).normalized();
     double ang = angleDeg(neck, trunk) - 10.0;
 
-    // ang ≈ 0  → head straight up (neutral extension reference)
-    // RULA flexion = angle forward from vertical
     int score;
     if      (ang <= 10) score = 1;
     else if (ang <= 20) score = 2;
     else if (ang <= 90) score = 3;
     else                score = 4;
 
+    // ── Adjustment flags ────────────────────────────────────────────────────
     if (f.neckTwisted)   ++score;
     if (f.neckSideBent)  ++score;
 
     return score;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the trunk from the torso landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreTrunk(const Vec3& upperTorso, const Vec3& lowerTorso,
                 const AdjustmentFlags& f)
 {
+    // ── Trunk flexion angle ─────────────────────────────────────────────────
     Vec3 trunk = (upperTorso - lowerTorso).normalized();
     double ang = angleDeg(trunk, WORLD_UP) - 5.0;
 
     int score;
-    if      (ang <= 5)  score = 1;   // well-supported / upright
+    if      (ang <= 5)  score = 1;
     else if (ang <= 20) score = 2;
     else if (ang <= 60) score = 3;
     else                score = 4;
 
+    // ── Adjustment flags ────────────────────────────────────────────────────
     if (f.trunkTwisted)   ++score;
     if (f.trunkSideBent)  ++score;
 
     return score;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the legs from the hip, knee and ankle landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreLegs(const Vec3& lHip,  const Vec3& rHip,
                const Vec3& lKnee, const Vec3& rKnee,
                const Vec3& lAnkle,const Vec3& rAnkle)
 {
+    // ── Knee angles ─────────────────────────────────────────────────────────
     Vec3 lThigh  = (lKnee  - lHip).normalized();
     Vec3 lShank  = (lAnkle - lKnee).normalized();
     Vec3 rThigh  = (rKnee  - rHip).normalized();
@@ -200,8 +210,7 @@ int scoreLegs(const Vec3& lHip,  const Vec3& rHip,
     double lKneeAng = angleDeg(lThigh, lShank);
     double rKneeAng = angleDeg(rThigh, rShank);
 
-    // If knees are roughly straight (legs extended / well-supported standing
-    // or balanced sitting), score 1; otherwise score 2.
+    // ── Standing / sitting balance score ────────────────────────────────────
     int score = 1;
     if (!std::isnan(lKnee.x) && !std::isnan(lAnkle.x)) {
         bool balanced = (lKneeAng < 30 || lKneeAng > 150);
@@ -215,16 +224,15 @@ int scoreLegs(const Vec3& lHip,  const Vec3& rHip,
 }
 
 static const int GROUP_B_TABLE[4][5][2] = {
-    // Neck 1
     { {1,3},{2,3},{3,4},{5,5},{7,7} },
-    // Neck 2
     { {2,3},{2,3},{4,5},{5,6},{7,7} },
-    // Neck 3
     { {3,3},{3,4},{5,6},{6,7},{7,8} },
-    // Neck 4
     { {5,5},{5,6},{6,7},{7,8},{8,9} }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Look up the Group B posture score from its three sub-scores
+// ─────────────────────────────────────────────────────────────────────────────
 int lookupGroupB(int neck, int trunk, int legs)
 {
     int n = std::min(std::max(neck,  1), 4) - 1;
@@ -234,20 +242,21 @@ int lookupGroupB(int neck, int trunk, int legs)
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Grand score
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Grand score ─────────────────────────────────────────────────────────────
 static const int GRAND_SCORE_TABLE[8][8] = {
-    {1, 2, 3, 3, 4, 5, 5},   // Score A = 1
-    {2, 2, 3, 4, 4, 5, 5},   // Score A = 2
-    {3, 3, 3, 4, 4, 5, 6},   // Score A = 3
-    {3, 3, 3, 4, 5, 6, 6},   // Score A = 4
-    {4, 4, 4, 5, 6, 7, 7},   // Score A = 5
-    {4, 4, 5, 6, 6, 7, 7},   // Score A = 6
-    {5, 5, 6, 6, 7, 7, 7},   // Score A = 7
-    {5, 5, 6, 7, 7, 7, 7}    // Score A = 8+
+    {1, 2, 3, 3, 4, 5, 5},
+    {2, 2, 3, 4, 4, 5, 5},
+    {3, 3, 3, 4, 4, 5, 6},
+    {3, 3, 3, 4, 5, 6, 6},
+    {4, 4, 4, 5, 6, 7, 7},
+    {4, 4, 5, 6, 6, 7, 7},
+    {5, 5, 6, 6, 7, 7, 7},
+    {5, 5, 6, 7, 7, 7, 7}
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Look up the grand RULA score from the Group A and Group B scores
+// ─────────────────────────────────────────────────────────────────────────────
 int lookupGrandScore(int scoreA, int scoreB)
 {
     int a = std::min(std::max(scoreA, 1), 8) - 1;
@@ -257,7 +266,7 @@ int lookupGrandScore(int scoreA, int scoreB)
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Static posture calculation for Group A
+// Accumulated static-posture score for Group A
 // ─────────────────────────────────────────────────────────────────────────────
 int checkStaticGroupA(int upperArmScore) {
     if (upperArmScore > 2) {
@@ -275,7 +284,7 @@ int checkStaticGroupA(int upperArmScore) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Static posture calculation for Group B
+// Accumulated static-posture score for Group B
 // ─────────────────────────────────────────────────────────────────────────────
 int checkStaticGroupB(int neckScore, int trunkScore, int legScore) {
     if (neckScore > 2) {
@@ -316,8 +325,9 @@ int checkStaticGroupB(int neckScore, int trunkScore, int legScore) {
 }
 
 
+// ── Top-level function ──────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Top-level function
+// Compute the full RULA result for a skeleton, side and adjustment flags
 // ─────────────────────────────────────────────────────────────────────────────
 RULAResult computeRULA(const Skeleton& kp,
                         const AdjustmentFlags& f,
@@ -325,7 +335,7 @@ RULAResult computeRULA(const Skeleton& kp,
                         bool wristAtEndOfRange) {
     RULAResult r{};
 
-    // Select left or right keypoints
+    // ── Left/right keypoint selection ───────────────────────────────────────
     int shoulder_idx    = (side == 'L') ? L_SHOULDER    : R_SHOULDER;
     int elbow_idx       = (side == 'L') ? L_ELBOW       : R_ELBOW;
     int wrist_idx       = (side == 'L') ? L_WRIST       : R_WRIST;
@@ -339,7 +349,7 @@ RULAResult computeRULA(const Skeleton& kp,
     const Vec3 lowerTorso  = toVec3(kp[LOWER_TORSO]);
     const Vec3 head        = toVec3(kp[HEAD]);
 
-    // --- Group A ---
+    // ── Group A ─────────────────────────────────────────────────────────────
     r.upperArmScore   = scoreUpperArm(shoulder, elbow, upperTorso, lowerTorso, f);
     r.lowerArmScore   = scoreLowerArm(shoulder, elbow, wrist, f);
     r.wristScore      = scoreWrist(elbow, wrist, hand, f);
@@ -352,7 +362,7 @@ RULAResult computeRULA(const Skeleton& kp,
     r.forceScoreA     = f.forceScoreA;
     r.finalScoreA     = r.postureScoreA + r.muscleUseScoreA + r.forceScoreA;
 
-    // --- Group B ---
+    // ── Group B ─────────────────────────────────────────────────────────────
     r.neckScore  = scoreNeck(head, upperTorso, lowerTorso, f);
     r.trunkScore = scoreTrunk(upperTorso, lowerTorso, f);
     r.legScore   = scoreLegs(toVec3(kp[L_HIP]), toVec3(kp[R_HIP]),
@@ -364,7 +374,7 @@ RULAResult computeRULA(const Skeleton& kp,
     r.forceScoreB     = f.forceScoreB;
     r.finalScoreB     = r.postureScoreB + r.muscleUseScoreB + r.forceScoreB;
 
-    // --- Grand Score ---
+    // ── Grand score ─────────────────────────────────────────────────────────
     r.grandScore = lookupGrandScore(r.finalScoreA, r.finalScoreB);
 
     return r;

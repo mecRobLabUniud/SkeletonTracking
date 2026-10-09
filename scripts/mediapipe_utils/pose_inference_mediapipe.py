@@ -11,16 +11,22 @@ from mediapipe import solutions
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MediaPipe pose landmarker wrapper for inference and annotation
+# ─────────────────────────────────────────────────────────────────────────────
 class MediapipeTracker():
+    # ─────────────────────────────────────────────────────────────────────────
+    # Load the pose landmarker model with its options
+    # ─────────────────────────────────────────────────────────────────────────
     def __init__(self): 
         self.start_time = time.time()
         self.base_options = python.BaseOptions(
             model_asset_path=f'{current_dir}/../models/pose_landmarker_full.task',
-            delegate=python.BaseOptions.Delegate.GPU,  # falls back to CPU if GPU unavailable
+            delegate=python.BaseOptions.Delegate.GPU,
         )
         self.options = vision.PoseLandmarkerOptions(
             base_options=self.base_options,
-            running_mode=vision.RunningMode.VIDEO,   # VIDEO mode uses timestamps for tracking continuity
+            running_mode=vision.RunningMode.VIDEO,
             num_poses=1,
             min_pose_detection_confidence=0.5,
             min_tracking_confidence=0.5,
@@ -28,6 +34,9 @@ class MediapipeTracker():
         self.landmarker = vision.PoseLandmarker.create_from_options(self.options)
 
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Draw the detected landmarks and connections over the image
+    # ─────────────────────────────────────────────────────────────────────────
     def draw_landmarks_on_image(self, rgb_image, detection_result):
         pose_landmarks_list = detection_result.pose_landmarks
         annotated_image = np.copy(rgb_image)
@@ -47,6 +56,9 @@ class MediapipeTracker():
         return cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
 
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Run pose inference on a RGB image and return the detection result
+    # ─────────────────────────────────────────────────────────────────────────
     def inference_pose_landmarker(self, rgb_image):
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
 

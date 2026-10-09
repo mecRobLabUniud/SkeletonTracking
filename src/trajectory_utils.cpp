@@ -8,9 +8,14 @@
 #include "trajectory_utils.hpp"
 #include "robot_model.hpp"
 
-// ── Generic CSV helpers (internal) ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Generic CSV helpers, internal to this translation unit
+// ─────────────────────────────────────────────────────────────────────────────
 namespace {
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Read a CSV file into a matrix of doubles, skipping blank and non-numeric rows
+// ─────────────────────────────────────────────────────────────────────────────
 std::vector<std::vector<double>> read_csv(const std::string& path) {
     std::ifstream file(path);
     if (!file) throw std::runtime_error("Cannot open " + path);
@@ -18,8 +23,8 @@ std::vector<std::vector<double>> read_csv(const std::string& path) {
     std::vector<std::vector<double>> rows;
     std::string line;
     while (std::getline(file, line)) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();   // Windows line endings
-        if (line.find_first_not_of(" \t") == std::string::npos) continue;  // blank line
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.find_first_not_of(" \t") == std::string::npos) continue;
 
         std::vector<double> row;
         std::stringstream ss(line);
@@ -27,13 +32,16 @@ std::vector<std::vector<double>> read_csv(const std::string& path) {
         bool ok = true;
         while (std::getline(ss, cell, ',')) {
             try { row.push_back(std::stod(cell)); }
-            catch (...) { ok = false; break; }   // non-numeric -> treat as header and skip
+            catch (...) { ok = false; break; }
         }
         if (ok && !row.empty()) rows.push_back(row);
     }
     return rows;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Load waypoints from a CSV file, requiring exactly three values per row
+// ─────────────────────────────────────────────────────────────────────────────
 std::vector<Eigen::Vector3d> load_waypoints(const std::string& path) {
     std::vector<Eigen::Vector3d> pts;
     for (const auto& r : read_csv(path)) {
@@ -46,6 +54,9 @@ std::vector<Eigen::Vector3d> load_waypoints(const std::string& path) {
     return pts;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Load the final time of each segment from a CSV file
+// ─────────────────────────────────────────────────────────────────────────────
 std::vector<double> load_time_final(const std::string& path) {
     std::vector<double> ts;
     for (const auto& r : read_csv(path)) {
@@ -58,10 +69,12 @@ std::vector<double> load_time_final(const std::string& path) {
     return ts;
 }
 
-}  // namespace
+}
 
 
-// ── Quintic polynomial trajectory between two points ───────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Sample a quintic polynomial trajectory between x0 and x1
+// ─────────────────────────────────────────────────────────────────────────────
 Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, double T,
                         double dt, int n) {
     const int d = static_cast<int>(x0.size());
@@ -82,10 +95,14 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point trajectory from CSV waypoints solved with IK
+// ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj, int N,
                                double dt, const std::string& p_csv,
                                const std::string& t_csv) {
 
+    // ── Waypoint and time loading ───────────────────────────────────────────
     std::string trajectory_path = c_dir + "src/trajectories/test" + std::to_string(n_traj) + "/";
     std::ifstream f(trajectory_path);
     if (!f) {
@@ -95,6 +112,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     const std::vector<Eigen::Vector3d> robot_p = load_waypoints(trajectory_path + p_csv);
     const std::vector<double> robot_t = load_time_final(trajectory_path + t_csv);
 
+    // ── Inverse kinematics per waypoint ─────────────────────────────────────
     Eigen::VectorXd q_base(7);
     q_base << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
 
@@ -115,6 +133,9 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
         robot_q.push_back(q);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Append one quintic segment to the output trajectory
+    // ─────────────────────────────────────────────────────────────────────────────
     auto build_traj = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
                           std::vector<double>* vnorm, Trajectory& out, const double t_end, double& t) {
         Traj tr = QuinticPolyTraj(a, b, t_end, dt, N);
@@ -136,6 +157,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
         }
     };
 
+    // ── Segment assembly ────────────────────────────────────────────────────
     const size_t n_seg = robot_q.size() - 1;
     std::vector<double> v_norm;
     Trajectory traj;
@@ -150,6 +172,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     for (size_t i = 0; i < n_seg; ++i)
         build_traj(robot_q[i], robot_q[i + 1], &v_norm, traj, robot_t[i + 1] - robot_t[i], t);
 
+    // ── Velocity statistics ─────────────────────────────────────────────────
     double v_max = *std::max_element(v_norm.begin(), v_norm.end());
     double v_rms = 0;
     for (double x : v_norm) v_rms += x * x;

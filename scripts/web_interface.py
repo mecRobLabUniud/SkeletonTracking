@@ -30,10 +30,8 @@ from flask_socketio import SocketIO
 from utils.data_transmitter import DataTransmitter
 from utils.decorators import set_rate
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Parameters 
-# ─────────────────────────────────────────────────────────────────────────────
 
+# ── Parameters ───────────────────────────────────────────────────────────────
 app = Flask(__name__, 
             template_folder='flask_utils', 
             static_folder='flask_utils', 
@@ -44,7 +42,7 @@ use_robot = False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Rula thread 
+# Receive the current RULA score and emit it to the browser
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def send_rula_score():
@@ -55,13 +53,16 @@ def send_rula_score():
     except Exception as e:
         print(f"RULA thread error: {e}")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Run the RULA emission loop continuously
+# ─────────────────────────────────────────────────────────────────────────────
 def rula_thread():
     while True:
         send_rula_score()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Skeleton thread 
+# Receive the merged skeleton, transform it for plotting and emit it
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def send_data():
@@ -99,13 +100,16 @@ def send_data():
     except Exception as e:
         print(f"Skeleton thread error: {e}")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Run the skeleton emission loop continuously
+# ─────────────────────────────────────────────────────────────────────────────
 def skeleton_thread():
     while True:
         send_data()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Frame thread
+# Receive the camera frames and emit each of them to its own stream
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def send_frames():
@@ -116,13 +120,16 @@ def send_frames():
     except Exception as e:
         print(f"Image thread error: {e}")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Run the frame emission loop continuously
+# ─────────────────────────────────────────────────────────────────────────────
 def frame_thread():
     while True:
         send_frames()
         
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Web interface route
+# Serve the main web page
 # ─────────────────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -130,7 +137,8 @@ def index():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Entry point 
+# Entry point: parse the arguments, set up the transmitters and start the
+# worker threads and the web server
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     global dtrs, n_devices, use_robot

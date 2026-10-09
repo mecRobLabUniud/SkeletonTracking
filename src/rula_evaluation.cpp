@@ -14,13 +14,18 @@
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entry point
+// Receive merged skeletons, evaluate the RULA score for both sides and
+// publish the two scores
 // ─────────────────────────────────────────────────────────────────────────────
 int main() {
+    // ── Adjustment flags ────────────────────────────────────────────────────
     AdjustmentFlags flags;
 
+    // ── Data transmitters ───────────────────────────────────────────────────
     DataTransmitter dtr = DataTransmitter(DataTransmitter::Mode::Receiver, 10, "MERGED");
     DataTransmitter dts = DataTransmitter(DataTransmitter::Mode::Sender, 11, "RULA");
+
+    // ── Evaluation loop ─────────────────────────────────────────────────────
     while (true) {
         auto skeleton = json_to_keypoints(dtr.receive_data()[0]);
 

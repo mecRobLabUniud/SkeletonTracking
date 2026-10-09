@@ -12,7 +12,7 @@ Incoming data has mediapipe configuration:
 3 - left eye (outer)    12 - right shoulder     21 - left thumb       30 - right heel            
 4 - right eye (inner)   13 - left elbow         22 - right thumb      31 - left foot index         
 5 - right eye           14 - right elbow        23 - left hip         32 - right foot index  
-6 - right eye (outer)   15 - left wrist         24 - right hip               
+6 - right eye (outer)   15 - left wrist          24 - right hip               
 7 - left ear            16 - right wrist        25 - left knee          
 8 - right ear           17 - left pinky         26 - right knee     
 """
@@ -23,9 +23,8 @@ from utils.kalman_filter import KalmanFilter6D
 from utils.data_transmitter import DataTransmitter
 from utils.decorators import set_rate
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Parameters
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Parameters ───────────────────────────────────────────────────────────────
 running = True
 n_devices = 0
 skel_len = 0
@@ -33,7 +32,7 @@ kfs = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Re-shaping skeleton structure
+# Re-shape the raw mediapipe skeleton into the compact marker layout
 # ─────────────────────────────────────────────────────────────────────────────
 def reshape_structure(skeleton):
     new_skeleton = []
@@ -64,7 +63,8 @@ def reshape_structure(skeleton):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Merging
+# Receive one frame per camera, merge the markers with the Kalman filters and
+# publish the reshaped skeleton
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def merging(dtrs, dts):
@@ -92,7 +92,8 @@ def merging(dtrs, dts):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Entry point 
+# Entry point: parse the camera count, set up the transmitters and run the
+# merging loop
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     global n_devices, skel_len, kfs
@@ -113,7 +114,7 @@ def main():
     skel_len = len(skeleton)
     kfs = [KalmanFilter6D() for _ in range(skel_len)]
 
-    # Main loop
+    # ── Main loop ────────────────────────────────────────────────────────────
     while running:
         merging(dtrs, dts)
 

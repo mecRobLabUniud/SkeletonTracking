@@ -4,7 +4,7 @@
 #include <vector>
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types
+// Minimal 3D vector with the geometric operations used by the RULA scorer
 // ─────────────────────────────────────────────────────────────────────────────
 struct Vec3 {
     double x, y, z;
@@ -24,12 +24,13 @@ struct Vec3 {
 };
 
 
+// ── Conversions ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Conversions
+// Angle in degrees between two vectors
 // ─────────────────────────────────────────────────────────────────────────────
 double angleDeg(const Vec3& a, const Vec3& b);
 
-// Keypoint indices
+// ── Keypoint indices ────────────────────────────────────────────────────────
 enum KP {
     HEAD=0,         L_SHOULDER=1,   R_SHOULDER=2,
     L_ELBOW=3,      R_ELBOW=4,
@@ -45,110 +46,123 @@ enum KP {
 
 using Skeleton = std::vector<Eigen::Vector3d>;
 
-// Convert a raw keypoint array to Vec3
+// ─────────────────────────────────────────────────────────────────────────────
+// Convert an Eigen 3D point to a Vec3
+// ─────────────────────────────────────────────────────────────────────────────
 Vec3 toVec3(const Eigen::Vector3d& p);
 
 extern const Vec3 WORLD_UP;
 
 
+// ── Optional adjustment flags ───────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Optional adjustement flags
+// Posture details that cannot be inferred from the keypoints alone
 // ─────────────────────────────────────────────────────────────────────────────
 struct AdjustmentFlags {
-    // Group A – Upper Arm
-    bool shoulderRaised    = false;   // +1
-    bool upperArmAbducted  = false;   // +1
-    bool armSupported      = false;   // -1
+    bool shoulderRaised    = false;
+    bool upperArmAbducted  = false;
+    bool armSupported      = false;
 
-    // Group A – Lower Arm
-    bool crossingMidlineOrOut = false; // +1
+    bool crossingMidlineOrOut = false;
 
-    // Group A – Wrist
-    bool wristDeviated     = false;   // +1 (radial/ulnar)
+    bool wristDeviated     = false;
 
-    // Group B – Neck
-    bool neckTwisted       = false;   // +1
-    bool neckSideBent      = false;   // +1
+    bool neckTwisted       = false;
+    bool neckSideBent      = false;
 
-    // Group B – Trunk
-    bool trunkTwisted      = false;   // +1
-    bool trunkSideBent     = false;   // +1
+    bool trunkTwisted      = false;
+    bool trunkSideBent     = false;
 
-    // Muscle use & force (applied identically to both groups A and B)
-    bool isRepeated        = false;   // >4 times/min → +1
+    bool isRepeated        = false;
 
-    // Force/load score (0–3) for group A and B independently
-    int  forceScoreA       = 0;       // 0=<2kg intermittent … 3=shock/rapid
+    int  forceScoreA       = 0;
     int  forceScoreB       = 0;
 };
 
 
+// ── Group A scoring ─────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Group A scoring
+// Score the upper arm from the shoulder, elbow and torso landmarks
 // ─────────────────────────────────────────────────────────────────────────────
 int scoreUpperArm(const Vec3& shoulder, const Vec3& elbow,
                    const Vec3& upperTorso, const Vec3& lowerTorso,
                    const AdjustmentFlags& f);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the lower arm from the shoulder, elbow and wrist landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreLowerArm(const Vec3& shoulder, const Vec3& elbow,
                    const Vec3& wrist, const AdjustmentFlags& f);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the wrist from the elbow, wrist and hand landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreWrist(const Vec3& elbow, const Vec3& wrist,
                 const Vec3& hand, const AdjustmentFlags& f);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the wrist twist from its end-of-range state
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreWristTwist(bool atEndOfRange);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Look up the Group A posture score from its four sub-scores
+// ─────────────────────────────────────────────────────────────────────────────
 int lookupGroupA(int upperArm, int lowerArm, int wrist, int wristTwist);
 
 
+// ── Group B scoring ─────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Group B scoring
+// Score the neck from the head and torso landmarks
 // ─────────────────────────────────────────────────────────────────────────────
 int scoreNeck(const Vec3& head, const Vec3& upperTorso,
                const Vec3& lowerTorso, const AdjustmentFlags& f);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the trunk from the torso landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreTrunk(const Vec3& upperTorso, const Vec3& lowerTorso,
                 const AdjustmentFlags& f);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Score the legs from the hip, knee and ankle landmarks
+// ─────────────────────────────────────────────────────────────────────────────
 int scoreLegs(const Vec3& lHip,  const Vec3& rHip,
                const Vec3& lKnee, const Vec3& rKnee,
                const Vec3& lAnkle,const Vec3& rAnkle);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Look up the Group B posture score from its three sub-scores
+// ─────────────────────────────────────────────────────────────────────────────
 int lookupGroupB(int neck, int trunk, int legs);
 
 
+// ── Grand score ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Grand score
+// Look up the grand RULA score from the Group A and Group B scores
 // ─────────────────────────────────────────────────────────────────────────────
 int lookupGrandScore(int scoreA, int scoreB);
 
 
+// ── Main structure ──────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Main structure
+// All intermediate and final RULA scores for one side of the body
 // ─────────────────────────────────────────────────────────────────────────────
 struct RULAResult {
-    // Group A intermediates
     int upperArmScore, lowerArmScore, wristScore, wristTwistScore;
     int postureScoreA, muscleUseScoreA, forceScoreA, finalScoreA;
 
-    // Group B intermediates
     int neckScore, trunkScore, legScore;
     int postureScoreB, muscleUseScoreB, forceScoreB, finalScoreB;
 
-    // Grand score
     int grandScore;
 };
 
 
+// ── Top-level function ──────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-// Top-level function
+// Compute the full RULA result for a skeleton, side and adjustment flags
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @param kp       15-element array of 3D keypoints (see enum KP for indices)
- * @param f        Adjustment flags (posture details not inferrable from kp)
- * @param side     Which side to assess: 'L' or 'R' (RULA is per-side)
- * @param wristAtEndOfRange  true if wrist is at end of rotation range
- */
 RULAResult computeRULA(const Skeleton& kp,
                         const AdjustmentFlags& f,
                         char side = 'R',

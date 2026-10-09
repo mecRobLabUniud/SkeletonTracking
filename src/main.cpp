@@ -1,17 +1,3 @@
-// C++ port of "Thesis - Different Methods" (PFL & SSM & escape branch only).
-// Uses your RobotModel (Pinocchio) and SSMPFL() as given.
-//
-// Build (adapt to your CMake): link against Eigen3 + pinocchio.
-//
-// Differences vs MATLAB worth knowing:
-//   * Jacobian ordering: Pinocchio is [linear; angular], MATLAB's
-//     geometricJacobian is [angular; linear]. So "vf(4:6,:)" -> head<3>() here.
-//   * COLLcheck_franka was not provided -> CollisionFree() below is a
-//     placeholder (link-origin segments vs. a point with clearance). Replace
-//     with your real check if you have one.
-//   * Qpj / Qpt are new arguments of your C++ SSMPFL that the MATLAB call did
-//     not have -> set them to whatever your MATLAB SSMPFL_franka used.
-
 #include <chrono>
 #include <cstdio>
 #include <thread>
@@ -32,9 +18,7 @@
 #include "SSMPFL.hpp"
 
 
-
-
-// ───────────────────────────────────────────────────────────────────────────
+// ── Parameters ──────────────────────────────────────────────────────────────
 const double rate_hz = 20.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
@@ -45,10 +29,9 @@ const double Qpt = 1.0;
 const double Qv = 0.08;
 
 
-// ----------------------------------------------------------------------------
-// Placeholder for COLLcheck_franka. Returns TRUE when there is NO collision
-// (matches the MATLAB usage: `if not(COLLcheck_franka(...))` -> collision).
-// ----------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Euclidean distance from point p to the segment a-b
+// ─────────────────────────────────────────────────────────────────────────────
 static double PointSegmentDistance(const Eigen::Vector3d& p, const Eigen::Vector3d& a,
                                     const Eigen::Vector3d& b) {
     const Eigen::Vector3d ab = b - a;
@@ -58,13 +41,17 @@ static double PointSegmentDistance(const Eigen::Vector3d& p, const Eigen::Vector
     return (p - (a + t * ab)).norm();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Return true when clearance between the obstacle point and the robot links is
+// maintained along the given configuration
+// ─────────────────────────────────────────────────────────────────────────────
 bool CollisionFree(const RobotModel& robot, const Eigen::VectorXd& q,
                     const Eigen::Vector3d& p, double clearance) {
     static const char* kLinks[] = {"panda_link1", "panda_link2", "panda_link3",
                                     "panda_link4", "panda_link5", "panda_link6",
                                     "panda_link7", "panda_link8"};
     robot.ComputeFK(q);
-    Eigen::Vector3d prev = Eigen::Vector3d::Zero();  // base origin
+    Eigen::Vector3d prev = Eigen::Vector3d::Zero();
     for (const char* name : kLinks) {
         const Eigen::Vector3d cur = robot.GetJointPose(name).translation();
         if (PointSegmentDistance(p, prev, cur) < clearance) return false;
@@ -75,12 +62,14 @@ bool CollisionFree(const RobotModel& robot, const Eigen::VectorXd& q,
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Execute task
+// Run the simulated tracking task for the given trajectory index and working
+// directory
 // ─────────────────────────────────────────────────────────────────────────────
 int execute_task (int n_traj, std::string c_dir="") {
     const std::string urdf = c_dir + "/src/urdf/panda.urdf";
     RobotModel robot(urdf);
 
+    // ── Data transmitters ───────────────────────────────────────────────────
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
     transmitters.reserve(4);
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED"));
@@ -88,7 +77,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
-    // ── Delay for loading web interface ──────────────────────────────────────────
+    // ── Delay for loading the web interface ─────────────────────────────────
     auto loop_start = std::chrono::steady_clock::now();
     while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4) {;} 
         
@@ -100,7 +89,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     const int n_steps = static_cast<int>(nominal_traj.t.size());
 
-    // ── PFL & SSM & escape traj simulation ───────────────────────────────────────
+    // ── PFL, SSM and escape trajectory simulation ───────────────────────────
     Trajectory real_traj;
     real_traj.q.push_back(nominal_traj.q[0]);
     real_traj.qd.push_back(nominal_traj.qd[0]);
@@ -114,27 +103,19 @@ int execute_task (int n_traj, std::string c_dir="") {
     Eigen::Vector3d ro;
     Eigen::Vector3d vo;
     std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
-    // Eigen::Vector3d ro_prev;
-    // Eigen::Vector3d vo_prev;
 
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
     for (int i = 1; i <= n_steps; ++i) {
-        const int k = i - 1;  // index of the latest state (MATLAB column i)
+        const int k = i - 1;
 
         if (!collision) {
             const int rr = r;
 
             skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
-
-
-
-
-            
-
-            // ── Core SSM + PFL + escape traj computation ───────────────────────────────
+            // ── Core SSM, PFL and escape trajectory computation ─────────────
             Trajectory temp;
             temp.q.push_back(nominal_traj.q[rr]);
             temp.qd.push_back(nominal_traj.qd[rr]);
@@ -148,8 +129,6 @@ int execute_task (int n_traj, std::string c_dir="") {
             for (int j=0; j<=10; j++) {
                 if (std::isnan(skeleton[j][0])) {
                     continue;
-                    // ro = ro_prev;
-                    // vo = vo_prev;
                 } else {
                     ro = skeleton[j];
                     vo = (skeleton[j] - skeleton_prev[j])/dt;
@@ -161,8 +140,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                                         nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
                                         ro, vo, delta, Qpj, Qpt, Qv);
 
-                
-                // ── Check error between real and nominal qdd ─────────────────────────────────
+                // ── Check error between real and nominal qdd ─────────────────
                 if (res.exitflag) {
                     if ((res.qdd_next - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) { 
                         temp.q[0] = res.q_next;
@@ -185,13 +163,9 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             std::cout << "Joint: " << joint << std::endl;
 
-
-
-
-
-
             ++r;
 
+            // ── Publish robot state, obstacle distance and trajectory ───────
             std::vector<nlohmann::json> payload;
             payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
             payload.push_back(std::vector<double>(real_traj.q[k].data(), real_traj.q[k].data() + real_traj.q[k].size()));
@@ -211,11 +185,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
             transmitters[3]->send_data(payload);
 
-
-            // ro_prev = ro;
-            // vo_prev = vo;
             skeleton_prev = skeleton;
-
 
             if (exitflag) {
                 if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
@@ -227,11 +197,9 @@ int execute_task (int n_traj, std::string c_dir="") {
             }
         } 
         else {
+            // ── Pause while in collision ────────────────────────────────────
             real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
             real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
-            // NOTE: faithful to MATLAB `real_traj.q(:,end-1)` / `real_traj.p(:,end-1)`, which
-            // repeats the sample *before* the latest one. Use [k] instead if you
-            // actually intend the robot to hold its current pose during the pause.
             const int prev = k > 0 ? k - 1 : k;
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
@@ -248,7 +216,8 @@ int execute_task (int n_traj, std::string c_dir="") {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entry point
+// Entry point: parse the trajectory index and working directory, then run the
+// task
 // ─────────────────────────────────────────────────────────────────────────────
 int main(int argc, char* argv[]) {
     int n_traj = 0;

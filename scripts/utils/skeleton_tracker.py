@@ -23,17 +23,19 @@ from mediapipe_utils.pose_inference_mediapipe import MediapipeTracker
 logging.getLogger('ultralytics').setLevel(logging.ERROR)
 logging.getLogger('tensorrt').setLevel(logging.ERROR)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Parameters
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Parameters ───────────────────────────────────────────────────────────────
 conf_thr = 0.5
 running = True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Skeleton tracker using YOLOv8-Pose for keypoint detection
+# Real-time skeleton tracker running the camera and pose-inference threads
 # ─────────────────────────────────────────────────────────────────────────────
 class SkeletonTracker:
+    # ─────────────────────────────────────────────────────────────────────────
+    # Set up the camera pipeline, the pose tracker and the worker threads
+    # ─────────────────────────────────────────────────────────────────────────
     def __init__(self, device, w_camera: int=848, h_camera: int=480, camera_rate: int=60, depth: bool=True):
         self.device = device
         self.color = None
@@ -48,15 +50,16 @@ class SkeletonTracker:
         self.smoother = Keypoints3DSmoother(num_kpts=17, min_cutoff=0.01, beta=10.0)
 
         self.mutex = threading.Lock()
-        self.align = rs.align(rs.stream.color) # Allinea depth a color
+        self.align = rs.align(rs.stream.color)
         self.pipe = self.setup_camera_streaming(self.device, w_camera, h_camera, camera_rate, depth)
         self.mp = MediapipeTracker()
         self.camera_thread = threading.Thread(target=self.camera_streaming, args=())  
         
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # Default destructor
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ── Destructor ───────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Shut down the tracker threads when the object is garbage collected
+    # ─────────────────────────────────────────────────────────────────────────
     def __del__(self):
         try:
             self.shutdown()
@@ -64,9 +67,10 @@ class SkeletonTracker:
             pass
 
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # RealSense pipeline initialization 
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ─── RealSense pipeline initialization ───────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Create and start the RealSense pipeline for the given device
+    # ─────────────────────────────────────────────────────────────────────────
     def setup_camera_streaming(self, serial, w_camera, h_camera, camera_rate, depth):
         pipe = rs.pipeline()
         cfg = rs.config()
@@ -78,11 +82,11 @@ class SkeletonTracker:
         return pipe
 
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # Start threads
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ─── Start threads ───────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Start the camera thread and the requested pose-inference thread
+    # ─────────────────────────────────────────────────────────────────────────
     def start(self, model):
-        # self.mutex = threading.Lock()
         if not "camera" in self.started:
             self.started.append("camera")
             self.camera_thread.start()
@@ -95,9 +99,10 @@ class SkeletonTracker:
         return self
     
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # RGB and depth streaming from RealSense D435
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ─── RGB and depth streaming from the RealSense D435 ─────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Wait for aligned frames and update the latest color and depth frames
+    # ─────────────────────────────────────────────────────────────────────────
     def camera_streaming(self):
         last_frame_number = -1
         while running and self.started:
@@ -121,9 +126,10 @@ class SkeletonTracker:
                 self.depth = depth
 
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # skeleton tracking prediction
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ─── Skeleton tracking prediction ───────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Project the pose landmarks to 3D and filter them with the smoother
+    # ─────────────────────────────────────────────────────────────────────────
     def skeleton_tracking(self, model):
         while running and (model in self.started):
             if not self.depth or not self.color:
@@ -149,7 +155,7 @@ class SkeletonTracker:
                     if u < margin or u > (self.W - margin) or v < margin or v > (self.H - margin):
                         continue
 
-                    # Depth reading
+                    # ── Depth reading ────────────────────────────────────────
                     z = self.robust_depth_median(depth, u, v)
 
                     if not math.isfinite(z):
@@ -167,14 +173,15 @@ class SkeletonTracker:
                 self.frame = annotated.copy()
 
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # Robust depth reading around a pixel 
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ─── Robust depth reading around a pixel ─────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Return the median valid depth around a pixel, filtering noise
+    # ─────────────────────────────────────────────────────────────────────────
     def robust_depth_median(self, depth_frame, u, v, R=6, max_dist=5.0):
         w, h = depth_frame.get_width(), depth_frame.get_height()
-        uu, vv = int(round(u)), int(round(v)) # pixel centrali, round() arrotonda al più vicino intero
+        uu, vv = int(round(u)), int(round(v))
         zs = []
-        # Aumentato R da 4 a 6 per avere più campioni su cui fare la mediana
+        # ── Collect valid depths in the neighborhood ─────────────────────────
         for dy in range(-R, R + 1):
             y = vv + dy
             if y < 0 or y >= h:
@@ -183,8 +190,8 @@ class SkeletonTracker:
                 x = uu + dx
                 if x < 0 or x >= w:
                     continue
-                z = depth_frame.get_distance(x, y)  # metri (classe.metodo() di pyrealsense2)
-                # Filtra valori zero (invalidi) e valori troppo lontani (rumorosi)
+                z = depth_frame.get_distance(x, y)
+                # ── Keep only finite in-range values ─────────────────────────
                 if z > 0.05 and z <= max_dist and math.isfinite(z):
                     zs.append(z)
         if not zs:
@@ -193,9 +200,10 @@ class SkeletonTracker:
         return zs[len(zs) // 2]
 
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # Get methods
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ── Get methods ──────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Grab the next color frame from the camera
+    # ─────────────────────────────────────────────────────────────────────────
     def get_color_frame(self):
         color = None
         while color is None:
@@ -205,9 +213,15 @@ class SkeletonTracker:
         color = np.asanyarray(color.get_data()) 
         return color
     
+    # ─────────────────────────────────────────────────────────────────────────
+    # Return the serial number of the connected device
+    # ─────────────────────────────────────────────────────────────────────────
     def get_serial_number(self):
         return self.device
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Return the color camera intrinsic matrix and distortion coefficients
+    # ─────────────────────────────────────────────────────────────────────────
     def get_intrinsics(self):
         color_stream = self.pipe.get_active_profile().get_stream(rs.stream.color)
         intrinsics = color_stream.as_video_stream_profile().get_intrinsics()
@@ -220,19 +234,27 @@ class SkeletonTracker:
         return mtx, dist
 
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # Read methods
-    # ─────────────────────────────────────────────────────────────────────────────
+    # ── Read methods ─────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # Return the latest annotated frame, or None before the first update
+    # ─────────────────────────────────────────────────────────────────────────
     def read_frame(self):
         with self.mutex:
             frame = self.frame.copy() if self.frame is not None else None
         return frame
     
+    # ─────────────────────────────────────────────────────────────────────────
+    # Return the latest 3D keypoints and confidences, or None if unavailable
+    # ─────────────────────────────────────────────────────────────────────────
     def read_coords(self):
         with self.mutex:
             xyz = self.xyz.copy() if self.xyz is not None else None
             conf = self.conf.copy() if self.conf is not None else None            
         return xyz, conf
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Stop and join the camera and pose-inference threads
+    # ─────────────────────────────────────────────────────────────────────────
     def shutdown(self):
         self.started = []
         self.camera_thread.join()

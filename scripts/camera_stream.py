@@ -24,15 +24,14 @@ from utils.decorators import set_rate
 logging.getLogger('ultralytics').setLevel(logging.ERROR)
 logging.getLogger('tensorrt').setLevel(logging.ERROR)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Parameters
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Parameters ───────────────────────────────────────────────────────────────
 running = True
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Load pose matrix
+# Load a 4x4 rotation matrix from a text file
 # ─────────────────────────────────────────────────────────────────────────────
 def load_rotation_matrix(path_txt):
     T = np.loadtxt(path_txt, dtype=np.float64)
@@ -41,7 +40,7 @@ def load_rotation_matrix(path_txt):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Coordinates transformation
+# Apply a homogeneous transform to an array of 3D points
 # ─────────────────────────────────────────────────────────────────────────────
 def transform_points(T, pts_skeleton):
     pts_h = np.concatenate([pts_skeleton, np.ones((pts_skeleton.shape[0], 1))], axis=1)
@@ -49,7 +48,7 @@ def transform_points(T, pts_skeleton):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Skeleton tracking
+# Read one frame per camera and stream the transformed skeleton and frames
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def tracking(dtss, trackers, rotation_matrices):    
@@ -57,11 +56,11 @@ def tracking(dtss, trackers, rotation_matrices):
         frame = tracker.read_frame()
         skeleton, confidence = tracker.read_coords()   
 
-        # Write frame into shared memory
+        # ── Write frame into shared memory ──────────────────────────────────
         if not frame is None:
             dts.send_frames(frame)
         
-        # Write skeleton data into socket
+        # ── Write skeleton data into the socket ─────────────────────────────
         if not skeleton is None and not confidence is None:
             skeleton = transform_points(rotation_matrix, skeleton.astype(np.float64)).astype(np.float32)
             confidence = confidence.astype(np.float32)
@@ -70,7 +69,7 @@ def tracking(dtss, trackers, rotation_matrices):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Entry point 
+# Entry point: set up the transmitters and trackers and run the tracking loop
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     ctx = rs.context()
@@ -79,11 +78,11 @@ def main():
     trackers = []
     rotation_matrices = []
     for n, device in enumerate(devices):
-        # Sender initialization
+        # ── Sender initialization ───────────────────────────────────────────
         dts = DataTransmitter("sender", n, "SINGLE_CAMERA")
         dtss.append(dts)
 
-        # Create trackers
+        # ── Create trackers ─────────────────────────────────────────────────
         tracker = SkeletonTracker(device.get_info(rs.camera_info.serial_number))
         tracker.start("pose")
         trackers.append(tracker)
@@ -95,14 +94,14 @@ def main():
         print(f"Device {n} initialized: {device.get_info(rs.camera_info.name)} (SN: {device.get_info(rs.camera_info.serial_number)})")
     print("Streaming started")
 
-    # Clear shutdown logic
+    # ── Clear shutdown logic ────────────────────────────────────────────────
     def signal_handler(sig, frame):
         global running
         running = False
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Main loop
+    # ── Main loop ───────────────────────────────────────────────────────────
     while running:
         tracking(dtss, trackers, rotation_matrices)
 
