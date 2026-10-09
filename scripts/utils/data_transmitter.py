@@ -49,9 +49,8 @@ class SharedMemoryManager:
         if not self.create:
             return
         try:
-            # Temporarily re-open just to unlink, in case it iseady closed.
+            # Temporarily re-open just to unlink, in case it is already closed.
             tmp = shared_memory.SharedMemory(name=self.name, create=False, size=self.size)
-            # self._suppress_tracker(tmp)
             tmp.close()
             tmp.unlink()
         except (KeyError, Exception, FileNotFoundError):
@@ -62,13 +61,7 @@ class SharedMemoryManager:
         self.unlink()
 
 
-    # ── Context-manager protocol ─────────────────────────────────────────────────
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        self.shutdown()
-
+    # ── Destructor ───────────────────────────────────────────────────────────────
     def __del__(self):
         try:
             self.shutdown()

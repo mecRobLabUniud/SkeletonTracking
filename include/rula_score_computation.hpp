@@ -1,7 +1,6 @@
 #pragma once
 #include <Eigen/Core>
 #include <cmath>
-#include <string>
 #include <vector>
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +75,6 @@ struct AdjustmentFlags {
     bool trunkSideBent     = false;   // +1
 
     // Muscle use & force (applied identically to both groups A and B)
-    bool isStaticPosture   = false;   // held >1 min  → +1
     bool isRepeated        = false;   // >4 times/min → +1
 
     // Force/load score (0–3) for group A and B independently
@@ -126,12 +124,6 @@ int lookupGrandScore(int scoreA, int scoreB);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Action level interpretation
-// ─────────────────────────────────────────────────────────────────────────────
-std::string actionLevel(int grandScore);
-
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main structure
 // ─────────────────────────────────────────────────────────────────────────────
 struct RULAResult {
@@ -145,9 +137,6 @@ struct RULAResult {
 
     // Grand score
     int grandScore;
-    std::string action;
-
-    void print() const;
 };
 
 

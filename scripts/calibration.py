@@ -40,7 +40,6 @@ def correct_rotation_matrix(rotation_matrix):
 # Main loop of marker detection and rotation matrix creation
 def main():
     # Create pipeline and start config
-    align = rs.align(rs.stream.color) # Allinea depth a color
     ctx = rs.context()
     devices = ctx.devices  # Query connected devices
 
@@ -56,7 +55,7 @@ def main():
         matrix = correct_rotation_matrix(rotation_matrix)
         write_rotation_matrix_to_file(save_file, matrix)
 
-    print(f"Calibration ended correctly. Marker was detected by all the devices.")
+    print("Calibration ended correctly. Marker was detected by all the devices.")
 
 
 # Entry point

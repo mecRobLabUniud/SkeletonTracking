@@ -15,7 +15,6 @@ The script supports multiple cameras and can save video output for debugging.
 import signal
 import os
 import numpy as np
-import time
 import logging
 import pyrealsense2 as rs
 from utils.skeleton_tracker import SkeletonTracker

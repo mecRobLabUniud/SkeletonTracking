@@ -8,7 +8,6 @@ import threading
 class VideoRecorder:
     def __init__(self, path, fourcc, fps, size, is_color=True):
         self.writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*fourcc), fps, size, isColor=is_color)
-        self.reader = cv2.VideoCapture(path)
         self.q = queue.Queue(maxsize=120)  # buffer up to 2 seconds at 60fps
         self.thread = threading.Thread(target=self._worker, daemon=True)
         self.thread.start()
@@ -26,9 +25,6 @@ class VideoRecorder:
             self.q.put_nowait(frame.copy())  # .copy() avoids mutation races
         except queue.Full:
             pass  # drop frame if buffer is full rather than blocking
-
-    def read(self):
-        return self.reader.read()
 
     def release(self):
         self.q.put(None)       # send poison pill

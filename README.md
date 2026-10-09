@@ -32,9 +32,8 @@ Camera frames are exchanged out-of-band through POSIX shared memory segments nam
 │   ├── robot_model.hpp         # Pinocchio kinematics wrapper
 │   ├── SSMPFL.hpp              # Safe-Stop + Position/Force-Limiting QP solver
 │   ├── minDistance.hpp         # Point/segment geometry primitives
-│   ├── min_distance_calculation.hpp
 │   ├── rula_score_computation.hpp
-│   ├── trajectory_utils.hpp    # CSV load + 1 kHz spline interpolation
+│   ├── trajectory_utils.hpp    # CSV waypoints + quintic p2p trajectory
 │   └── utils.hpp               # JSON → keypoint conversion
 ├── src/
 │   ├── main.cpp                # Robot trajectory executor (robot mode)
@@ -42,7 +41,6 @@ Camera frames are exchanged out-of-band through POSIX shared memory segments nam
 │   ├── rula_score_computation.cpp
 │   ├── robot_model.cpp
 │   ├── SSMPFL.cpp
-│   ├── min_distance_calculation.cpp
 │   ├── trajectory_utils.cpp
 │   ├── urdf/panda.urdf         # Franka Panda robot model
 │   └── trajectories/test1/     # Recorded joint trajectories (q/qd/qdd/ref)
@@ -73,7 +71,7 @@ Camera frames are exchanged out-of-band through POSIX shared memory segments nam
 
 **C++ build**
 - CMake ≥ 3.10, C++17 compiler
-- Eigen3, OpenCV, nlohmann-json, qpOASES, Pinocchio (with URDF + CasADi support, optional)
+- Eigen3, nlohmann-json, qpOASES, Pinocchio (with URDF + CasADi support, optional)
 - ZeroMQ (`libzmq`)
 
 ## Build

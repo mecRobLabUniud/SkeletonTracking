@@ -18,9 +18,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 int main() {
     AdjustmentFlags flags;
-    flags.isRepeated    = false;
-    flags.forceScoreA   = 0;
-    flags.forceScoreB   = 0;
 
     DataTransmitter dtr = DataTransmitter(DataTransmitter::Mode::Receiver, 10, "MERGED");
     DataTransmitter dts = DataTransmitter(DataTransmitter::Mode::Sender, 11, "RULA");

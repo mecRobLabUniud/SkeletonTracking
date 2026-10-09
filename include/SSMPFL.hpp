@@ -21,14 +21,6 @@ struct KinematicsLimits {
     Eigen::MatrixXd qdd_limits;  // 2x7
 };
 
-struct OptimizationWeights {
-    OptimizationWeights();
-
-    double Qpj;
-    double Qpt;
-    double Qv;
-};
-
 struct SSMPFLResult {
     Eigen::VectorXd qdd_next;
     Eigen::VectorXd qd_next;

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <zmq.hpp>
-#include <opencv2/opencv.hpp>
 #include <nlohmann/json.hpp>
 
 #include <fcntl.h>
@@ -20,7 +19,6 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
-#include <cstring>
 #include <memory>
 #include <regex>
 
@@ -93,16 +91,6 @@ public:
         close();
         unlink();
     }
-
-    // ── Accessors ────────────────────────────────────────────────────────────
-    unsigned char* buf() {
-        if (ptr_ == nullptr) {
-            throw std::runtime_error("SharedMemory '" + name_ + "' is not open.");
-        }
-        return static_cast<unsigned char*>(ptr_);
-    }
-
-    size_t size() const { return size_; }
 
 private:
     std::string name_;
@@ -198,15 +186,6 @@ public:
     DataTransmitter& operator=(const DataTransmitter&) = delete;
 
     // ── Send block (sender mode only) ───────────────────────────────────────
-    void send_frame(const cv::Mat& frame) {
-        require(Mode::Sender);
-        size_t n = frame.total() * frame.elemSize();
-        if (n != nbytes_) {
-            throw std::runtime_error("Frame size does not match shared memory buffer size");
-        }
-        std::memcpy(shm_->buf(), frame.data, n);
-    }
-
     void send_data(const std::vector<nlohmann::json>& arrays) {
         std::string msg = topic_ + "_" + std::to_string(device_id_);
         for (const auto& elem : arrays) {
@@ -228,24 +207,12 @@ public:
     }
 
     // ── Receive block (receiver mode only) ──────────────────────────────────
-    cv::Mat receive_raw_frame() {
-        require(Mode::Receiver);
-        cv::Mat frame(params::H, params::W, CV_8UC3);
-        std::memcpy(frame.data, shm_->buf(), nbytes_);
-        return frame;
-    }
-
     std::string receive_packed_msg() {
         require(Mode::Receiver);
         zmq::message_t zmsg;
         auto result = socket_->recv(zmsg, zmq::recv_flags::none);
         (void)result;
         return std::string(static_cast<char*>(zmsg.data()), zmsg.size());
-    }
-
-    std::string receive_frame() {
-        require(Mode::Receiver);
-        return cv2_to_b64(receive_raw_frame());
     }
 
     std::vector<nlohmann::json> receive_data() {
@@ -269,20 +236,6 @@ public:
             result.push_back(nlohmann::json::parse(sanitized));
         }
         return result;
-    }
-
-    std::array<int, 2> receive_rula_score() {
-        require(Mode::Receiver);
-        std::string packed = receive_packed_msg();
-
-        size_t first  = packed.find("; ");
-        size_t second = packed.find("; ", first + 2);
-        std::string score_packed   = sanitize_nan(packed.substr(first + 2, second - (first + 2)));
-
-        json score_json = json::parse(score_packed);
-        std::array<int, 2> score = {json_to_int(score_json[0][0]), json_to_int(score_json[0][1])};
-
-        return score;
     }
 
     // ── Shutdown ─────────────────────────────────────────────────────────────
@@ -348,70 +301,4 @@ private:
             "shared_image" + std::to_string(device_id_), nbytes_, /*create=*/false);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    static std::string base64_encode(const std::vector<uchar>& data) {
-        static const char* table =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        std::string out;
-        out.reserve(((data.size() + 2) / 3) * 4);
-        size_t i = 0;
-        while (i + 3 <= data.size()) {
-            unsigned int n = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
-            out += table[(n >> 18) & 0x3F];
-            out += table[(n >> 12) & 0x3F];
-            out += table[(n >> 6) & 0x3F];
-            out += table[n & 0x3F];
-            i += 3;
-        }
-        size_t rem = data.size() - i;
-        if (rem == 1) {
-            unsigned int n = data[i] << 16;
-            out += table[(n >> 18) & 0x3F];
-            out += table[(n >> 12) & 0x3F];
-            out += "==";
-        } else if (rem == 2) {
-            unsigned int n = (data[i] << 16) | (data[i + 1] << 8);
-            out += table[(n >> 18) & 0x3F];
-            out += table[(n >> 12) & 0x3F];
-            out += table[(n >> 6) & 0x3F];
-            out += "=";
-        }
-        return out;
-    }
-
-    static std::string cv2_to_b64(const cv::Mat& img) {
-        std::vector<uchar> buffer;
-        std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 90};
-        bool ok = cv::imencode(".jpg", img, buffer, params);
-        if (!ok) return "";
-        return "data:image/jpeg;base64," + base64_encode(buffer);
-    }
-
-    static std::string sanitize_nan(std::string s) {
-        // word-boundary-aware replace: NaN not preceded/followed by alnum/_
-        static const std::string from = "NaN";
-        static const std::string to   = "null";
-        size_t pos = 0;
-        while ((pos = s.find(from, pos)) != std::string::npos) {
-            bool left_ok  = (pos == 0)              || !std::isalnum(s[pos - 1]);
-            bool right_ok = (pos + 3 >= s.size())   || !std::isalnum(s[pos + 3]);
-            if (left_ok && right_ok) {
-                s.replace(pos, 3, to);
-                pos += to.size();
-            } else {
-                pos += from.size();
-            }
-        }
-        return s;
-    }
-
-    static double json_to_double(const json& v) {
-        if (v.is_null()) return std::numeric_limits<double>::quiet_NaN();
-        return v.get<double>();
-    }
-
-    static int json_to_int(const json& v) {
-        if (v.is_null()) return std::numeric_limits<int>::quiet_NaN();
-        return v.get<int>();
-    }
 };

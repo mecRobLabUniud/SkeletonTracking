@@ -5,7 +5,6 @@
 */
 
 #include <algorithm>
-#include <iostream>
 #include <cmath>
 #include <chrono>
 
@@ -258,50 +257,6 @@ int lookupGrandScore(int scoreA, int scoreB)
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Action level interpretation
-// ─────────────────────────────────────────────────────────────────────────────
-std::string actionLevel(int grandScore)
-{
-    if      (grandScore <= 2) return "Level 1 – Acceptable posture; no action required.";
-    else if (grandScore <= 4) return "Level 2 – Further investigation; changes may be needed.";
-    else if (grandScore <= 6) return "Level 3 – Investigation and changes needed soon.";
-    else                      return "Level 4 – Immediate investigation and changes required!";
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main structure print function
-// ─────────────────────────────────────────────────────────────────────────────
-void RULAResult::print() const {
-    std::cout << "=== RULA Assessment ===\n\n";
-
-    std::cout << "-- Group A (Upper Limb) --\n";
-    std::cout << "  Upper Arm score : " << upperArmScore   << "\n";
-    std::cout << "  Lower Arm score : " << lowerArmScore   << "\n";
-    std::cout << "  Wrist score     : " << wristScore      << "\n";
-    std::cout << "  Wrist Twist     : " << wristTwistScore << "\n";
-    std::cout << "  Posture Score A : " << postureScoreA   << "\n";
-    std::cout << "  Muscle Use A    : +" << muscleUseScoreA << "\n";
-    std::cout << "  Force Score A   : +" << forceScoreA     << "\n";
-    std::cout << "  >>> Final Score A: " << finalScoreA     << "\n\n";
-
-    std::cout << "-- Group B (Neck/Trunk/Legs) --\n";
-    std::cout << "  Neck score      : " << neckScore       << "\n";
-    std::cout << "  Trunk score     : " << trunkScore      << "\n";
-    std::cout << "  Leg score       : " << legScore        << "\n";
-    std::cout << "  Posture Score B : " << postureScoreB   << "\n";
-    std::cout << "  Muscle Use B    : +" << muscleUseScoreB << "\n";
-    std::cout << "  Force Score B   : +" << forceScoreB     << "\n";
-    std::cout << "  >>> Final Score B: " << finalScoreB     << "\n\n";
-
-    std::cout << "=== Grand Score: " << grandScore << " ===\n";
-    std::cout << action << "\n";
-}
-
-
-
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Static posture calculation for Group A
 // ─────────────────────────────────────────────────────────────────────────────
 int checkStaticGroupA(int upperArmScore) {
@@ -411,7 +366,6 @@ RULAResult computeRULA(const Skeleton& kp,
 
     // --- Grand Score ---
     r.grandScore = lookupGrandScore(r.finalScoreA, r.finalScoreB);
-    r.action     = actionLevel(r.grandScore);
 
     return r;
 }

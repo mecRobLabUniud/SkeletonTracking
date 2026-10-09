@@ -13,7 +13,6 @@ capsule representation of limbs for collision avoidance.
 
 import cv2
 import math
-import time
 import numpy as np
 import pyrealsense2 as rs
 import threading
@@ -197,28 +196,6 @@ class SkeletonTracker:
     # ─────────────────────────────────────────────────────────────────────────────
     # Get methods
     # ─────────────────────────────────────────────────────────────────────────────
-    def get_aligned_frames(self):
-        depth = None
-        color = None
-        while depth is None and color is None:
-            fs = self.pipe.wait_for_frames()
-            fs = self.align.process(fs)
-            depth = fs.get_depth_frame()
-            color = fs.get_color_frame()
-
-        depth = np.asanyarray(depth.get_data()) 
-        color = np.asanyarray(color.get_data()) 
-        return depth, color
-    
-    def get_depth_frame(self):
-        depth = None
-        while depth is None:
-            fs = self.pipe.wait_for_frames()
-            depth = fs.get_depth_frame()
-
-        depth = np.asanyarray(depth.get_data()) 
-        return depth
-    
     def get_color_frame(self):
         color = None
         while color is None:
