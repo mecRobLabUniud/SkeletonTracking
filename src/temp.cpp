@@ -89,7 +89,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     Trajectory nominal_traj = load_p2p_trajectory(robot, c_dir, n_traj, N, dt);
 
-    const int n_steps = static_cast<int>(nominal_traj.t.size());
+    // const int n_steps = static_cast<int>(nominal_traj.t.size());
 
     // ── PFL, SSM and escape trajectory simulation ───────────────────────────
     Trajectory real_traj;
@@ -109,6 +109,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
+    const int n_steps = 200;
     for (int i = 1; i <= n_steps; ++i) {
         const int k = i - 1;
 
@@ -136,11 +137,11 @@ int execute_task (int n_traj, std::string c_dir="") {
             std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
 
             // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
-            #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads()))
-            {
+            // #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads())) 
+            // {
                 RobotModel robot_local = robot;
-                #pragma omp for schedule(static)
-                for (int j = 0; j <= 10; ++j) {
+                // #pragma omp for schedule(static)
+                for (int j = 8; j <= 8; ++j) {
                     if (std::isnan(skeleton[j][0])) {
                         continue;
                     }
@@ -163,10 +164,10 @@ int execute_task (int n_traj, std::string c_dir="") {
                     res_p[j] = res.p_next;
                     res_pd[j] = res.pd_next;
                 }
-            }
+            // }
 
             // ── Serial merge preserving the original best-result selection ──
-            for (int j = 0; j <= 10; ++j) {
+            for (int j = 8; j <= 8; ++j) {
                 if (!qp_ok[j]) continue;
 
                 if ((res_qdd[j] - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) {
@@ -179,10 +180,10 @@ int execute_task (int n_traj, std::string c_dir="") {
                     exitflag = true;
                     joint = j;
 
-                    if (j != 1) {
-                        std::cout << "Joint " << j << " -> " << (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
-                        << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
-                    }
+                    // if (j != 1) {
+                    //     std::cout << "Joint " << j << " -> " << (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
+                    //     << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
+                    // }
                 }
             }
 
@@ -202,6 +203,9 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.qdd.push_back(temp.qdd[0]);
             real_traj.p.push_back(temp.p[0]);
             real_traj.pd.push_back(temp.pd[0]);
+
+            std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
+            std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
 
             ++r;
 

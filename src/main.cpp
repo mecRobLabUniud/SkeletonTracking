@@ -33,9 +33,9 @@
 #include "trajectory_utils.hpp"
 #include "data_transmitter.hpp"
 #include "utils.hpp"
-#include "min_distance_calculation.hpp"
+// #include "min_distance_calculation.hpp"
 #include "robot_model.hpp"
-#include "quintic_trajectory.hpp"
+// #include "quintic_trajectory.hpp"
 
 #include "SSMPFL.hpp"
 
@@ -101,7 +101,7 @@ void PlotPaths(const std::vector<Eigen::Vector3d>& p_real, const Eigen::MatrixXd
 // Quintic polynomial trajectory between two points (zero vel/acc at the ends),
 // equivalent to quinticpolytraj(...) with 2 waypoints.
 // ----------------------------------------------------------------------------
-struct Traj {
+/*struct Traj {
     Eigen::MatrixXd p, v, a;  // dim x n
 };
 
@@ -122,7 +122,7 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
         tr.a.col(k) = dx * ddh;
     }
     return tr;
-}
+}*/
 
     // ----------------------------------------------------------------------------
     // Placeholder for COLLcheck_franka. Returns TRUE when there is NO collision
@@ -500,7 +500,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     Trajectory nominal_traj = load_p2p_trajectory(robot, c_dir, n_traj, N);
 
-    const int n_steps = static_cast<int>(nominal_traj.t.size());
+    // const int n_steps = static_cast<int>(nominal_traj.t.size());
 
     // ── PFL & SSM & Escape traj simulation ───────────────────────────────────────
     Trajectory real_traj;
@@ -524,6 +524,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
+    const int n_steps = 200;
     for (int i = 1; i <= n_steps; ++i) {
         const int k = i - 1;  // index of the latest state (MATLAB column i)
 
@@ -546,7 +547,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
             stopping_time;
 
-        auto t0 = std::chrono::steady_clock::now();
+        // auto t0 = std::chrono::steady_clock::now();
 
         SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
                                     nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
@@ -557,8 +558,11 @@ int execute_task (int n_traj, std::string c_dir="") {
         real_traj.p.push_back(res.p_next);
         real_traj.pd.push_back(res.pd_next);
 
-        auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-        std::cout << "SSMPFL elapsed time = " << elapsed.count() << "\n";
+        std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
+        std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
+
+        // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+        // std::cout << "SSMPFL elapsed time = " << elapsed.count() << "\n";
 
 
         // flag.push_back(res.exitflag ? 1 : 0);

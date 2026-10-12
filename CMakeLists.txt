@@ -60,3 +60,22 @@ target_link_libraries(main PRIVATE
     pinocchio::pinocchio
     OpenMP::OpenMP_CXX
 )
+
+# ── Temp ─────────────────────────────────────────────────────────────────────
+add_executable(temp 
+    src/temp.cpp
+    src/trajectory_utils.cpp
+    src/robot_model.cpp
+	src/SSMPFL.cpp
+)
+target_link_libraries(temp PRIVATE 
+    Eigen3::Eigen
+    ${ZMQ_LIBRARIES}
+    Threads::Threads
+    nlohmann_json::nlohmann_json
+    pthread
+    rt
+    qpOASES
+    pinocchio::pinocchio
+    OpenMP::OpenMP_CXX
+)

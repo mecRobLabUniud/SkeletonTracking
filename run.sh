@@ -42,7 +42,7 @@ EOF
 # --- Parse arguments (order-independent) ---
 while [ $# -gt 0 ]; do
     case "$1" in
-        --track|--record|--stream|--calibrate)
+        --track|--record|--stream|--calibrate|--main|--temp)
             if [ -n "$mode" ]; then
                 echo "Error: only one mode may be specified (got '$mode' and '$1')." >&2
                 exit 1
@@ -114,6 +114,8 @@ web_interface="python3 $dir/scripts/web_interface.py"
 calibration="python3 $dir/scripts/calibration.py"
 rula_evaluation="$dir/build/rula_evaluation"
 exec_trajectory="$dir/build/main"
+exec_main="$dir/build/main"
+exec_temp="$dir/build/temp"
 
 case "$mode" in
     --track)
@@ -176,6 +178,36 @@ case "$mode" in
             else
                 $web_interface "$n_devices"
             fi
+        else
+            wait
+        fi
+        ;;
+
+    --main)
+        n_devices=$(ls "$dir"/scripts/data/skeleton_data/test7/skeleton* 2>/dev/null | wc -l)
+
+        echo "Testing main..."
+        $data_recording "$n_devices" "-s" "7" &
+        $data_merging "$n_devices" &
+        $rula_evaluation &
+        $exec_main "3" "$dir" &
+        if [ "$use_gui" = true ]; then
+            $web_interface "$n_devices" "--robot"
+        else
+            wait
+        fi
+        ;;
+
+    --temp)
+        n_devices=$(ls "$dir"/scripts/data/skeleton_data/test7/skeleton* 2>/dev/null | wc -l)
+
+        echo "Testing temp..."
+        $data_recording "$n_devices" "-s" "7" &
+        $data_merging "$n_devices" &
+        $rula_evaluation &
+        $exec_temp "3" "$dir" &
+        if [ "$use_gui" = true ]; then
+            $web_interface "$n_devices" "--robot"
         else
             wait
         fi
