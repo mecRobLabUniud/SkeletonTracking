@@ -214,6 +214,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
         Eigen::MatrixXd J_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3);
         out.pd_next = J_next * out.qd_next;
     } else {
+
+        std::cout << "COLLISION" << std::endl;
         out.qdd_next = Eigen::VectorXd::Zero(n);
         out.q_next = q_t;
         out.qd_next = Eigen::VectorXd::Zero(n);

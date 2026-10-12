@@ -519,12 +519,12 @@ int execute_task (int n_traj, std::string c_dir="") {
     Eigen::Vector3d ro_prev;
     Eigen::Vector3d vo_prev;
 
-    int keypoint_index = 8;
+    int keypoint_index = 9;
 
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
-    const int n_steps = 200;
+    const int n_steps = 111;
     for (int i = 1; i <= n_steps; ++i) {
         auto t0 = std::chrono::steady_clock::now();
         const int k = i - 1;  // index of the latest state (MATLAB column i)
@@ -559,11 +559,14 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.p.push_back(res.p_next);
             real_traj.pd.push_back(res.pd_next);
 
+            std::cout << "res_qdd[" << keypoint_index << "] = " << res.qdd_next.transpose() << "\n";
+
+
             // std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
             // std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
 
-            auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-            std::cout << "MAIN SSMPFL elapsed time = " << elapsed.count() << "\n";
+            // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+            // std::cout << "MAIN SSMPFL elapsed time = " << elapsed.count() << "\n";
 
 
             // flag.push_back(res.exitflag ? 1 : 0);

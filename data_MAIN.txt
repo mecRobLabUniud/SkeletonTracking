@@ -1,372 +1,43 @@
-v_max = 0.615001
-v_norm_base(rms) = 0.315389
-Nominal: 0.0898424
-Real: 0.02345
-Nominal: 0.176673
-Real: 0.0802544
-Nominal: 0.260527
-Real: 0.137389
-Nominal: 0.341436
-Real: 0.215361
-Nominal: 0.419436
-Real: 0.299761
-Nominal: 0.494559
-Real: 0.399003
-Nominal: 0.56684
-Real: 0.496878
-Nominal: 0.636313
-Real: 0.600147
-Nominal: 0.703011
-Real: 0.695896
-Nominal: 0.766968
-Real: 0.790324
-127.0.0.1 - - [12/Oct/2026 08:13:35] "GET /socket.io/?EIO=4&transport=polling&t=Q4lB9N4.0&sid=LPzMR_x5j9r1lAYAAAAD HTTP/1.1" 200 -
-Nominal: 0.828218
-Real: 0.871377
-Nominal: 0.886795
-Real: 0.945309
-Nominal: 0.942733
-Real: 1.00218
-Nominal: 0.996066
-Real: 1.05068
-Nominal: 1.04683
-Real: 1.08352
-Nominal: 1.09505
-Real: 1.11205
-Nominal: 1.14077
-Real: 1.13069
-Nominal: 1.18402
-Real: 1.15247
-Nominal: 1.22483
-Real: 1.17153
-Nominal: 1.26324
-Real: 1.20017
-Nominal: 1.29928
-Real: 1.23005
-Nominal: 1.33299
-Real: 1.27098
-Nominal: 1.3644
-Real: 1.31196
-Nominal: 1.39354
-Real: 1.36063
-127.0.0.1 - - [12/Oct/2026 08:13:35] "POST /socket.io/?EIO=4&transport=polling&t=Q4lB9On&sid=-gOnLnAPG7awMZ26AAAE HTTP/1.1" 200 -
-Nominal: 1.42044
-Real: 1.40475
-Nominal: 1.44515
-Real: 1.4512
-Nominal: 1.46769
-Real: 1.4882
-Nominal: 1.4881
-Real: 1.52325
-Nominal: 1.50641
-Real: 1.54602
-Nominal: 1.52266
-Real: 1.56543
-Nominal: 1.53687
-Real: 1.57276
-Nominal: 1.54909
-Real: 1.57836
-Nominal: 1.55935
-Real: 1.57457
-Nominal: 1.56768
-Real: 1.57255
-Nominal: 1.57412
-Real: 1.56469
-Nominal: 1.57869
-Real: 1.56211
-Nominal: 1.58144
-Real: 1.55644
-Nominal: 1.58239
-Real: 1.55805
-Nominal: 1.58158
-Real: 1.55738
-127.0.0.1 - - [12/Oct/2026 08:13:35] "GET /socket.io/?EIO=4&transport=polling&t=Q4lB9On.0&sid=-gOnLnAPG7awMZ26AAAE HTTP/1.1" 200 -
-Nominal: 1.57905
-Real: 1.56373
-Nominal: 1.57483
-Real: 1.56646
-Nominal: 1.56895
-Real: 1.57396
-Nominal: 1.56144
-Real: 1.57515
-Nominal: 1.55234
-Real: 1.57822
-Nominal: 1.54169
-Real: 1.5725
-Nominal: 1.52951
-Real: 1.56677
-Nominal: 1.51585
-Real: 1.55135
-Nominal: 1.50073
-Real: 1.53599
-Nominal: 1.48419
-Real: 1.5119
-Nominal: 1.46626
-Real: 1.48961
-Nominal: 1.44698
-Real: 1.46066
-Nominal: 1.42638
-Real: 1.43582
-Nominal: 1.40449
-Real: 1.40629
-Nominal: 1.38135
-Real: 1.38256
-Nominal: 1.357
-Real: 1.35514
-Nominal: 1.33146
-Real: 1.33393
-Nominal: 1.30476
-Real: 1.30875
-127.0.0.1 - - [12/Oct/2026 08:13:35] "GET /img/logo_unibz.svg HTTP/1.1" 304 -
-Nominal: 1.27696
-Real: 1.28895
-Nominal: 1.24807
-Real: 1.2639
-Nominal: 1.21813
-Real: 1.24268
-Nominal: 1.18717
-Real: 1.21469
-Nominal: 1.15523
-Real: 1.18916
-Nominal: 1.12235
-Real: 1.15591
-Nominal: 1.08855
-Real: 1.12468
-Nominal: 1.05388
-Real: 1.08584
-Nominal: 1.01835
-Real: 1.0497
-Nominal: 0.982018
-Real: 1.00694
-Nominal: 0.944904
-Real: 0.968193
-Nominal: 0.907047
-Real: 0.924078
-Nominal: 0.868478
-Real: 0.885232
-Nominal: 0.829233
-Real: 0.841857
-Nominal: 0.789345
-Real: 0.804363
-Nominal: 0.748848
-Real: 0.762463
-Nominal: 0.707776
-Real: 0.726273
-Nominal: 0.666162
-Real: 0.685157
-Nominal: 0.624041
-Real: 0.649032
-Nominal: 0.581446
-Real: 0.607169
-Nominal: 0.538411
-Real: 0.56947
-Nominal: 0.494971
-Real: 0.525376
-Nominal: 0.451158
-Real: 0.484976
-Nominal: 0.407006
-Real: 0.438018
-Nominal: 0.36255
-Real: 0.3949
-Nominal: 0.317824
-Real: 0.345609
-Nominal: 0.27286
-Real: 0.300841
-Nominal: 0.227694
-Real: 0.250573
-Nominal: 0.182358
-Real: 0.205696
-Nominal: 0.136887
-Real: 0.155886
-Nominal: 0.0913143
-Real: 0.112153
-Nominal: 0.0456741
-Real: 0.0637204
-Nominal: 0
-Real: 0.0224428
-Nominal: 0.0456741
-Real: 0.0275287
-Nominal: 0.0913143
-Real: 0.0683419
-Nominal: 0.136887
-Real: 0.114896
-Nominal: 0.182358
-Real: 0.156015
-Nominal: 0.227694
-Real: 0.202979
-Nominal: 0.27286
-Real: 0.244632
-Nominal: 0.317824
-Real: 0.292344
-Nominal: 0.36255
-Real: 0.334745
-Nominal: 0.407006
-Real: 0.383091
-Nominal: 0.451158
-Real: 0.425861
-Nominal: 0.494971
-Real: 0.474206
-Nominal: 0.538411
-Real: 0.516543
-Nominal: 0.581446
-Real: 0.564015
-Nominal: 0.624041
-Real: 0.605067
-Nominal: 0.666162
-Real: 0.650956
-Nominal: 0.707776
-Real: 0.69019
-Nominal: 0.748848
-Real: 0
-Nominal: 0.789345
-Real: 0
-Nominal: 0.829233
-Real: 30.1938
-Nominal: 0.868478
-Real: 0
-Nominal: 0.907047
-Real: 0
-Nominal: 0.944904
-Real: 0
-Nominal: 0.982018
-Real: 0
-Nominal: 1.01835
-Real: 33.6636
-Nominal: 1.05388
-Real: 0
-Nominal: 1.08855
-Real: 0
-Nominal: 1.12235
-Real: 37.2032
-Nominal: 1.15523
-Real: 0
-Nominal: 1.18717
-Real: 0
-Nominal: 1.21813
-Real: 36.8158
-Nominal: 1.24807
-Real: 37.0196
-Nominal: 1.27696
-Real: 0
-Nominal: 1.30476
-Real: 0
-Nominal: 1.33146
-Real: 38.8851
-Nominal: 1.357
-Real: 0
-Nominal: 1.38135
-Real: 0
-Nominal: 1.40449
-Real: 39.2244
-Nominal: 1.42638
-Real: 0
-Nominal: 1.44698
-Real: 0
-Nominal: 1.46626
-Real: 39.5285
-Nominal: 1.48419
-Real: 0
-Nominal: 1.50073
-Real: 0
-Nominal: 1.51585
-Real: 39.5285
-Nominal: 1.52951
-Real: 39.5285
-Nominal: 1.54169
-Real: 0
-Nominal: 1.55234
-Real: 0
-Nominal: 1.56144
-Real: 39.5082
-Nominal: 1.56895
-Real: 0
-Nominal: 1.57483
-Real: 0
-Nominal: 1.57905
-Real: 0
-Nominal: 1.58158
-Real: 0
-Nominal: 1.58239
-Real: 39.5285
-Nominal: 1.58144
-Real: 0
-Nominal: 1.57869
-Real: 0
-Nominal: 1.57412
-Real: 39.5285
-Nominal: 1.56768
-Real: 39.5285
-Nominal: 1.55935
-Real: 0
-Nominal: 1.54909
-Real: 0
-Nominal: 1.53687
-Real: 39.5285
-Nominal: 1.52266
-Real: 0
-Nominal: 1.50641
-Real: 0
-Nominal: 1.4881
-Real: 0
-Nominal: 1.46769
-Real: 0
-Nominal: 1.44515
-Real: 39.5285
-Nominal: 1.42044
-Real: 39.5285
-Nominal: 1.39354
-Real: 39.5285
-Nominal: 1.3644
-Real: 35.4898
-Nominal: 1.33299
-Real: 30.2946
-Nominal: 1.29928
-Real: 34.8972
-Nominal: 1.26324
-Real: 0
-Nominal: 1.22483
-Real: 0
-Nominal: 1.18402
-Real: 35.6553
-Nominal: 1.14077
-Real: 29.0429
-Nominal: 1.09505
-Real: 28.6988
-Nominal: 1.04683
-Real: 28.4116
-Nominal: 0.996066
-Real: 28.5452
-Nominal: 0.942733
-Real: 28.9027
-Nominal: 0.886795
-Real: 28.5295
-Nominal: 0.828218
-Real: 25.5285
-Nominal: 0.766968
-Real: 13.6162
-Nominal: 0.703011
-Real: 18.9954
-Nominal: 0.636313
-Real: 19.0408
-Nominal: 0.56684
-Real: 19.1693
-Nominal: 0.494559
-Real: 19.1668
-Nominal: 0.419436
-Real: 30.0468
-Nominal: 0.341436
-Real: 29.5235
-Nominal: 0.260527
-Real: 28.95
-Nominal: 0.176673
-Real: 28.4764
-Nominal: 0.0898424
-Real: 28.1821
-Nominal: 0
-Real: 28.0431
-Nominal: 0
-Real: 27.9962
-Nominal: 0
-Real: 27.9868
-Nominal: 0
-Real: 27.985
+JOINT 8
+
+res_qdd[8] =  -0.0163278  -0.0157386  -0.0619036 -0.00939463    0.042974    0.021009  -0.0804887
+res_qdd[8] = -0.0300793 -0.0196754 -0.0795479 -0.0125431  0.0599877   0.029489   -0.10998
+res_qdd[8] = -0.0337563 -0.0281224  -0.110037 -0.0156767  0.0769559   0.037951  -0.139834
+res_qdd[8] =  -0.047424 -0.0319118  -0.127551 -0.0187958  0.0938659  0.0463825  -0.170273
+res_qdd[8] = -0.0511001 -0.0404314   -0.15786 -0.0218938   0.110705  0.0547705  -0.201406
+res_qdd[8] = -0.0646552 -0.0440556  -0.175172 -0.0249727    0.12746  0.0631061  -0.233228
+res_qdd[8] = -0.0683078 -0.0526311  -0.205228 -0.0280267    0.14412  0.0713813  -0.265618
+res_qdd[8] = -0.0817225 -0.0560719  -0.222264 -0.0310584   0.160672  0.0795925   -0.29836
+res_qdd[8] = -0.0853294 -0.0646848  -0.251994 -0.0340621   0.177104  0.0877361  -0.331182
+res_qdd[8] =  -0.098576 -0.0679225  -0.268684 -0.0370406   0.193402  0.0958114  -0.363784
+res_qdd[8] =  -0.102114  -0.076552  -0.298016 -0.0399874   0.209554   0.103815  -0.395883
+---
+res_qdd[8] = 0 0 0 0 0 0 0
+res_qdd[8] =  -10.235  6.72545       10  7.65569      -15 -7.75718  16.0463
+res_qdd[8] =       15     -7.5       10    -12.5      -15 -4.27949       20
+res_qdd[8] = 0 0 0 0 0 0 0
+res_qdd[8] =        15 0.0865881        10 0.0458073       -15  -10.6149        20
+res_qdd[8] = 0 0 0 0 0 0 0
+
+JOINT 9
+
+res_qdd[9] =  -0.0163278  -0.0157386  -0.0619036 -0.00939463    0.042974    0.021009  -0.0804887
+res_qdd[9] = -0.0300793 -0.0196754 -0.0795479 -0.0125431  0.0599877   0.029489   -0.10998
+res_qdd[9] = -0.0337563 -0.0281224  -0.110037 -0.0156767  0.0769559   0.037951  -0.139834
+res_qdd[9] =  -0.047424 -0.0319118  -0.127551 -0.0187958  0.0938659  0.0463825  -0.170273
+res_qdd[9] = -0.0511001 -0.0404314   -0.15786 -0.0218938   0.110705  0.0547705  -0.201406
+res_qdd[9] = -0.0646552 -0.0440556  -0.175172 -0.0249727    0.12746  0.0631061  -0.233228
+res_qdd[9] = -0.0683078 -0.0526311  -0.205228 -0.0280267    0.14412  0.0713813  -0.265618
+res_qdd[9] = -0.0817225 -0.0560719  -0.222264 -0.0310584   0.160672  0.0795925   -0.29836
+res_qdd[9] = -0.0853294 -0.0646848  -0.251994 -0.0340621   0.177104  0.0877361  -0.331182
+res_qdd[9] =  -0.098576 -0.0679225  -0.268684 -0.0370406   0.193402  0.0958114  -0.363784
+res_qdd[9] =  -0.102114  -0.076552  -0.298016 -0.0399874   0.209554   0.103815  -0.395883
+---
+res_qdd[9] =  -0.115164 -0.0795656  -0.314288 -0.0429046   0.225548   0.111747  -0.427241
+res_qdd[9] =   -0.11861 -0.0881894  -0.343149 -0.0457851    0.24137   0.119599  -0.457698
+res_qdd[9] =  -0.131434 -0.0909581  -0.358933 -0.0486304   0.257008   0.127369  -0.487177
+res_qdd[9] =  -0.134762 -0.0995541  -0.387251 -0.0514333   0.272449   0.135046  -0.515691
+res_qdd[9] =   -0.14733  -0.102058  -0.402473 -0.0541952    0.28768   0.142624   -0.54333
+res_qdd[9] =  -0.150515  -0.110606  -0.430174 -0.0569091   0.302689   0.150093  -0.570241
+res_qdd[9] =  -0.162796  -0.112828  -0.444764 -0.0595771   0.317464   0.157444  -0.596601
+res_qdd[9] =  -0.165813  -0.121306  -0.471775 -0.0621924   0.331992   0.164668   -0.62259
