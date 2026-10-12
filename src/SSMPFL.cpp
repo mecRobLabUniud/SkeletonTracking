@@ -215,7 +215,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
         out.pd_next = J_next * out.qd_next;
     } else {
 
-        std::cout << "COLLISION" << std::endl;
+        std::cout << "status: " << status << std::endl;
         out.qdd_next = Eigen::VectorXd::Zero(n);
         out.q_next = q_t;
         out.qd_next = Eigen::VectorXd::Zero(n);

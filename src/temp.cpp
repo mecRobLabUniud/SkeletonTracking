@@ -89,7 +89,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     Trajectory nominal_traj = load_p2p_trajectory(robot, c_dir, n_traj, N, dt);
 
-    // const int n_steps = static_cast<int>(nominal_traj.t.size());
+    const int n_steps = static_cast<int>(nominal_traj.t.size());
 
     // ── PFL, SSM and escape trajectory simulation ───────────────────────────
     Trajectory real_traj;
@@ -109,7 +109,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
-    const int n_steps = 150;
+    // const int n_steps = 300;
     for (int i = 1; i <= n_steps; ++i) {
         auto t0 = std::chrono::steady_clock::now();
         const int k = i - 1;
@@ -174,14 +174,25 @@ int execute_task (int n_traj, std::string c_dir="") {
             // std::cout << "res_qdd[9] = " << res_qdd[9].transpose() << "\n";
 
             // ── Serial merge preserving the original best-result selection ──
-            for (int j = 8; j < 10; j++) {
-                // if (!qp_ok[j]) continue;
+            for (int j = 7; j < kNumKeypoints; j++) {
+                if (!qp_ok[j]) {
+                    temp.q[0] = res_q[j];
+                    temp.qd[0] = res_qd[j];
+                    temp.qdd[0] = res_qdd[j];
+                    temp.p[0] = res_p[j];
+                    temp.pd[0] = res_pd[j];
 
-                std::cout << "Joint " << j << " -> " << "\n" <<
-                nominal_traj.qdd[rr].transpose() << "\n" <<
-                res_qdd[j].transpose() << "\n" <<
-                (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
-                << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
+                    exitflag = false;
+                    joint = j;
+
+                    break;
+                };
+
+                // std::cout << "Joint " << j << " -> " << "\n" <<
+                // nominal_traj.qdd[rr].transpose() << "\n" <<
+                // res_qdd[j].transpose() << "\n" <<
+                // (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
+                // << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
 
                 // if (j != 1) {
                 //     std::cout << "Joint " << j << " -> " << (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
