@@ -81,7 +81,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // ── Delay for loading the web interface ─────────────────────────────────
     auto loop_start = std::chrono::steady_clock::now();
-    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4) {;} 
+    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 5) {;} 
         
     double time_final = 5.0;    
 
@@ -111,6 +111,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     const int n_steps = 200;
     for (int i = 1; i <= n_steps; ++i) {
+        auto t0 = std::chrono::steady_clock::now();
         const int k = i - 1;
 
         if (!collision) {
@@ -139,9 +140,10 @@ int execute_task (int n_traj, std::string c_dir="") {
             // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
             // #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads())) 
             // {
-                RobotModel robot_local = robot;
-                // #pragma omp for schedule(static)
-                for (int j = 8; j <= 8; ++j) {
+                
+                // #pragma omp parallel for // shared(qp_ok, res_q, res_qd, res_qdd, res_p, res_pd, obs_p, obs_v)// schedule(static)
+                for (int j = 0; j < kNumKeypoints; ++j) {
+                    RobotModel robot_local = robot;
                     if (std::isnan(skeleton[j][0])) {
                         continue;
                     }
@@ -166,11 +168,18 @@ int execute_task (int n_traj, std::string c_dir="") {
                 }
             // }
 
+            // std::cout << "===================" << std::endl;
+
             // ── Serial merge preserving the original best-result selection ──
-            for (int j = 8; j <= 8; ++j) {
+            for (int j = 8; j < 9; ++j) {
                 if (!qp_ok[j]) continue;
 
-                if ((res_qdd[j] - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) {
+                if (j != 1) {
+                    std::cout << "Joint " << j << " -> " << (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
+                    << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
+                }
+
+                if ((res_p[j] - nominal_traj.p[rr]).norm() > (temp.p[0] - nominal_traj.p[rr]).norm()) {
                     temp.q[0] = res_q[j];
                     temp.qd[0] = res_qd[j];
                     temp.qdd[0] = res_qdd[j];
@@ -179,11 +188,6 @@ int execute_task (int n_traj, std::string c_dir="") {
 
                     exitflag = true;
                     joint = j;
-
-                    // if (j != 1) {
-                    //     std::cout << "Joint " << j << " -> " << (res_qdd[j] - nominal_traj.qdd[rr]).norm() 
-                    //     << " > " << (temp.qdd[0] - nominal_traj.qdd[rr]).norm() << std::endl;
-                    // }
                 }
             }
 
@@ -204,8 +208,11 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.p.push_back(temp.p[0]);
             real_traj.pd.push_back(temp.pd[0]);
 
-            std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
-            std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
+            // std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
+            // std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
+
+            auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+            std::cout << "TEMP SSMPFL elapsed time = " << elapsed.count() << "\n";
 
             ++r;
 

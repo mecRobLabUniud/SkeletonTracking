@@ -486,7 +486,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     // ── Delay for loading web interface ──────────────────────────────────────────
     auto loop_start = std::chrono::steady_clock::now();
-    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 4) {;} 
+    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_start).count() <= 5) {;} 
         
     // ── Load trajectory ──────────────────────────────────────────────────────────
     // auto traj = load_trajectory(robot, n_traj, c_dir);
@@ -526,87 +526,88 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     const int n_steps = 200;
     for (int i = 1; i <= n_steps; ++i) {
+        auto t0 = std::chrono::steady_clock::now();
         const int k = i - 1;  // index of the latest state (MATLAB column i)
 
         if (!collision) {
-        const int rr = r; // std::min(r, M - 1);
+            const int rr = r; // std::min(r, M - 1);
 
-        skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
+            skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
 
-            if (std::isnan(skeleton[keypoint_index][0])) {
-                ro = ro_prev;
-                vo = vo_prev;
+                if (std::isnan(skeleton[keypoint_index][0])) {
+                    ro = ro_prev;
+                    vo = vo_prev;
+                } else {
+                    ro = skeleton[keypoint_index];
+                    vo = (skeleton[keypoint_index] - skeleton_prev[keypoint_index])/dt;
+                }
+
+
+            const double delta =
+                -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
+                stopping_time;
+
+            
+
+            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
+                                        nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
+                                        ro, vo, delta, Qpj, Qpt, Qv);
+            real_traj.qdd.push_back(res.qdd_next);
+            real_traj.qd.push_back(res.qd_next);
+            real_traj.q.push_back(res.q_next);
+            real_traj.p.push_back(res.p_next);
+            real_traj.pd.push_back(res.pd_next);
+
+            // std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
+            // std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
+
+            auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+            std::cout << "MAIN SSMPFL elapsed time = " << elapsed.count() << "\n";
+
+
+            // flag.push_back(res.exitflag ? 1 : 0);
+            ++r;
+
+
+
+            std::vector<nlohmann::json> payload;
+            payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
+            payload.push_back(std::vector<double>(res.q_next.data(), res.q_next.data() + res.q_next.size()));
+            payload.push_back(std::vector<int>{});
+            transmitters[1]->send_data(payload);
+
+            payload.clear();
+            payload.push_back(std::array<double, 3>{{ro[0], ro[1], ro[2]}});
+            payload.push_back(std::array<double, 3>{{res.p_next[0], res.p_next[1], res.p_next[2]}});
+            transmitters[2]->send_data(payload);
+
+            Eigen::Vector3d p_r;
+            p_r = robot.GetJointPose("panda_link8", nominal_traj.q[rr]).translation().transpose();
+
+            payload.clear();
+            payload.push_back(std::vector<double>(res.p_next.data(), res.p_next.data() + res.p_next.size()));
+            payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
+            transmitters[3]->send_data(payload);
+
+
+            ro_prev = ro;
+            vo_prev = vo;
+            skeleton_prev = skeleton;
+
+
+            if (res.exitflag) {
+                if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
+                collision = true;
+                }
+                // if ((real_traj.p[k] - nominal_traj.p[N - 1]).norm() <= 0.01) {
+                //     r = 1;
+                // }
+
             } else {
-                ro = skeleton[keypoint_index];
-                vo = (skeleton[keypoint_index] - skeleton_prev[keypoint_index])/dt;
+                collision = true;
+
             }
-
-
-        const double delta =
-            -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
-            stopping_time;
-
-        // auto t0 = std::chrono::steady_clock::now();
-
-        SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
-                                    nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
-                                    ro, vo, delta, Qpj, Qpt, Qv);
-        real_traj.qdd.push_back(res.qdd_next);
-        real_traj.qd.push_back(res.qd_next);
-        real_traj.q.push_back(res.q_next);
-        real_traj.p.push_back(res.p_next);
-        real_traj.pd.push_back(res.pd_next);
-
-        std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
-        std::cout << "Real: " << real_traj.qdd[rr].norm() << std::endl;
-
-        // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-        // std::cout << "SSMPFL elapsed time = " << elapsed.count() << "\n";
-
-
-        // flag.push_back(res.exitflag ? 1 : 0);
-        ++r;
-
-
-
-        std::vector<nlohmann::json> payload;
-        payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
-        payload.push_back(std::vector<double>(res.q_next.data(), res.q_next.data() + res.q_next.size()));
-        payload.push_back(std::vector<int>{});
-        transmitters[1]->send_data(payload);
-
-        payload.clear();
-        payload.push_back(std::array<double, 3>{{ro[0], ro[1], ro[2]}});
-        payload.push_back(std::array<double, 3>{{res.p_next[0], res.p_next[1], res.p_next[2]}});
-        transmitters[2]->send_data(payload);
-
-        Eigen::Vector3d p_r;
-        p_r = robot.GetJointPose("panda_link8", nominal_traj.q[rr]).translation().transpose();
-
-        payload.clear();
-        payload.push_back(std::vector<double>(res.p_next.data(), res.p_next.data() + res.p_next.size()));
-        payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
-        transmitters[3]->send_data(payload);
-
-
-        ro_prev = ro;
-        vo_prev = vo;
-        skeleton_prev = skeleton;
-
-
-        if (res.exitflag) {
-            if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
-              collision = true;
-            }
-            // if ((real_traj.p[k] - nominal_traj.p[N - 1]).norm() <= 0.01) {
-            //     r = 1;
-            // }
-
-        } else {
-            collision = true;
-
-        }
         } 
     else {
         real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
