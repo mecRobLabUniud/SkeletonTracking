@@ -53,7 +53,7 @@ add_executable(main
     src/main.cpp
     src/trajectory_utils.cpp
     src/robot_model.cpp
-	src/SSMPFL.cpp
+	src/core.cpp
 )
 target_link_libraries(main PRIVATE 
     Eigen3::Eigen
@@ -72,7 +72,7 @@ add_executable(temp
     src/temp.cpp
     src/trajectory_utils.cpp
     src/robot_model.cpp
-	src/SSMPFL.cpp
+	src/core.cpp
 )
 target_link_libraries(temp PRIVATE 
     Eigen3::Eigen

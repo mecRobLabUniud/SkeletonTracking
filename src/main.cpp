@@ -37,7 +37,7 @@
 #include "robot_model.hpp"
 // #include "quintic_trajectory.hpp"
 
-#include "SSMPFL.hpp"
+#include "core.hpp"
 
 
 
@@ -46,13 +46,15 @@
 const double freq = 60.0;
 const double dt = 1.0 / freq;
 const double stopping_time = 0.25;
-const double pause_after_collision = 3.75;
+const double pause_after_collision = 1.0;
 const double velocity_PFL = 0.4;
 const double HR_clearance = 0.1;
 const double Qpj = 70.0;
 const double Qpt = 1.0;
 const double Qv = 0.08;
 std::atomic<bool> running{true};
+std::array<std::string, 2> strategy = {{"SSMPFL", "SSMPFLescape"}};
+int core = 0;
 
 
 void signal_handler(int signum) {
@@ -500,7 +502,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     Trajectory nominal_traj = load_p2p_trajectory(robot, c_dir, n_traj, N);
 
-    // const int n_steps = static_cast<int>(nominal_traj.t.size());
+    const int n_steps = static_cast<int>(nominal_traj.t.size());
 
     // ── PFL & SSM & Escape traj simulation ───────────────────────────────────────
     Trajectory real_traj;
@@ -519,12 +521,12 @@ int execute_task (int n_traj, std::string c_dir="") {
     Eigen::Vector3d ro_prev;
     Eigen::Vector3d vo_prev;
 
-    int keypoint_index = 9;
+    int keypoint_index = 8;
 
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
-    const int n_steps = 111;
+    int collision_counter = 0;
     for (int i = 1; i <= n_steps; ++i) {
         auto t0 = std::chrono::steady_clock::now();
         const int k = i - 1;  // index of the latest state (MATLAB column i)
@@ -548,18 +550,32 @@ int execute_task (int n_traj, std::string c_dir="") {
                 -(-(HR_clearance + vo.norm() * stopping_time) / stopping_time + velocity_PFL) *
                 stopping_time;
 
-            
+            std::cout << "core = " << core << std::endl;
 
-            SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
-                                        nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
-                                        ro, vo, delta, Qpj, Qpt, Qv);
+            SSMPFLResult res;
+            switch (core) {
+                case 0:
+                    res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[k], nominal_traj.qd[k],
+                                                nominal_traj.qdd[k], nominal_traj.p[rr], nominal_traj.pd[rr], 
+                                                nominal_traj.q[rr], ro, vo, delta, Qpj, Qpt, Qv);
+
+                    break;
+                case 1:
+                    res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
+                                                nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
+                                                ro, vo, delta, Qpj, Qpt, Qv);
+
+                    break;
+            }
+
             real_traj.qdd.push_back(res.qdd_next);
             real_traj.qd.push_back(res.qd_next);
             real_traj.q.push_back(res.q_next);
             real_traj.p.push_back(res.p_next);
             real_traj.pd.push_back(res.pd_next);
+            
 
-            std::cout << "res_qdd[" << keypoint_index << "] = " << res.qdd_next.transpose() << "\n";
+            // std::cout << "res_qdd[" << keypoint_index << "] = " << res.qdd_next.transpose() << "\n";
 
 
             // std::cout << "Nominal: " << nominal_traj.qdd[rr].norm() << std::endl;
@@ -571,8 +587,6 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             // flag.push_back(res.exitflag ? 1 : 0);
             ++r;
-
-
 
             std::vector<nlohmann::json> payload;
             payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
@@ -593,11 +607,9 @@ int execute_task (int n_traj, std::string c_dir="") {
             payload.push_back(std::vector<double>(p_r.data(), p_r.data() + p_r.size()));
             transmitters[3]->send_data(payload);
 
-
             ro_prev = ro;
             vo_prev = vo;
             skeleton_prev = skeleton;
-
 
             if (res.exitflag) {
                 if (!CollisionFree(robot, real_traj.q[k], ro, HR_clearance)) {
@@ -612,22 +624,22 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             }
         } 
-    else {
-        real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
-        real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
-        // NOTE: faithful to MATLAB `real_traj.q(:,end-1)` / `real_traj.p(:,end-1)`, which
-        // repeats the sample *before* the latest one. Use [k] instead if you
-        // actually intend the robot to hold its current pose during the pause.
-        const int prev = k > 0 ? k - 1 : k;
-        real_traj.q.push_back(real_traj.q[prev]);
-        real_traj.p.push_back(real_traj.p[prev]);
-        real_traj.pd.push_back(Eigen::Vector3d::Zero());
-        // if (collision_counter > pause_after_collision * freq) collision = false;
-        collision = false;
-        }
+        else {
+            real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
+            real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
 
-        next_time += std::chrono::milliseconds(period_ms);
-        std::this_thread::sleep_until(next_time);
+            const int prev = k > 0 ? k - 1 : k;
+            real_traj.q.push_back(real_traj.q[prev]);
+            real_traj.p.push_back(real_traj.p[prev]);
+            real_traj.pd.push_back(Eigen::Vector3d::Zero());
+            if (collision_counter++ > pause_after_collision * freq) {
+                collision = false;
+                collision_counter = 0;
+            }
+
+            next_time += std::chrono::milliseconds(period_ms);
+            std::this_thread::sleep_until(next_time);
+        }
     }
 
     return 0;
@@ -666,6 +678,10 @@ int main(int argc, char* argv[]) {
         std::string c_dir(get_current_dir_name());
         path = c_dir + "/../";
     }
+
+    if (argc > 3) {
+        core = std::stoi(argv[3]);
+    } 
 
     std::signal(SIGINT, signal_handler);
 

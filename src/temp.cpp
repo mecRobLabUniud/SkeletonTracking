@@ -17,7 +17,8 @@
 #include "utils.hpp"
 #include "robot_model.hpp"
 
-#include "SSMPFL.hpp"
+
+#include "core.hpp"
 
 
 // ── Parameters ──────────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
                     const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
 
-                    SSMPFLResult res = SSMPFL(robot_local, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
+                    SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[k], real_traj.qd[k],
                                             nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
                                             p_obs, v_obs, delta, Qpj, Qpt, Qv);
 

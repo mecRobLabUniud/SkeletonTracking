@@ -1,9 +1,7 @@
-#include "SSMPFL.hpp"
-
 #include <cmath>
-
 #include <qpOASES.hpp>
 
+#include "core.hpp"
 #include "minDistance.hpp"
 
 
@@ -36,6 +34,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
                      double stopping_time,
                      const Eigen::VectorXd& q_t,
                      const Eigen::VectorXd& qdot_t,
+                     const Eigen::VectorXd& qddot_t,
                      const Eigen::Vector3d& x_ref,
                      const Eigen::Vector3d& xd_ref,
                      const Eigen::VectorXd& q_ref,
@@ -45,6 +44,161 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
                      double Qpj, 
                      double Qpt, 
                      double Qv) {
+    const int n = 7;
+
+    // ── Current and predicted task state ────────────────────────────────────
+    Eigen::VectorXd q_tp = q_t + dt * qdot_t;
+
+    Eigen::Vector3d x_t = robot.GetJointPose("panda_link8", q_tp).translation();
+    Eigen::MatrixXd J_t = robot.ComputeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
+
+    ro = ro + vo * dt;
+
+    double dt2 = dt * dt;
+
+    // ── Kinematic and dynamic bounds ────────────────────────────────────────
+    Eigen::VectorXd qmin = (k_limits.q_limits.transpose().col(0) - q_t - dt * qdot_t) * 2.0 / dt2;
+    Eigen::VectorXd qmax = (k_limits.q_limits.transpose().col(1) - q_t - dt * qdot_t) * 2.0 / dt2;
+    Eigen::VectorXd qdmin = (k_limits.qd_limits.transpose().col(0) - qdot_t) / dt;
+    Eigen::VectorXd qdmax = (k_limits.qd_limits.transpose().col(1) - qdot_t) / dt;
+    Eigen::VectorXd qddmin = k_limits.qdd_limits.transpose().col(0);
+    Eigen::VectorXd qddmax = k_limits.qdd_limits.transpose().col(1);
+
+    Eigen::VectorXd q_lb = qmin.cwiseMax(qdmin).cwiseMax(qddmin);
+    Eigen::VectorXd q_ub = qmax.cwiseMin(qdmax).cwiseMin(qddmax);
+
+    // ── SSM+PFL constraints, per-link kinematics ────────────────────────────
+    Eigen::MatrixXd J1 = robot.ComputeJacobian("panda_link2", q_t).topRows(3);
+    Eigen::MatrixXd J1d = robot.ComputeDerivativeJacobian("panda_link2", q_t).topRows(3);
+    Eigen::Vector3d r1 = robot.GetJointPose("panda_link2", q_t).translation();
+
+    Eigen::MatrixXd J2 = robot.ComputeJacobian("panda_link3", q_t).topRows(3);
+    Eigen::MatrixXd J2d = robot.ComputeDerivativeJacobian("panda_link3", q_t).topRows(3);
+    Eigen::Vector3d r2 = robot.GetJointPose("panda_link3", q_t).translation();
+
+    Eigen::MatrixXd J3 = robot.ComputeJacobian("panda_link4", q_t).topRows(3);
+    Eigen::MatrixXd J3d = robot.ComputeDerivativeJacobian("panda_link4", q_t).topRows(3);
+    Eigen::Vector3d r3 = robot.GetJointPose("panda_link4", q_t).translation();
+
+    Eigen::MatrixXd J4 = robot.ComputeJacobian("panda_link5", q_t).topRows(3);
+    Eigen::MatrixXd J4d = robot.ComputeDerivativeJacobian("panda_link5", q_t).topRows(3);
+    Eigen::Vector3d r4 = robot.GetJointPose("panda_link5", q_t).translation();
+
+    Eigen::MatrixXd J5 = robot.ComputeJacobian("panda_link7", q_t).topRows(3);
+    Eigen::MatrixXd J5d = robot.ComputeDerivativeJacobian("panda_link7", q_t).topRows(3);
+    Eigen::Vector3d r5 = robot.GetJointPose("panda_link7", q_t).translation();
+
+    Eigen::MatrixXd J6 = robot.ComputeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::MatrixXd J6d = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
+    Eigen::Vector3d r6 = robot.GetJointPose("panda_link8", q_t).translation();
+
+    Eigen::MatrixXd A(10, n);
+    Eigen::VectorXd b(10);
+
+    A.row(0) = (ro.transpose() * J5 - r5.transpose() * J5) * dt;
+    A.row(1) = (ro.transpose() * J6 - r5.transpose() * J6 - (r6 - r5).transpose() * J5) * dt;
+    A.row(2) = (ro.transpose() * J1 - r1.transpose() * J1) * dt;
+    A.row(3) = (ro.transpose() * J2 - r1.transpose() * J2 - (r2 - r1).transpose() * J1) * dt;
+    A.row(4) = (ro.transpose() * J2 - r2.transpose() * J2) * dt;
+    A.row(5) = (ro.transpose() * J3 - r2.transpose() * J3 - (r3 - r2).transpose() * J2) * dt;
+    A.row(6) = (ro.transpose() * J3 - r3.transpose() * J3) * dt;
+    A.row(7) = (ro.transpose() * J4 - r3.transpose() * J4 - (r4 - r3).transpose() * J3) * dt;
+    A.row(8) = (ro.transpose() * J4 - r4.transpose() * J4) * dt;
+    A.row(9) = (ro.transpose() * J5 - r4.transpose() * J5 - (r5 - r4).transpose() * J4) * dt;
+
+    double d2 = delta * delta;
+
+    b(0) = 10.0 / stopping_time * (std::pow(minsSSM(r5, r6, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J5 - r5.transpose() * J5) * qdot_t).value()
+           - (dt * (ro - r5).transpose() * J5d * qdot_t).value();
+
+    b(1) = 10.0 / stopping_time * (std::pow(minsSSM(r5, r6, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J6 - r5.transpose() * J6 - (r6 - r5).transpose() * J5) * qdot_t).value()
+           - (dt * (ro - r6).transpose() * J6d * qdot_t).value();
+
+    b(2) = 10.0 / stopping_time * (std::pow(minsSSM(r1, r2, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J1 - r1.transpose() * J1) * qdot_t).value()
+           - (dt * (ro - r1).transpose() * J1d * qdot_t).value();
+
+    b(3) = 10.0 / stopping_time * (std::pow(minsSSM(r1, r2, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J2 - r1.transpose() * J2 - (r2 - r1).transpose() * J1) * qdot_t).value()
+           - (dt * (ro - r2).transpose() * J2d * qdot_t).value();
+
+    b(4) = 10.0 / stopping_time * (std::pow(minsSSM(r2, r3, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J2 - r2.transpose() * J2) * qdot_t).value()
+           - (dt * (ro - r2).transpose() * J2d * qdot_t).value();
+
+    b(5) = 10.0 / stopping_time * (std::pow(minsSSM(r2, r3, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J3 - r2.transpose() * J3 - (r3 - r2).transpose() * J2) * qdot_t).value()
+           - (dt * (ro - r3).transpose() * J3d * qdot_t).value();
+
+    b(6) = 10.0 / stopping_time * (std::pow(minsSSM(r3, r4, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J3 - r3.transpose() * J3) * qdot_t).value()
+           - (dt * (ro - r3).transpose() * J3d * qdot_t).value();
+
+    b(7) = 10.0 / stopping_time * (std::pow(minsSSM(r3, r4, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J4 - r3.transpose() * J4 - (r4 - r3).transpose() * J3) * qdot_t).value()
+           - (dt * (ro - r4).transpose() * J4d * qdot_t).value();
+
+    b(8) = 10.0 / stopping_time * (std::pow(minsSSM(r4, r5, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J4 - r4.transpose() * J4) * qdot_t).value()
+           - (dt * (ro - r4).transpose() * J4d * qdot_t).value();
+
+    b(9) = 10.0 / stopping_time * (std::pow(minsSSM(r4, r5, ro, delta), 2) - d2 / 4.0)
+           - ((ro.transpose() * J5 - r4.transpose() * J5 - (r5 - r4).transpose() * J4) * qdot_t).value()
+           - (dt * (ro - r5).transpose() * J5d * qdot_t).value();
+
+
+    auto check_matrix = A*qddot_t - b;
+
+    std::cout << "+++++++ check_matrix = " << check_matrix << std::endl;
+
+
+    bool success = (check_matrix.array() <= 0).all();
+
+    std::cout << "success = " << success << std::endl;
+
+    // ── Build the result ────────────────────────────────────────────────────
+    SSMPFLResult out;
+    out.exitflag = success;
+
+    if (out.exitflag) {
+        out.q_next = q_t;
+        out.qd_next = qdot_t;
+        out.qdd_next = qddot_t;
+        out.p_next = robot.GetJointPose("panda_link8", out.q_next).translation();
+        out.pd_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3) * out.qd_next;
+    } else {
+        out.q_next = q_t;
+        out.qd_next = Eigen::VectorXd::Zero(n);
+        out.qdd_next = Eigen::VectorXd::Zero(n);
+        out.p_next = x_t;
+        out.pd_next = Eigen::Vector3d::Zero();
+    }
+
+    return out;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Solve one SSM+PFL+escape QP step for joint acceleration subject to joint limits
+// and per-link safety constraints against an obstacle at ro
+// ─────────────────────────────────────────────────────────────────────────────
+SSMPFLResult SSMPFLescape(const RobotModel& robot,
+                        double dt,
+                        double stopping_time,
+                        const Eigen::VectorXd& q_t,
+                        const Eigen::VectorXd& qdot_t,
+                        const Eigen::Vector3d& x_ref,
+                        const Eigen::Vector3d& xd_ref,
+                        const Eigen::VectorXd& q_ref,
+                        Eigen::Vector3d ro,
+                        const Eigen::Vector3d& vo,
+                        double delta,
+                        double Qpj, 
+                        double Qpt, 
+                        double Qv) {
     const int n = 7;
 
     // ── Current and predicted task state ────────────────────────────────────
@@ -200,25 +354,22 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     bool success = (status == qpOASES::SUCCESSFUL_RETURN);
 
+    std::cout << "status: " << status << std::endl;
+
     // ── Build the result ────────────────────────────────────────────────────
     SSMPFLResult out;
     out.exitflag = success;
 
     if (out.exitflag) {
+        out.q_next = q_t + dt * qdot_t + dt2 / 2.0 * qddot;
+        out.qd_next = qdot_t + dt * qddot;
         out.qdd_next = qddot;
-        out.q_next = q_t + dt * qdot_t + dt2 / 2.0 * out.qdd_next;
-        out.qd_next = qdot_t + dt * out.qdd_next;
-
         out.p_next = robot.GetJointPose("panda_link8", out.q_next).translation();
-
-        Eigen::MatrixXd J_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3);
-        out.pd_next = J_next * out.qd_next;
+        out.pd_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3) * out.qd_next;
     } else {
-
-        std::cout << "status: " << status << std::endl;
-        out.qdd_next = Eigen::VectorXd::Zero(n);
         out.q_next = q_t;
         out.qd_next = Eigen::VectorXd::Zero(n);
+        out.qdd_next = Eigen::VectorXd::Zero(n);
         out.p_next = x_t;
         out.pd_next = Eigen::Vector3d::Zero();
     }

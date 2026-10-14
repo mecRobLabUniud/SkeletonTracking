@@ -14,6 +14,7 @@ mode=""
 use_gui=false
 use_robot=false
 use_traj=false
+core=0
 n_test=""
 n_traj=""
 Qpj=1.0
@@ -82,6 +83,18 @@ while [ $# -gt 0 ]; do
         --traj=*)
             n_traj="${1#*=}"
             use_traj=true
+            shift
+            ;;
+        --core)
+            core="${2:-}"
+            if [ -z "$core" ]; then
+                echo "Error: --core requires a value." >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --core=*)
+            core="${1#*=}"
             shift
             ;;
         -h|--help)
@@ -190,7 +203,7 @@ case "$mode" in
         $data_recording "$n_devices" "-s" "7" &
         $data_merging "$n_devices" &
         $rula_evaluation &
-        $exec_main "3" "$dir" &
+        $exec_main "3" "$dir" "$core" &
         if [ "$use_gui" = true ]; then
             $web_interface "$n_devices" "--robot"
         else
@@ -205,7 +218,7 @@ case "$mode" in
         $data_recording "$n_devices" "-s" "7" &
         $data_merging "$n_devices" &
         $rula_evaluation &
-        $exec_temp "3" "$dir" &
+        $exec_temp "3" "$dir" "$core" &
         if [ "$use_gui" = true ]; then
             $web_interface "$n_devices" "--robot"
         else
