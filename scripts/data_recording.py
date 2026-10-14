@@ -17,14 +17,12 @@ from utils.data_transmitter import DataTransmitter
 from utils.video_recorder import VideoRecorder
 from utils.decorators import set_rate
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Parameters
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Parameters ───────────────────────────────────────────────────────────────
 running = True
 
 stream_cnt = 0
 n_devices = 0
-paused = False
 reset = False
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
@@ -33,7 +31,7 @@ t0 = time.time()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Recording
+# Append one skeleton message and one video frame per camera to disk
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def record_data(dtrs, skeleton_data_writers, color_writers):
@@ -49,7 +47,7 @@ def record_data(dtrs, skeleton_data_writers, color_writers):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Streaming
+# Replay recorded skeleton messages and video frames to the sockets
 # ─────────────────────────────────────────────────────────────────────────────
 @set_rate(60)
 def stream_data(dtss, skeleton_data_readers, color_readers):
@@ -62,7 +60,7 @@ def stream_data(dtss, skeleton_data_readers, color_readers):
                 break
             skeleton_data_packed = lines[stream_cnt]
 
-            time, _, skeleton_packed, confidence_packed = skeleton_data_packed.split("; ", 3)
+            _, _, skeleton_packed, confidence_packed = skeleton_data_packed.split("; ", 3)
             skeleton = np.array(json.loads(skeleton_packed))
             confidence = np.array(json.loads(confidence_packed))
             dts.send_data(skeleton, confidence)
@@ -74,7 +72,7 @@ def stream_data(dtss, skeleton_data_readers, color_readers):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Entry point 
+# Entry point: parse the arguments and run the recording or streaming mode
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     global n_devices, stream_cnt, reset
@@ -83,21 +81,22 @@ def main():
     arg2 = sys.argv[2] if len(sys.argv) > 2 else None
     arg3 = sys.argv[3] if len(sys.argv) > 3 else None
 
-    # Clear shutdown logic
+    # ── Clear shutdown logic ────────────────────────────────────────────────
     def signal_handler(sig, frame):
         global running
         running = False
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # ── Detect the next free test index ─────────────────────────────────────
     try:
-        skeleton_data_dir = os.path.join(data_dir, f"skeleton_data")
-        media_dir = os.path.join(data_dir, f"media")
+        skeleton_data_dir = os.path.join(data_dir, "skeleton_data")
+        media_dir = os.path.join(data_dir, "media")
         n_test_skeleton_data = max([int(directory[4:]) for directory in list(os.walk(skeleton_data_dir))[0][1]]) if not list(os.walk(skeleton_data_dir))[0][1] == [] else 0
         n_test_media = max([int(directory[4:]) for directory in list(os.walk(media_dir))[0][1]]) if not list(os.walk(media_dir))[0][1] == [] else 0
         n_test = max(n_test_skeleton_data, n_test_media)
     except:
-        skeleton_data_dir = os.path.join(data_dir, f"skeleton_data")
+        skeleton_data_dir = os.path.join(data_dir, "skeleton_data")
         n_test = max([int(directory[4:]) for directory in list(os.walk(skeleton_data_dir))[0][1]]) if not list(os.walk(skeleton_data_dir))[0][1] == [] else 0
 
     if arg1 is None:
@@ -146,14 +145,11 @@ def main():
         print("Streaming mode enabled. Press Ctrl+C to stop.")
         try:
             while running:
-                if not paused:
-                    stream_data(dtss, skeleton_data_readers, color_readers)
-                    if reset:
-                        reset = False
-                        color_readers = [cv2.VideoCapture(os.path.join(media_test_dir, f"color_{n}.avi")) for n in range(n_devices)]
-                        stream_cnt = 0
-                else:
-                    time.sleep(0.016)                
+                stream_data(dtss, skeleton_data_readers, color_readers)
+                if reset:
+                    reset = False
+                    color_readers = [cv2.VideoCapture(os.path.join(media_test_dir, f"color_{n}.avi")) for n in range(n_devices)]
+                    stream_cnt = 0
         finally:
             for dts in dtss:
                 dts.shutdown()

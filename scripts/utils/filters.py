@@ -16,66 +16,84 @@ import math
 import numpy as np
 
 
-
-# Class implementing the One Euro Filter for smoothing 1D signals, adapted for 3D keypoints in Keypoints3DSmoother
+# ─────────────────────────────────────────────────────────────────────────────
+# One Euro Filter for smoothing a 1D signal, adapted to 3D keypoints in
+# Keypoints3DSmoother
+# ─────────────────────────────────────────────────────────────────────────────
 class OneEuroFilter:
-    # Costruttore del filtro
+    # ─────────────────────────────────────────────────────────────────────────
+    # Initialize the filter with its smoothing parameters
+    # ─────────────────────────────────────────────────────────────────────────
     def __init__(self, t0, x0, dx0=0.0, min_cutoff=1.0, beta=0.0, d_cutoff=1.0):
-        self.min_cutoff = float(min_cutoff)  # Cutoff minimo per segnali quasi fermi
-        self.beta = float(beta)              # Coefficiente di adattamento alla velocità
-        self.d_cutoff = float(d_cutoff)      # Cutoff per la derivata (velocità)
-        self.x_prev = float(x0)              # Ultimo valore filtrato
-        self.dx_prev = float(dx0)            # Ultima velocità stimata
-        self.t_prev = float(t0)              # Timestamp ultimo aggiornamento
+        self.min_cutoff = float(min_cutoff)
+        self.beta = float(beta)
+        self.d_cutoff = float(d_cutoff)
+        self.x_prev = float(x0)
+        self.dx_prev = float(dx0)
+        self.t_prev = float(t0)
 
-    # Calcola il fattore di smoothing basato su tempo e cutoff
+    # ─────────────────────────────────────────────────────────────────────────
+    # Compute the smoothing factor for a time step and cutoff frequency
+    # ─────────────────────────────────────────────────────────────────────────
     def smoothing_factor(self, t_e, cutoff):
         r = 2.0 * math.pi * cutoff * t_e
         return r / (r + 1.0)
 
-    # Applica smoothing esponenziale
+    # ─────────────────────────────────────────────────────────────────────────
+    # Apply exponential smoothing between the new and previous values
+    # ─────────────────────────────────────────────────────────────────────────
     def exponential_smoothing(self, alpha, x, x_prev):
         return alpha * x + (1.0 - alpha) * x_prev
 
-    # Aggiorna il filtro con nuovo campione (t, x)
+    # ─────────────────────────────────────────────────────────────────────────
+    # Update the filter with a new sample and return the smoothed value
+    # ─────────────────────────────────────────────────────────────────────────
     def __call__(self, t, x):
-        t_e = t - self.t_prev  # Tempo trascorso (dt)
+        # ── Time step ────────────────────────────────────────────────────────
+        t_e = t - self.t_prev
         if t_e <= 0.0:
             return self.x_prev
-        # Stima velocità con smoothing
+        # ── Smoothed velocity estimate ───────────────────────────────────────
         a_d = self.smoothing_factor(t_e, self.d_cutoff)
         dx = (x - self.x_prev) / t_e
         dx_hat = self.exponential_smoothing(a_d, dx, self.dx_prev)
-        # Adatta cutoff basato sulla velocità
+        # ── Cutoff adapted to the measured speed ─────────────────────────────
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
-        # Filtra posizione
+        # ── Filtered position ────────────────────────────────────────────────
         a = self.smoothing_factor(t_e, cutoff)
         x_hat = self.exponential_smoothing(a, x, self.x_prev)
-        # Aggiorna stato
+        # ── State update ─────────────────────────────────────────────────────
         self.x_prev = x_hat
         self.dx_prev = dx_hat
         self.t_prev = t
         return x_hat
 
 
-
-# Class to smooth 3D keypoints using One Euro Filter, with occlusion handling (holding last valid position for a short time)
+# ─────────────────────────────────────────────────────────────────────────────
+# Smooth 3D keypoints with One Euro Filters, holding each last valid position
+# for a short time during occlusions
+# ─────────────────────────────────────────────────────────────────────────────
 class Keypoints3DSmoother:
-    # Costruttore: inizializza parametri e strutture dati
+    # ─────────────────────────────────────────────────────────────────────────
+    # Initialize the filter parameters and data structures
+    # ─────────────────────────────────────────────────────────────────────────
     def __init__(self, num_kpts=17, min_cutoff=0.1, beta=1.0):
-        self.num_kpts = num_kpts  # Numero di keypoints (default 17 per COCO pose)
-        self.min_cutoff = min_cutoff  # Cutoff minimo per filtri
-        self.beta = beta              # Beta per adattamento velocità
-        self.t0 = time.monotonic()    # Tempo di riferimento iniziale
-        self.initialized = False      # Flag per inizializzazione filtri
-        self.filters = []             # Lista di tuple (filter_x, filter_y, filter_z) per keypoint
-        self.last_valid = np.full((num_kpts, 3), np.nan, dtype=np.float32)  # Ultimi valori validi
-        self.last_valid_time = np.zeros(num_kpts, dtype=np.float64)         # Timestamp ultimi valori validi
+        self.num_kpts = num_kpts
+        self.min_cutoff = min_cutoff
+        self.beta = beta
+        self.t0 = time.monotonic()
+        self.initialized = False
+        self.filters = []
+        self.last_valid = np.full((num_kpts, 3), np.nan, dtype=np.float32)
+        self.last_valid_time = np.zeros(num_kpts, dtype=np.float64)
 
-    # Metodo di aggiornamento: applica filtri ai nuovi keypoints
+    # ─────────────────────────────────────────────────────────────────────────
+    # Apply the filters to a new frame of keypoints and confidence values
+    # ─────────────────────────────────────────────────────────────────────────
     def update(self, xyz, conf, conf_thr):
-        t = time.monotonic() - self.t0  # Tempo relativo
-        # Inizializzazione lazy dei filtri al primo frame valido
+        # ── Relative time ────────────────────────────────────────────────────
+        t = time.monotonic() - self.t0
+        # ── Lazy filter initialization on the first valid frame ──────────────
         if not self.initialized:
             for i in range(self.num_kpts):
                 x0 = float(xyz[i, 0]) if np.isfinite(xyz[i, 0]) else 0.0
@@ -88,21 +106,20 @@ class Keypoints3DSmoother:
                 ))
             self.initialized = True
 
-        out = np.copy(xyz).astype(np.float32)  # Copia per output
+        out = np.copy(xyz).astype(np.float32)
         for i in range(self.num_kpts):
-            # Controlla validità del keypoint (confidenza e finitezza)
+            # ── Keypoint validity from confidence and finiteness ─────────────
             valid = (conf[i] >= conf_thr) and np.all(np.isfinite(xyz[i]))
             
             if not valid:
-                # Gestione occlusioni: usa ultimi valori validi se recenti (max 0.5s)
-                # Se il dato manca per più di 0.5s, smettiamo di predire e restituiamo NaN.
+                # ── Occlusion handling with a 0.5 s validity window ─────────
                 if np.all(np.isfinite(self.last_valid[i])) and (t - self.last_valid_time[i] < 0.5):
                     out[i] = self.last_valid[i]
                 else:
                     out[i] = np.array([np.nan, np.nan, np.nan], dtype=np.float32)
                 continue
-            # Applica il filtro su ogni asse
-            fx, fy, fz = self.filters[i] # nota che fx,fy,fz sono istanze (oggetti) di OneEuroFilter!
+            # ── Filter each axis independently ───────────────────────────────
+            fx, fy, fz = self.filters[i]
             out[i, 0] = fx(t, float(xyz[i, 0]))
             out[i, 1] = fy(t, float(xyz[i, 1]))
             out[i, 2] = fz(t, float(xyz[i, 2]))

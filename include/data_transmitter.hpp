@@ -7,7 +7,6 @@
 #pragma once
 
 #include <zmq.hpp>
-#include <opencv2/opencv.hpp>
 #include <nlohmann/json.hpp>
 
 #include <fcntl.h>
@@ -20,15 +19,12 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
-#include <cstring>
 #include <memory>
 #include <regex>
 
 using json = nlohmann::json;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parameters
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Parameters ──────────────────────────────────────────────────────────────
 namespace params {
     constexpr int H = 480;
     constexpr int W = 848;
@@ -36,28 +32,46 @@ namespace params {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared Memory Manager
+// POSIX shared-memory segment (create or attach) with best-effort cleanup
 // ─────────────────────────────────────────────────────────────────────────────
 class SharedMemoryManager {
 public:
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Open or create the named segment with the given size
+    // ─────────────────────────────────────────────────────────────────────────────
     SharedMemoryManager(const std::string& name, size_t size, bool create)
         : name_(name), size_(size), create_(create) {
         open();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Release the mapping and unlink the segment if owned
+    // ─────────────────────────────────────────────────────────────────────────────
     ~SharedMemoryManager() {
         try {
             shutdown();
         } catch (...) {
-            // swallow, mirroring Python's __del__ best-effort cleanup
         }
     }
 
-    // Non-copyable, movable
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Copy constructor, deleted to keep a single owner of the mapping
+    // ─────────────────────────────────────────────────────────────────────────────
     SharedMemoryManager(const SharedMemoryManager&) = delete;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Copy assignment, deleted to keep a single owner of the mapping
+    // ─────────────────────────────────────────────────────────────────────────────
     SharedMemoryManager& operator=(const SharedMemoryManager&) = delete;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Take ownership of another segment, invalidating the source
+    // ─────────────────────────────────────────────────────────────────────────────
     SharedMemoryManager(SharedMemoryManager&& other) noexcept { *this = std::move(other); }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Transfer ownership of another segment into this manager
+    // ─────────────────────────────────────────────────────────────────────────────
     SharedMemoryManager& operator=(SharedMemoryManager&& other) noexcept {
         if (this != &other) {
             shutdown();
@@ -72,7 +86,9 @@ public:
         return *this;
     }
 
-    // ── Shutdown block ───────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Unmap the segment and close its file descriptor
+    // ─────────────────────────────────────────────────────────────────────────────
     void close() {
         if (ptr_ != nullptr) {
             munmap(ptr_, size_);
@@ -84,25 +100,21 @@ public:
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Remove the segment from the system if this manager created it
+    // ─────────────────────────────────────────────────────────────────────────────
     void unlink() {
         if (!create_) return;
-        shm_unlink(("/" + name_).c_str()); // ignore errors, mirrors Python's broad except
+        shm_unlink(("/" + name_).c_str());
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Close the mapping and unlink the segment
+    // ─────────────────────────────────────────────────────────────────────────────
     void shutdown() {
         close();
         unlink();
     }
-
-    // ── Accessors ────────────────────────────────────────────────────────────
-    unsigned char* buf() {
-        if (ptr_ == nullptr) {
-            throw std::runtime_error("SharedMemory '" + name_ + "' is not open.");
-        }
-        return static_cast<unsigned char*>(ptr_);
-    }
-
-    size_t size() const { return size_; }
 
 private:
     std::string name_;
@@ -111,6 +123,9 @@ private:
     int fd_ = -1;
     void* ptr_ = nullptr;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Create the segment or attach to an existing one
+    // ─────────────────────────────────────────────────────────────────────────────
     void open() {
         if (create_) {
             create_or_replace();
@@ -119,12 +134,13 @@ private:
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Open the segment, replacing a stale one left by a previous run
+    // ─────────────────────────────────────────────────────────────────────────────
     void create_or_replace() {
         std::string posix_name = "/" + name_;
         fd_ = shm_open(posix_name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
         if (fd_ == -1 && errno == EEXIST) {
-            // Stale segment from a previous crashed run - unlink and retry,
-            // mirroring the Python FileExistsError fallback.
             shm_unlink(posix_name.c_str());
             fd_ = shm_open(posix_name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
         }
@@ -137,6 +153,9 @@ private:
         map();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Wait for the producer and attach to its segment
+    // ─────────────────────────────────────────────────────────────────────────────
     void attach() {
         std::string posix_name = "/" + name_;
         bool attached = false;
@@ -151,6 +170,9 @@ private:
         map();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Map the segment into this process address space
+    // ─────────────────────────────────────────────────────────────────────────────
     void map() {
         ptr_ = mmap(nullptr, size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
         if (ptr_ == MAP_FAILED) {
@@ -162,12 +184,16 @@ private:
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Data transmitter
+// ZeroMQ socket paired with a shared-memory image buffer, used to stream
+// frames and serialized data between the C++ and Python processes
 // ─────────────────────────────────────────────────────────────────────────────
 class DataTransmitter {
 public:
     enum class Mode { Sender, Receiver };
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Set up the ZeroMQ socket and shared memory for the given mode
+    // ─────────────────────────────────────────────────────────────────────────────
     DataTransmitter(Mode mode, int device_id, const std::string& topic, int port = 6000)
         : mode_(mode),
           device_id_(device_id),
@@ -183,9 +209,19 @@ public:
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Move constructor
+    // ─────────────────────────────────────────────────────────────────────────────
     DataTransmitter(DataTransmitter&&) noexcept = default;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Move assignment
+    // ─────────────────────────────────────────────────────────────────────────────
     DataTransmitter& operator=(DataTransmitter&&) noexcept = default;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Shut down the socket and shared memory
+    // ─────────────────────────────────────────────────────────────────────────────
     ~DataTransmitter() {
         try {
             shutdown();
@@ -194,19 +230,19 @@ public:
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Copy constructor, deleted because the socket and mapping are unique
+    // ─────────────────────────────────────────────────────────────────────────────
     DataTransmitter(const DataTransmitter&) = delete;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Copy assignment, deleted because the socket and mapping are unique
+    // ─────────────────────────────────────────────────────────────────────────────
     DataTransmitter& operator=(const DataTransmitter&) = delete;
 
-    // ── Send block (sender mode only) ───────────────────────────────────────
-    void send_frame(const cv::Mat& frame) {
-        require(Mode::Sender);
-        size_t n = frame.total() * frame.elemSize();
-        if (n != nbytes_) {
-            throw std::runtime_error("Frame size does not match shared memory buffer size");
-        }
-        std::memcpy(shm_->buf(), frame.data, n);
-    }
-
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Publish a topic-tagged list of JSON arrays on the socket (sender mode)
+    // ─────────────────────────────────────────────────────────────────────────────
     void send_data(const std::vector<nlohmann::json>& arrays) {
         std::string msg = topic_ + "_" + std::to_string(device_id_);
         for (const auto& elem : arrays) {
@@ -215,6 +251,9 @@ public:
         socket_->send(zmq::buffer(msg), zmq::send_flags::none);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Publish a two-element RULA score on the socket (sender mode)
+    // ─────────────────────────────────────────────────────────────────────────────
     void send_rula_score(const std::array<int, 2>& score) {
         require(Mode::Sender);
 
@@ -227,14 +266,9 @@ public:
         socket_->send(zmq::buffer(msg), zmq::send_flags::none);
     }
 
-    // ── Receive block (receiver mode only) ──────────────────────────────────
-    cv::Mat receive_raw_frame() {
-        require(Mode::Receiver);
-        cv::Mat frame(params::H, params::W, CV_8UC3);
-        std::memcpy(frame.data, shm_->buf(), nbytes_);
-        return frame;
-    }
-
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Block for and return the next raw message (receiver mode)
+    // ─────────────────────────────────────────────────────────────────────────────
     std::string receive_packed_msg() {
         require(Mode::Receiver);
         zmq::message_t zmsg;
@@ -243,11 +277,9 @@ public:
         return std::string(static_cast<char*>(zmsg.data()), zmsg.size());
     }
 
-    std::string receive_frame() {
-        require(Mode::Receiver);
-        return cv2_to_b64(receive_raw_frame());
-    }
-
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Parse the next message into a list of JSON values (receiver mode)
+    // ─────────────────────────────────────────────────────────────────────────────
     std::vector<nlohmann::json> receive_data() {
         std::string packed = receive_packed_msg();
 
@@ -259,7 +291,6 @@ public:
         }
         parts.push_back(packed.substr(start));
 
-        // Replace bare NaN tokens with valid JSON null (word-boundary safe)
         static const std::regex nan_re(R"(\bNaN\b)");
 
         std::vector<nlohmann::json> result;
@@ -271,21 +302,9 @@ public:
         return result;
     }
 
-    std::array<int, 2> receive_rula_score() {
-        require(Mode::Receiver);
-        std::string packed = receive_packed_msg();
-
-        size_t first  = packed.find("; ");
-        size_t second = packed.find("; ", first + 2);
-        std::string score_packed   = sanitize_nan(packed.substr(first + 2, second - (first + 2)));
-
-        json score_json = json::parse(score_packed);
-        std::array<int, 2> score = {json_to_int(score_json[0][0]), json_to_int(score_json[0][1])};
-
-        return score;
-    }
-
-    // ── Shutdown ─────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Close the socket and release the shared memory
+    // ─────────────────────────────────────────────────────────────────────────────
     void shutdown() {
         if (socket_) {
             socket_->close();
@@ -308,13 +327,18 @@ private:
     std::unique_ptr<zmq::socket_t> socket_;
     std::unique_ptr<SharedMemoryManager> shm_;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Throw unless the transmitter is in the expected mode
+    // ─────────────────────────────────────────────────────────────────────────────
     void require(Mode expected) {
         if (mode_ != expected) {
             throw std::runtime_error("DataTransmitter method called in wrong mode");
         }
     }
 
-    // ── ZeroMQ setup ─────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Bind a publisher socket on the transmitter port
+    // ─────────────────────────────────────────────────────────────────────────────
     void setup_zmq_sender() {
         try {
             socket_ = std::make_unique<zmq::socket_t>(ctx_, zmq::socket_type::pub);
@@ -323,12 +347,14 @@ private:
             socket_->set(zmq::sockopt::sndhwm, 1);
             socket_->bind("tcp://*:" + std::to_string(port_));
         } catch (const std::exception& e) {
-            // mirrors Python's broad "except Exception: pass"
             std::cerr << "ZMQ sender setup failed: " << e.what() << std::endl;
             socket_.reset();
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Connect a subscriber socket to the transmitter topic
+    // ─────────────────────────────────────────────────────────────────────────────
     void setup_zmq_receiver() {
         socket_ = std::make_unique<zmq::socket_t>(ctx_, zmq::socket_type::sub);
         socket_->set(zmq::sockopt::conflate, 1);
@@ -337,81 +363,20 @@ private:
         socket_->connect("tcp://localhost:" + std::to_string(port_));
     }
 
-    // ── Shared memory setup ──────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Create the shared frame buffer owned by this transmitter
+    // ─────────────────────────────────────────────────────────────────────────────
     void setup_shm_sender() {
         shm_ = std::make_unique<SharedMemoryManager>(
-            "shared_image" + std::to_string(device_id_), nbytes_, /*create=*/true);
+            "shared_image" + std::to_string(device_id_), nbytes_, true);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Attach to the shared frame buffer owned by another process
+    // ─────────────────────────────────────────────────────────────────────────────
     void setup_shm_receiver() {
         shm_ = std::make_unique<SharedMemoryManager>(
-            "shared_image" + std::to_string(device_id_), nbytes_, /*create=*/false);
+            "shared_image" + std::to_string(device_id_), nbytes_, false);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    static std::string base64_encode(const std::vector<uchar>& data) {
-        static const char* table =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        std::string out;
-        out.reserve(((data.size() + 2) / 3) * 4);
-        size_t i = 0;
-        while (i + 3 <= data.size()) {
-            unsigned int n = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
-            out += table[(n >> 18) & 0x3F];
-            out += table[(n >> 12) & 0x3F];
-            out += table[(n >> 6) & 0x3F];
-            out += table[n & 0x3F];
-            i += 3;
-        }
-        size_t rem = data.size() - i;
-        if (rem == 1) {
-            unsigned int n = data[i] << 16;
-            out += table[(n >> 18) & 0x3F];
-            out += table[(n >> 12) & 0x3F];
-            out += "==";
-        } else if (rem == 2) {
-            unsigned int n = (data[i] << 16) | (data[i + 1] << 8);
-            out += table[(n >> 18) & 0x3F];
-            out += table[(n >> 12) & 0x3F];
-            out += table[(n >> 6) & 0x3F];
-            out += "=";
-        }
-        return out;
-    }
-
-    static std::string cv2_to_b64(const cv::Mat& img) {
-        std::vector<uchar> buffer;
-        std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 90};
-        bool ok = cv::imencode(".jpg", img, buffer, params);
-        if (!ok) return "";
-        return "data:image/jpeg;base64," + base64_encode(buffer);
-    }
-
-    static std::string sanitize_nan(std::string s) {
-        // word-boundary-aware replace: NaN not preceded/followed by alnum/_
-        static const std::string from = "NaN";
-        static const std::string to   = "null";
-        size_t pos = 0;
-        while ((pos = s.find(from, pos)) != std::string::npos) {
-            bool left_ok  = (pos == 0)              || !std::isalnum(s[pos - 1]);
-            bool right_ok = (pos + 3 >= s.size())   || !std::isalnum(s[pos + 3]);
-            if (left_ok && right_ok) {
-                s.replace(pos, 3, to);
-                pos += to.size();
-            } else {
-                pos += from.size();
-            }
-        }
-        return s;
-    }
-
-    static double json_to_double(const json& v) {
-        if (v.is_null()) return std::numeric_limits<double>::quiet_NaN();
-        return v.get<double>();
-    }
-
-    static int json_to_int(const json& v) {
-        if (v.is_null()) return std::numeric_limits<int>::quiet_NaN();
-        return v.get<int>();
-    }
 };

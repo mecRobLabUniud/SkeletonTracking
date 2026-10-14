@@ -12,7 +12,14 @@ using a 6-D Kalman filter with multi-sensor sequential updates.
 import numpy as np
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 6-D Kalman filter that fuses the measurements from multiple cameras into a
+# single position and velocity estimate
+# ─────────────────────────────────────────────────────────────────────────────
 class KalmanFilter6D:
+    # ─────────────────────────────────────────────────────────────────────────
+    # Initialize the filter matrices and thresholds
+    # ─────────────────────────────────────────────────────────────────────────
     def __init__(self):
         self.conf_thresh = 0.5
         self.maha_thresh = 9.0
@@ -31,10 +38,16 @@ class KalmanFilter6D:
                             [0, 0, 0, 0,  1,  0 ],
                             [0, 0, 0, 0,  0,  1 ]])
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Advance the state with the constant-velocity motion model
+    # ─────────────────────────────────────────────────────────────────────────
     def predict(self):
         self.s_k = self.F_k.dot(self.s_k)
         self.p_k = self.F_k.dot(self.p_k).dot(self.F_k.T) + self.Q
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Correct the state with a single measurement
+    # ─────────────────────────────────────────────────────────────────────────
     def update(self, z_k):
         if z_k is None:
             return 1
@@ -50,11 +63,17 @@ class KalmanFilter6D:
         self.p_k = (np.eye(self.n) - K.dot(self.H_k)).dot(self.p_k)
         return 0
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Compute the squared Mahalanobis distance of an innovation
+    # ─────────────────────────────────────────────────────────────────────────
     def mahalanobis_distance(self, y_k, S):
         invS = np.linalg.inv(S)
         d = y_k.dot(invS).dot(y_k)
         return d
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Fuse all valid measurements for this marker, returning the estimate
+    # ─────────────────────────────────────────────────────────────────────────
     def step(self, measurement, confidence):
         self.predict()
         updated = False

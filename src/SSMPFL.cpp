@@ -1,14 +1,15 @@
 #include "SSMPFL.hpp"
 
 #include <cmath>
-#include <iostream>
 
 #include <qpOASES.hpp>
 
 #include "minDistance.hpp"
 
 
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialize the Franka Panda joint position, velocity and acceleration limits
+// ─────────────────────────────────────────────────────────────────────────────
 KinematicsLimits::KinematicsLimits() {
     q_limits.resize(2, 7);
     q_limits << -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,
@@ -23,18 +24,13 @@ KinematicsLimits::KinematicsLimits() {
                    15,   7.5,  10,  12.5,  15,  20,  20;
 }
 
-// OptimizationWeights::OptimizationWeights() {
-//     Qpj = 1.0;
-//     Qpt = 1.0;
-//     Qv = 1.0;
-// }
-
-
-// Single shared instance of the joint limits — built once instead of on
-// every call to SSMPFL().
+// ── Shared joint-limit instance ─────────────────────────────────────────────
 static const KinematicsLimits k_limits;
-// static const OptimizationWeights weights;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Solve one SSM+PFL QP step for joint acceleration subject to joint limits
+// and per-link safety constraints against an obstacle at ro
+// ─────────────────────────────────────────────────────────────────────────────
 SSMPFLResult SSMPFL(const RobotModel& robot,
                      double dt,
                      double stopping_time,
@@ -51,15 +47,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
                      double Qv) {
     const int n = 7;
 
-
-    Qpj = Qpj;
-    Qpt = Qpt;
-    Qv = Qv;
-
-    // std::cout << "Qpj =" << Qpj << std::endl;
-    // std::cout << "Qpt =" << Qpt << std::endl;
-    // std::cout << "Qv =" << Qv << std::endl;
-
+    // ── Current and predicted task state ────────────────────────────────────
     Eigen::VectorXd q_tp = q_t + dt * qdot_t;
 
     Eigen::Vector3d x_t = robot.GetJointPose("panda_link8", q_tp).translation();
@@ -68,16 +56,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
     ro = ro + vo * dt;
 
-    // --- Objective: joint-space + task-space tracking ------------------
+    // ── Objective: joint-space and task-space tracking ──────────────────────
     Eigen::MatrixXd weight_matrix = Eigen::MatrixXd::Zero(7, 7);
-    // weight_matrix(0, 0) = 1.5;
-    // weight_matrix(1, 1) = 3.0;
-    // weight_matrix(2, 2) = 3.0;
-    // weight_matrix(3, 3) = 1.75;
-    // weight_matrix(4, 4) = 1.75;
-    // weight_matrix(5, 5) = 1.5;
-    // weight_matrix(6, 6) = 0.1;
-
     weight_matrix(0, 0) = 1.0;
     weight_matrix(1, 1) = 1.0;
     weight_matrix(2, 2) = 1.0;
@@ -100,7 +80,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::MatrixXd H = Qpj*Hq + Qpt*Hx + Qv*Hv;
     Eigen::VectorXd f = Qpj*fq + Qpt*fx + Qv*fv;
 
-    // --- Kinematic / dynamic bounds ------------------------------------
+    // ── Kinematic and dynamic bounds ────────────────────────────────────────
     Eigen::VectorXd qmin = (k_limits.q_limits.transpose().col(0) - q_t - dt * qdot_t) * 2.0 / dt2;
     Eigen::VectorXd qmax = (k_limits.q_limits.transpose().col(1) - q_t - dt * qdot_t) * 2.0 / dt2;
     Eigen::VectorXd qdmin = (k_limits.qd_limits.transpose().col(0) - qdot_t) / dt;
@@ -111,7 +91,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::VectorXd q_lb = qmin.cwiseMax(qdmin).cwiseMax(qddmin);
     Eigen::VectorXd q_ub = qmax.cwiseMin(qdmax).cwiseMin(qddmax);
 
-    // --- SSM+PFL constraints (per-link kinematics) ----------------------
+    // ── SSM+PFL constraints, per-link kinematics ────────────────────────────
     Eigen::MatrixXd J1 = robot.ComputeJacobian("panda_link2", q_t).topRows(3);
     Eigen::MatrixXd J1d = robot.ComputeDerivativeJacobian("panda_link2", q_t).topRows(3);
     Eigen::Vector3d r1 = robot.GetJointPose("panda_link2", q_t).translation();
@@ -192,6 +172,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
            - ((ro.transpose() * J5 - r4.transpose() * J5 - (r5 - r4).transpose() * J4) * qdot_t).value()
            - (dt * (ro - r5).transpose() * J5d * qdot_t).value();
 
+    // ── QP setup and solve ──────────────────────────────────────────────────
     int nV = H.rows();
     int nC = A.rows();
 
@@ -205,7 +186,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     options.terminationTolerance = 1e-6;
     qp.setOptions(options);
 
-    int nWSR = 100; // 1000000;
+    int nWSR = 100;
 
     Eigen::VectorXd lbA = Eigen::VectorXd::Constant(nC, -qpOASES::INFTY);
 
@@ -218,12 +199,8 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     qp.getPrimalSolution(qddot.data());
 
     bool success = (status == qpOASES::SUCCESSFUL_RETURN);
-    int simpleStatus = qpOASES::getSimpleStatus(status);
 
-    if (!success) {
-        std::cout << "QP failed to solve. Status: " << simpleStatus << std::endl;
-    }
-
+    // ── Build the result ────────────────────────────────────────────────────
     SSMPFLResult out;
     out.exitflag = success;
 

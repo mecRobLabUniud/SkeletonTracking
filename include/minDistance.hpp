@@ -3,25 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
-// -----------------------------------------------------------------------
-// Appendix I: "minsros.m"
-//
-// function [minros,roa,rob,rba,s] = minsros(ra,rb,ro)
-//     rba = rb - ra;
-//     roa = ro - ra;
-//     rob = ro - rb;
-//     s   = dot(roa,rba)/dot(rba,rba);
-//     rs  = ra + s*rba;
-//     ros = ro - rs;
-//     if s >= 0 && s <= 1
-//         minros = sqrt(dot(ros,ros));
-//     else
-//         minros = min(sqrt(dot(roa,roa)), sqrt(dot(rob,rob)));
-//     end
-// end
-//
-// Minimum distance between point `ro` and the segment [ra, rb].
-// -----------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Result of the point-to-segment distance computation
+// ─────────────────────────────────────────────────────────────────────────────
 struct MinRosResult {
     double minros;
     Eigen::Vector3d roa;
@@ -30,6 +14,9 @@ struct MinRosResult {
     double s;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Minimum distance between point ro and the segment [ra, rb]
+// ─────────────────────────────────────────────────────────────────────────────
 inline MinRosResult minsros(const Eigen::Vector3d& ra,
                              const Eigen::Vector3d& rb,
                              const Eigen::Vector3d& ro) {
@@ -50,34 +37,10 @@ inline MinRosResult minsros(const Eigen::Vector3d& ra,
     return out;
 }
 
-// -----------------------------------------------------------------------
-// Appendix H: "minsSSM.m"
-//
-// function [minSSM] = minsSSM(ra,rb,ro,delta)
-//     [minros,roa,rob,rba] = minsros(ra,rb,ro);
-//     if minros >= delta/2
-//         minSSM = minros - delta/2;
-//     else
-//         omega_0_prime = dot(roa,roa);
-//         omega_1 = -2*dot(roa,rba);
-//         omega_2 = dot(rba,rba);
-//         omega_0 = omega_0_prime - delta^2/4;
-//         sq_delta = sqrt(omega_1^2 - 4*omega_0*omega_2);
-//         s1 = (-omega_1 + sq_delta)/(2*omega_2);
-//         s2 = (-omega_1 - sq_delta)/(2*omega_2);
-//         if (s1<=1 && s1>=0) || (s2<=1 && s2>=0)
-//             minSSM = 0;
-//         else
-//             minSSM = min(abs(sqrt(dot(roa,roa))-delta/2), ...
-//                           abs(sqrt(dot(rob,rob))-delta/2));
-//         end
-//     end
-// end
-//
-// Signed-style clearance measure used by the SSM constraints: distance
-// from the safety cylinder of radius delta/2 around the segment [ra,rb]
-// to the obstacle point ro.
-// -----------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Clearance from a safety cylinder of radius delta/2 around segment [ra, rb]
+// to the obstacle point ro
+// ─────────────────────────────────────────────────────────────────────────────
 inline double minsSSM(const Eigen::Vector3d& ra,
                        const Eigen::Vector3d& rb,
                        const Eigen::Vector3d& ro,
@@ -94,9 +57,7 @@ inline double minsSSM(const Eigen::Vector3d& ra,
     double omega_0 = omega_0_prime - (delta * delta) / 4.0;
 
     double disc = omega_1 * omega_1 - 4.0 * omega_0 * omega_2;
-    double sq_delta = std::sqrt(std::max(disc, 0.0)); // guard: matches MATLAB's
-                                                        // sqrt() behaviour for
-                                                        // disc>=0 cases only
+    double sq_delta = std::sqrt(std::max(disc, 0.0));
 
     double s1 = (-omega_1 + sq_delta) / (2.0 * omega_2);
     double s2 = (-omega_1 - sq_delta) / (2.0 * omega_2);

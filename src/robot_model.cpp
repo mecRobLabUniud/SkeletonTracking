@@ -1,4 +1,3 @@
-// robot_model.cpp
 #include "robot_model.hpp"
 
 #include <stdexcept>
@@ -9,13 +8,18 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 
 
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Load the model from a URDF file
+// ─────────────────────────────────────────────────────────────────────────────
 RobotModel::RobotModel(const std::string& urdf_path) {
     std::cout << "==urdf_path = " << urdf_path << std::endl;
   pinocchio::urdf::buildModel(urdf_path, model_);
   data_ = pinocchio::Data(model_);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Resolve a frame name to its Pinocchio index, throwing if absent
+// ─────────────────────────────────────────────────────────────────────────────
 pinocchio::FrameIndex RobotModel::GetFrameIndexOrThrow(
     const std::string& frame_name) const {
   if (!model_.existFrame(frame_name)) {
@@ -24,6 +28,9 @@ pinocchio::FrameIndex RobotModel::GetFrameIndexOrThrow(
   return model_.getFrameId(frame_name);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Update internal kinematic data for configuration q
+// ─────────────────────────────────────────────────────────────────────────────
 void RobotModel::ComputeFK(const Eigen::VectorXd& q) const {
   if (q.size() != model_.nq) {
     throw std::runtime_error("Joint vector size does not match model DOF");
@@ -32,15 +39,18 @@ void RobotModel::ComputeFK(const Eigen::VectorXd& q) const {
   pinocchio::updateFramePlacements(model_, data_);
 }
 
-
-
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Pose of a named frame at configuration q
+// ─────────────────────────────────────────────────────────────────────────────
 Eigen::Isometry3d RobotModel::GetJointPose(const std::string& frame_name,
                                             const Eigen::VectorXd& q) const {
   ComputeFK(q);
   return GetJointPose(frame_name);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Pose of a named frame using the last configuration passed to ComputeFK
+// ─────────────────────────────────────────────────────────────────────────────
 Eigen::Isometry3d RobotModel::GetJointPose(
     const std::string& frame_name) const {
   const pinocchio::FrameIndex frame_id = GetFrameIndexOrThrow(frame_name);
@@ -52,6 +62,9 @@ Eigen::Isometry3d RobotModel::GetJointPose(
   return pose;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Geometric Jacobian of a named frame at configuration q
+// ─────────────────────────────────────────────────────────────────────────────
 Eigen::MatrixXd RobotModel::ComputeJacobian(const std::string& frame_name,
                                              const Eigen::VectorXd& q) const {
   if (q.size() != model_.nq) {
@@ -69,6 +82,9 @@ Eigen::MatrixXd RobotModel::ComputeJacobian(const std::string& frame_name,
   return J;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Finite-difference derivative of the frame Jacobian at configuration q
+// ─────────────────────────────────────────────────────────────────────────────
 Eigen::MatrixXd RobotModel::ComputeDerivativeJacobian(const std::string& frame_name,
                                              const Eigen::VectorXd& q) const {
     constexpr double eps = 0.000001;
@@ -81,6 +97,9 @@ Eigen::MatrixXd RobotModel::ComputeDerivativeJacobian(const std::string& frame_n
     return (J_e - J)/eps;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Damped-least-squares inverse kinematics to reach a target pose
+// ─────────────────────────────────────────────────────────────────────────────
 bool RobotModel::ComputeIK(const std::string& frame_name,
                             const Eigen::Isometry3d& target_pose,
                             const Eigen::VectorXd& q_init,
@@ -94,7 +113,7 @@ bool RobotModel::ComputeIK(const std::string& frame_name,
   target.rotation() = target_pose.linear();
   target.translation() = target_pose.translation();
 
-  // Work on local copies so this method stays const w.r.t. the class.
+  // ── Local working copies ────────────────────────────────────────────────
   pinocchio::Data data(model_);
   Eigen::VectorXd q = q_init;
 
@@ -105,8 +124,7 @@ bool RobotModel::ComputeIK(const std::string& frame_name,
     pinocchio::forwardKinematics(model_, data, q);
     pinocchio::updateFramePlacements(model_, data);
 
-    // Error twist between current and target pose, in the frame's local
-    // coordinates (standard formulation for Pinocchio-based IK loops).
+    // ── Pose error twist ──────────────────────────────────────────────────
     const pinocchio::SE3 current_pose = data.oMf[frame_id];
     const pinocchio::Motion err_motion = pinocchio::log6(current_pose.actInv(target));
     const Eigen::Matrix<double, 6, 1> err = err_motion.toVector();
@@ -120,7 +138,7 @@ bool RobotModel::ComputeIK(const std::string& frame_name,
     pinocchio::computeFrameJacobian(model_, data, q, frame_id,
                                      pinocchio::LOCAL, J);
 
-    // Damped least squares: dq = J^T (J J^T + lambda*I)^-1 * err
+    // ── Damped-least-squares update ───────────────────────────────────────
     Eigen::MatrixXd JJt =
         J * J.transpose() + damping * Eigen::MatrixXd::Identity(6, 6);
     Eigen::VectorXd dq = J.transpose() * JJt.ldlt().solve(err);

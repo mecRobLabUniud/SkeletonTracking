@@ -1,4 +1,3 @@
-// robot_model.hpp
 #pragma once
 
 #include <string>
@@ -10,44 +9,48 @@
 #include <pinocchio/algorithm/joint-configuration.hpp>
 
 
-
-// std::string c_dir(get_current_dir_name());
-// const std::string urdf_path = c_dir + "/src/urdf/panda.urdf";
-
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Pinocchio wrapper providing forward kinematics, frame poses, Jacobians and
+// damped-least-squares inverse kinematics for a URDF robot model
+// ─────────────────────────────────────────────────────────────────────────────
 class RobotModel {
     public:
-    // Loads the model from a URDF file. `root_joint` can be left null
-    // (fixed base, e.g. an arm bolted to a table like the Panda).
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Load the model from a URDF file (fixed base)
+    // ─────────────────────────────────────────────────────────────────────────────
     explicit RobotModel(const std::string& urdf_path);
 
-    // --- Forward kinematics -------------------------------------------------
-
-    // Updates internal kinematic data for configuration q.
-    // Call this before GetJointPose() / ComputeJacobian() if you want them
-    // to reflect a new q; ComputeFK() is otherwise called automatically
-    // by the pose/Jacobian methods that take q directly.
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Update internal kinematic data for configuration q
+    // ─────────────────────────────────────────────────────────────────────────────
     void ComputeFK(const Eigen::VectorXd& q) const;
 
-    // Pose of a named frame/joint (as defined in the URDF) at configuration q.
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Pose of a named frame at configuration q
+    // ─────────────────────────────────────────────────────────────────────────────
     Eigen::Isometry3d GetJointPose(const std::string& frame_name,
                                     const Eigen::VectorXd& q) const;
 
-    // Pose of a named frame/joint using the last configuration passed to
-    // ComputeFK(). Cheaper if you need several frames at the same q.
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Pose of a named frame using the last configuration passed to ComputeFK
+    // ─────────────────────────────────────────────────────────────────────────────
     Eigen::Isometry3d GetJointPose(const std::string& frame_name) const;
 
-    // --- Jacobian ------------------------------------------------------------
-
-    // 6xN geometric Jacobian of `frame_name` at configuration q, expressed
-    // in the LOCAL_WORLD_ALIGNED frame (linear velocity in world axes,
-    // computed at the frame origin — standard convention for SSM/PFL work).
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Geometric Jacobian of a named frame at configuration q
+    // ─────────────────────────────────────────────────────────────────────────────
     Eigen::MatrixXd ComputeJacobian(const std::string& frame_name,
                                     const Eigen::VectorXd& q) const;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Finite-difference derivative of the frame Jacobian at configuration q
+    // ─────────────────────────────────────────────────────────────────────────────
     Eigen::MatrixXd ComputeDerivativeJacobian(const std::string& frame_name,
                                     const Eigen::VectorXd& q) const;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Damped-least-squares inverse kinematics to reach a target pose
+    // ─────────────────────────────────────────────────────────────────────────────
     bool ComputeIK(const std::string& frame_name,
                     const Eigen::Isometry3d& target_pose,
                     const Eigen::VectorXd& q_init,
@@ -57,6 +60,9 @@ class RobotModel {
                     double damping = 1e-6) const;
 
     private:
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Resolve a frame name to its Pinocchio index, throwing if absent
+    // ─────────────────────────────────────────────────────────────────────────────
     pinocchio::FrameIndex GetFrameIndexOrThrow(
         const std::string& frame_name) const;
 
