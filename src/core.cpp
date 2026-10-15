@@ -54,7 +54,6 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
     Eigen::MatrixXd Jd_t = robot.ComputeDerivativeJacobian("panda_link8", q_t).topRows(3);
 
     ro = ro + vo * dt;
-
     double dt2 = dt * dt;
 
     // ── Kinematic and dynamic bounds ────────────────────────────────────────
@@ -151,13 +150,7 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
 
 
     auto check_matrix = A*qddot_t - b;
-
-    std::cout << "+++++++ check_matrix = " << check_matrix << std::endl;
-
-
     bool success = (check_matrix.array() <= 0).all();
-
-    std::cout << "success = " << success << std::endl;
 
     // ── Build the result ────────────────────────────────────────────────────
     SSMPFLResult out;
