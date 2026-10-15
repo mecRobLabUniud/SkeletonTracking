@@ -26,7 +26,7 @@ const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
-const double pause_after_collision = 0.5;
+const double pause_after_collision = 0.1;
 const double HR_clearance = 0.1;
 const double Qpj = 70.0;
 const double Qpt = 1.0;
@@ -162,13 +162,13 @@ int execute_task (int n_traj, std::string c_dir="") {
 
                     const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
 
-                    SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
-                                            nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
-                                            p_obs, v_obs, delta, Qpj, Qpt, Qv);
+                    // SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
+                    //                         nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
+                    //                         p_obs, v_obs, delta, Qpj, Qpt, Qv);
 
-                    // SSMPFLResult res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[i], nominal_traj.qd[i],
-                    //                             nominal_traj.qdd[i], nominal_traj.p[rr], nominal_traj.pd[rr], 
-                    //                             nominal_traj.q[rr], ro, vo, delta, Qpj, Qpt, Qv);
+                    SSMPFLResult res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[i], nominal_traj.qd[i],
+                                                nominal_traj.qdd[i], nominal_traj.p[rr], nominal_traj.pd[rr], 
+                                                nominal_traj.q[rr], ro, vo, delta, Qpj, Qpt, Qv);
 
                     qp_ok[j] = res.exitflag;
                     res_q[j] = res.q_next;
@@ -180,7 +180,10 @@ int execute_task (int n_traj, std::string c_dir="") {
             // }
 
             // ── Serial merge preserving the original best-result selection ──
-            for (int j = 7; j < kNumKeypoints; j++) {
+            for (int j = 0; j < kNumKeypoints; j++) {
+                if (std::isnan(skeleton[j][0])) {
+                    continue;
+                }
                 if (!qp_ok[j]) {
                     temp.q[0] = res_q[j];
                     temp.qd[0] = res_qd[j];
@@ -224,7 +227,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
             // std::cout << "TEMP SSMPFL elapsed time = " << elapsed.count() << "\n";
 
-            ++r;
+            r++;
 
             skeleton_prev = skeleton;
 
@@ -239,7 +242,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         } 
         else {
 
-            std::cout << "+++ Collision +++" << std::endl;
+            // std::cout << "+++ Collision +++" << std::endl;
 
             // ── Pause while in collision ────────────────────────────────────
             real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
@@ -255,8 +258,10 @@ int execute_task (int n_traj, std::string c_dir="") {
             collision = false;
         }
 
+        
+
         // std::cout << "i: " << i << std::endl;
-        std::cout << "i: " << i << " - " << "r: " << r << std::endl;
+        // std::cout << "i: " << i << " - " << "r: " << r << std::endl;
         
 
         // ── Publish robot state, obstacle distance and trajectory ───────
@@ -274,6 +279,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         payload.clear();
         payload.push_back(std::vector<double>(real_traj.p[i].data(), real_traj.p[i].data() + real_traj.p[i].size()));
         payload.push_back(std::vector<double>(nominal_traj.p[i].data(), nominal_traj.p[i].data() + nominal_traj.p[i].size()));
+        payload.push_back(collision);
         transmitters[3]->send_data(payload);
 
         next_time += std::chrono::milliseconds(period_ms);
