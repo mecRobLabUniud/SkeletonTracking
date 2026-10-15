@@ -84,14 +84,19 @@ def send_data():
             q_robot = [q if not np.isnan(q) else None for q in robot_q]
             radius = [radius if not np.isnan(radius) else None for radius in caps_radius]
 
-            c_h = dtrs[n_devices+3].receive_data()[0]
-            c_r = dtrs[n_devices+3].receive_data()[1]
+            # c_h = dtrs[n_devices+3].receive_data()[0]
+            # c_r = dtrs[n_devices+3].receive_data()[1]
 
-            p_real = dtrs[n_devices+4].receive_data()[0]
-            p_r = dtrs[n_devices+4].receive_data()[1]
+            # p_real = dtrs[n_devices+4].receive_data()[0]
+            # p_r = dtrs[n_devices+4].receive_data()[1]
 
+            p_real = dtrs[n_devices+3].receive_data()[0]
+            p_r = dtrs[n_devices+3].receive_data()[1]
+
+            # msg = {"x": x, "y": y, "z": z, "x_robot": x_robot, "y_robot": y_robot, "z_robot": z_robot,
+            #  "q_robot": q_robot, "radius": radius, "c_h": c_h, "c_r": c_r, "p_real": p_real, "p_r": p_r}
             msg = {"x": x, "y": y, "z": z, "x_robot": x_robot, "y_robot": y_robot, "z_robot": z_robot,
-             "q_robot": q_robot, "radius": radius, "c_h": c_h, "c_r": c_r, "p_real": p_real, "p_r": p_r}
+             "q_robot": q_robot, "radius": radius, "p_real": p_real, "p_r": p_r}
         else:
             msg = {"x": x, "y": y, "z": z}
 
@@ -162,7 +167,7 @@ def main():
     dtrs.append(DataTransmitter("receiver", 11, "RULA"))
     if use_robot: 
         dtrs.append(DataTransmitter("receiver", 12, "ROBOT"))
-        dtrs.append(DataTransmitter("receiver", 13, "DISTANCE"))
+        # dtrs.append(DataTransmitter("receiver", 13, "DISTANCE"))
         dtrs.append(DataTransmitter("receiver", 14, "TRAJDATA"))
 
     threading.Thread(target=skeleton_thread, daemon=True).start()              

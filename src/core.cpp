@@ -354,7 +354,7 @@ SSMPFLResult SSMPFLescape(const RobotModel& robot,
 
     bool success = (status == qpOASES::SUCCESSFUL_RETURN);
 
-    std::cout << "status: " << status << std::endl;
+    // std::cout << "status: " << status << std::endl;
 
     // ── Build the result ────────────────────────────────────────────────────
     SSMPFLResult out;

@@ -26,6 +26,7 @@ const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
+const double pause_after_collision = 0.5;
 const double HR_clearance = 0.1;
 const double Qpj = 70.0;
 const double Qpt = 1.0;
@@ -101,6 +102,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     real_traj.pd.push_back(nominal_traj.pd[0]);
 
     bool collision = false;
+    int collision_counter = 0;
     int r = 1;
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     Eigen::Vector3d ro;
@@ -237,22 +239,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             ++r;
 
-            // ── Publish robot state, obstacle distance and trajectory ───────
-            std::vector<nlohmann::json> payload;
-            payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
-            payload.push_back(std::vector<double>(real_traj.q[k].data(), real_traj.q[k].data() + real_traj.q[k].size()));
-            payload.push_back(std::vector<int>{});
-            transmitters[1]->send_data(payload);
-
-            payload.clear();
-            payload.push_back(std::array<double, 3>{{skeleton[joint][0], skeleton[joint][1], skeleton[joint][2]}});
-            payload.push_back(std::array<double, 3>{{real_traj.p[k][0], real_traj.p[k][1], real_traj.p[k][2]}});
-            transmitters[2]->send_data(payload);
-
-            payload.clear();
-            payload.push_back(std::vector<double>(real_traj.p[k].data(), real_traj.p[k].data() + real_traj.p[k].size()));
-            payload.push_back(std::vector<double>(nominal_traj.p[k].data(), nominal_traj.p[k].data() + nominal_traj.p[k].size()));
-            transmitters[3]->send_data(payload);
+            
 
             skeleton_prev = skeleton;
 
@@ -266,6 +253,9 @@ int execute_task (int n_traj, std::string c_dir="") {
             }
         } 
         else {
+
+            std::cout << "+++ Collision +++" << std::endl;
+
             // ── Pause while in collision ────────────────────────────────────
             real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
             real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
@@ -273,8 +263,29 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
+            // if (collision_counter++ > pause_after_collision * rate_hz) {
+            //     collision = false;
+            //     collision_counter = 0;
+            // }
             collision = false;
         }
+
+        // ── Publish robot state, obstacle distance and trajectory ───────
+        std::vector<nlohmann::json> payload;
+        payload.push_back(std::vector<std::array<double, 3>>{{0, 0, 0}});
+        payload.push_back(std::vector<double>(real_traj.q[k].data(), real_traj.q[k].data() + real_traj.q[k].size()));
+        payload.push_back(std::vector<int>{});
+        transmitters[1]->send_data(payload);
+
+        // payload.clear();
+        // payload.push_back(std::array<double, 3>{{skeleton[joint][0], skeleton[joint][1], skeleton[joint][2]}});
+        // payload.push_back(std::array<double, 3>{{real_traj.p[k][0], real_traj.p[k][1], real_traj.p[k][2]}});
+        // transmitters[2]->send_data(payload);
+
+        payload.clear();
+        payload.push_back(std::vector<double>(real_traj.p[k].data(), real_traj.p[k].data() + real_traj.p[k].size()));
+        payload.push_back(std::vector<double>(nominal_traj.p[k].data(), nominal_traj.p[k].data() + nominal_traj.p[k].size()));
+        transmitters[3]->send_data(payload);
 
         next_time += std::chrono::milliseconds(period_ms);
         std::this_thread::sleep_until(next_time);
