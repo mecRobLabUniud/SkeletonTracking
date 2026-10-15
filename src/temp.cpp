@@ -26,7 +26,7 @@ const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
-const double pause_after_collision = 0.5;
+const double pause_after_collision = 0.1;
 const double HR_clearance = 0.1;
 const double Qpj = 70.0;
 const double Qpt = 1.0;
@@ -113,11 +113,14 @@ int execute_task (int n_traj, std::string c_dir="") {
     auto next_time = std::chrono::steady_clock::now();
 
     // const int n_steps = 300;
-    for (int i = 1; i <= n_steps; ++i) {
+    // for (int i = 1; i <= n_steps; ++i) {
+    int i = 1;
+    while (i <= n_steps) {
         auto t0 = std::chrono::steady_clock::now();
         const int k = i - 1;
 
         if (!collision) {
+            i++;
             const int rr = r;
 
             skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
@@ -263,12 +266,13 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
-            // if (collision_counter++ > pause_after_collision * rate_hz) {
-            //     collision = false;
-            //     collision_counter = 0;
-            // }
-            collision = false;
+            if (collision_counter++ > pause_after_collision * rate_hz) {
+                collision = false;
+                collision_counter = 0;
+            }
         }
+
+        std::cout << "i: " << i << std::endl;
 
         // ── Publish robot state, obstacle distance and trajectory ───────
         std::vector<nlohmann::json> payload;
