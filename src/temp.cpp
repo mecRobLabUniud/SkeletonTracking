@@ -112,28 +112,22 @@ int execute_task (int n_traj, std::string c_dir="") {
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
 
-    // const int n_steps = 300;
     for (int i = 0; i <= n_steps-1; ++i) {
-    // int i = 1;
-    // int k = i - 1;
-    // while (i <= n_steps) {
+    // int i = 0;
+    // while (i <= n_steps-1) {
+    //     i++;
         auto t0 = std::chrono::steady_clock::now();
-        // const int k = i - 1;
 
         if (!collision) {
-            // i++;
-            // k = i - 1;
-            const int rr = r;
-
             skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
             // ── Core SSM, PFL and escape trajectory computation ─────────────
             Trajectory temp;
-            temp.q.push_back(nominal_traj.q[rr]);
-            temp.qd.push_back(nominal_traj.qd[rr]);
-            temp.qdd.push_back(nominal_traj.qdd[rr]);
-            temp.p.push_back(nominal_traj.p[rr]);
-            temp.pd.push_back(nominal_traj.pd[rr]);
+            temp.q.push_back(nominal_traj.q[r]);
+            temp.qd.push_back(nominal_traj.qd[r]);
+            temp.qdd.push_back(nominal_traj.qdd[r]);
+            temp.p.push_back(nominal_traj.p[r]);
+            temp.pd.push_back(nominal_traj.pd[r]);
 
             bool exitflag = false;
             int joint = 0;
@@ -162,13 +156,13 @@ int execute_task (int n_traj, std::string c_dir="") {
 
                     const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
 
-                    // SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
-                    //                         nominal_traj.p[rr], nominal_traj.pd[rr], nominal_traj.q[rr],
-                    //                         p_obs, v_obs, delta, Qpj, Qpt, Qv);
+                    SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
+                                            nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
+                                            p_obs, v_obs, delta, Qpj, Qpt, Qv);
 
-                    SSMPFLResult res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[i], nominal_traj.qd[i],
-                                                nominal_traj.qdd[i], nominal_traj.p[rr], nominal_traj.pd[rr], 
-                                                nominal_traj.q[rr], ro, vo, delta, Qpj, Qpt, Qv);
+                    // SSMPFLResult res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[i], nominal_traj.qd[i],
+                    //                             nominal_traj.qdd[i], nominal_traj.p[r], nominal_traj.pd[r], 
+                    //                             nominal_traj.q[r], ro, vo, delta, Qpj, Qpt, Qv);
 
                     qp_ok[j] = res.exitflag;
                     res_q[j] = res.q_next;
@@ -197,7 +191,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                     break;
                 };
 
-                if ((res_qdd[j] - nominal_traj.qdd[rr]).norm() > (temp.qdd[0] - nominal_traj.qdd[rr]).norm()) {
+                if ((res_qdd[j] - nominal_traj.qdd[r]).norm() > (temp.qdd[0] - nominal_traj.qdd[r]).norm()) {
                     temp.q[0] = res_q[j];
                     temp.qd[0] = res_qd[j];
                     temp.qdd[0] = res_qdd[j];
@@ -241,9 +235,6 @@ int execute_task (int n_traj, std::string c_dir="") {
             }
         } 
         else {
-
-            // std::cout << "+++ Collision +++" << std::endl;
-
             // ── Pause while in collision ────────────────────────────────────
             real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
             real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
@@ -251,18 +242,12 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
-            // if (collision_counter++ > pause_after_collision * rate_hz) {
-            //     collision = false;
-            //     collision_counter = 0;
-            // }
-            collision = false;
-        }
-
-        
-
-        // std::cout << "i: " << i << std::endl;
-        // std::cout << "i: " << i << " - " << "r: " << r << std::endl;
-        
+            if (collision_counter++ > pause_after_collision * rate_hz) {
+                collision = false;
+                collision_counter = 0;
+            }
+            // collision = false;
+        }        
 
         // ── Publish robot state, obstacle distance and trajectory ───────
         std::vector<nlohmann::json> payload;
@@ -278,7 +263,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
         payload.clear();
         payload.push_back(std::vector<double>(real_traj.p[i].data(), real_traj.p[i].data() + real_traj.p[i].size()));
-        payload.push_back(std::vector<double>(nominal_traj.p[i].data(), nominal_traj.p[i].data() + nominal_traj.p[i].size()));
+        payload.push_back(std::vector<double>(nominal_traj.p[r].data(), nominal_traj.p[r].data() + nominal_traj.p[r].size()));
         payload.push_back(collision);
         transmitters[3]->send_data(payload);
 
