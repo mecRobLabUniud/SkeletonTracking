@@ -53,6 +53,20 @@ else {
 const loader = new ColladaLoader();
 const loaded = {};
 
+// function setRobotColor(color = 0xff0000){
+//     socket.on('update_plot', function (point) {
+//         if (point.collision) {
+//             const col = new THREE.Color(color);
+//             robotGroup.traverse(o=>{
+//                 if (o.isMesh && o.material){
+//                     o.material.color.copy(col);
+//                 }
+//             });
+//         }
+//     })
+// }
+// window.setRobotColor = setRobotColor;
+
 function loadOne(name){
   return new Promise((resolve, reject)=>{
     loader.load(
@@ -66,6 +80,8 @@ function loadOne(name){
           if (o.isMesh){
             o.castShadow = false;
             o.receiveShadow = false;
+            const c = o.material.color;
+            if (c) o.material.userData.originalColor = c.clone();
             if (opacity) {
                 o.material.transparent = true;
                 o.material.opacity = 0.5;
@@ -212,7 +228,7 @@ updateCamera();
 // ─────────────────────────────────────────────────────────────────────────────
 let do_once = true;
 function update_plot() {
-  socket.on('update_plot', function (point) {
+    socket.on('update_plot', function (point) {
         if (point.q_robot != undefined) {
             q = point.q_robot;
             if (do_once) {
@@ -223,8 +239,31 @@ function update_plot() {
         
         updateKinematics();
     }); 
+
+    socket.on('update_plot', function (point) {
+        if (point.collision) {
+            const col = new THREE.Color(0xff0000);
+            robotGroup.traverse(o=>{
+                if (o.isMesh && o.material){
+                    o.material.color.copy(col);
+                }
+            });
+        }
+        else {
+            robotGroup.traverse(o=>{
+                if (o.isMesh && o.material){
+                    o.material.color.copy(o.material.userData.originalColor);
+                }
+            });  
+        }
+    })
+
+    // window.setRobotColor = setRobotColor;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Launch functions @ 30Hz update rate
+// ─────────────────────────────────────────────────────────────────────────────
 setTimeout(update_plot, 1 / 30 * 1000);
 
 

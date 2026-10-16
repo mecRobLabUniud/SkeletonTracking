@@ -19,7 +19,7 @@ export const scene = new THREE.Scene();
 scene.background = new THREE.Color('#3a3a3a');
 scene.fog = new THREE.Fog('#3a3a3a', 3, 9);
 
-export const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 50);
+export const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 50);
 export const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 app.appendChild(renderer.domElement);
@@ -56,7 +56,7 @@ scene.add(worldAxes);
 // ─────────────────────────────────────────────────────────────────────────────
 // 3D graphics controls
 // ─────────────────────────────────────────────────────────────────────────────
-let camDist = 1.7, camTheta = 0.9, camPhi = 1.15, camTarget = new THREE.Vector3(0,0.35,0);
+let camDist = 1.7, camTheta = 0.6, camPhi = 1.15, camTarget = new THREE.Vector3(0,0.35,0);
 let dragging = false, panning = false, lastX=0, lastY=0;
 
 export function updateCamera(){

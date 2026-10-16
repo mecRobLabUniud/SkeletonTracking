@@ -11,6 +11,7 @@ set -euo pipefail
 dir="$(dirname "$0")"
 
 mode=""
+core="SSMPFLescape"
 use_gui=false
 use_robot=false
 use_traj=false
@@ -42,7 +43,7 @@ EOF
 # --- Parse arguments (order-independent) ---
 while [ $# -gt 0 ]; do
     case "$1" in
-        --track|--record|--stream|--calibrate)
+        --track|--record|--stream|--calibrate|--x)
             if [ -n "$mode" ]; then
                 echo "Error: only one mode may be specified (got '$mode' and '$1')." >&2
                 exit 1
@@ -84,6 +85,18 @@ while [ $# -gt 0 ]; do
             use_traj=true
             shift
             ;;
+        --core)
+            core="${2:-}"
+            if [ -z "$core" ]; then
+                echo "Error: --core requires a value." >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --core=*)
+            core="${1#*=}"
+            shift
+            ;;
         -h|--help)
             print_usage
             exit 0
@@ -113,7 +126,7 @@ data_merging="python3 $dir/scripts/data_merging.py"
 web_interface="python3 $dir/scripts/web_interface.py"
 calibration="python3 $dir/scripts/calibration.py"
 rula_evaluation="$dir/build/rula_evaluation"
-exec_trajectory="$dir/build/main"
+exec_trajectory="$dir/build/main_$core"
 
 case "$mode" in
     --track)
@@ -176,6 +189,21 @@ case "$mode" in
             else
                 $web_interface "$n_devices"
             fi
+        else
+            wait
+        fi
+        ;;
+
+    --x)
+        n_devices=$(ls "$dir"/scripts/data/skeleton_data/test7/skeleton* 2>/dev/null | wc -l)
+
+        echo "Testing temp..."
+        $data_recording "$n_devices" "-s" "7" &
+        $data_merging "$n_devices" &
+        $rula_evaluation &
+        $exec_trajectory "3" "$dir" &
+        if [ "$use_gui" = true ]; then
+            $web_interface "$n_devices" "--robot"
         else
             wait
         fi

@@ -4,6 +4,12 @@ project(skeleton_tracking CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Dependencies
 # ─────────────────────────────────────────────────────────────────────────────
@@ -42,14 +48,35 @@ target_link_libraries(rula_evaluation PRIVATE
     rt
 )
 
-# ── Main ─────────────────────────────────────────────────────────────────────
-add_executable(main 
-    src/main.cpp
+# ── Main SSMPFL ──────────────────────────────────────────────────────────────
+add_executable(main_SSMPFL 
+    src/main_SSMPFL.cpp
     src/trajectory_utils.cpp
     src/robot_model.cpp
-	src/SSMPFL.cpp
+	src/core.cpp
+    src/min_distance_calculation.cpp
 )
-target_link_libraries(main PRIVATE 
+target_link_libraries(main_SSMPFL PRIVATE 
+    Eigen3::Eigen
+    ${ZMQ_LIBRARIES}
+    Threads::Threads
+    nlohmann_json::nlohmann_json
+    pthread
+    rt
+    qpOASES
+    pinocchio::pinocchio
+    OpenMP::OpenMP_CXX
+)
+
+# ── Main SSMPFLescape ────────────────────────────────────────────────────────
+add_executable(main_SSMPFLescape 
+    src/main_SSMPFLescape.cpp
+    src/trajectory_utils.cpp
+    src/robot_model.cpp
+	src/core.cpp
+    src/min_distance_calculation.cpp
+)
+target_link_libraries(main_SSMPFLescape PRIVATE 
     Eigen3::Eigen
     ${ZMQ_LIBRARIES}
     Threads::Threads
