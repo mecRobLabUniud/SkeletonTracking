@@ -117,10 +117,9 @@ int execute_task (int n_traj, std::string c_dir="") {
     // while (i <= n_steps-1) {
     //     i++;
         auto t0 = std::chrono::steady_clock::now();
+        skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
         if (!collision) {
-            skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-
             // ── Core SSM, PFL and escape trajectory computation ─────────────
             Trajectory temp;
             temp.q.push_back(nominal_traj.q[r]);
@@ -161,26 +160,17 @@ int execute_task (int n_traj, std::string c_dir="") {
                 }
             // }
 
-            // std::cout << "qp_ok = " ; 
-            // for (int j = 0; j < kNumKeypoints; j++) {
-            //     if (std::isnan(skeleton[j][0])) {
-            //         continue;
-            //     }
-            //     std::cout << qp_ok[j] << ", "; 
-            // }
-            // std::cout << std::endl; 
-
             // ── Serial merge preserving the original best-result selection ──
             for (int j = 8; j < kNumKeypoints; j++) {
                 if (std::isnan(skeleton[j][0])) {
                     continue;
                 }
                 if (!qp_ok[j]) {
-                    // temp.q[0] = nominal_traj.q[r-1];
-                    // temp.qd[0] = Eigen::VectorXd::Zero(7);
-                    // temp.qdd[0] = Eigen::VectorXd::Zero(7);
-                    // temp.p[0] = nominal_traj.p[r-1];
-                    // temp.pd[0] = Eigen::Vector3d::Zero();
+                    temp.q[0] = nominal_traj.q[r-1];
+                    temp.qd[0] = Eigen::VectorXd::Zero(7);
+                    temp.qdd[0] = Eigen::VectorXd::Zero(7);
+                    temp.p[0] = nominal_traj.p[r-1];
+                    temp.pd[0] = Eigen::Vector3d::Zero();
 
                     exitflag = false;
                     joint = j;
@@ -201,8 +191,6 @@ int execute_task (int n_traj, std::string c_dir="") {
             // std::cout << "TEMP SSMPFL elapsed time = " << elapsed.count() << "\n";
 
             r++;
-
-            skeleton_prev = skeleton;
 
             if (exitflag) {
                 for (int j = 0; j < kNumKeypoints; j++) {
@@ -231,7 +219,9 @@ int execute_task (int n_traj, std::string c_dir="") {
                 collision_counter = 0;
             }
             // collision = false;
-        }        
+        }  
+
+        skeleton_prev = skeleton;      
 
         // ── Publish robot state, obstacle distance and trajectory ───────
         std::vector<nlohmann::json> payload;
