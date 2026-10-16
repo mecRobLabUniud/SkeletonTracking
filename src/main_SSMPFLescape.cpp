@@ -26,7 +26,7 @@ const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
-const double pause_after_collision = 0.1;
+const double pause_after_collision = 0.5;
 const double HR_clearance = 0.1;
 const double Qpj = 70.0;
 const double Qpt = 1.0;
@@ -58,7 +58,6 @@ bool CollisionFree(const RobotModel& robot, const Eigen::VectorXd& q,
     Eigen::Vector3d prev = Eigen::Vector3d::Zero();
     for (const char* name : kLinks) {
         const Eigen::Vector3d cur = robot.GetJointPose(name).translation();
-        std::cout << "dist = " << PointSegmentDistance(p, prev, cur) << std::endl;
         if (PointSegmentDistance(p, prev, cur) < clearance) return false;
         prev = cur;
     }
@@ -139,8 +138,6 @@ int execute_task (int n_traj, std::string c_dir="") {
             std::array<Eigen::VectorXd, kNumKeypoints> res_q, res_qd, res_qdd;
             std::array<Eigen::Vector3d, kNumKeypoints> res_p, res_pd;
             std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
-
-            std::cout << "++++++++++++++++++++++" << std::endl;
 
             // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
             // #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads())) 
@@ -230,13 +227,11 @@ int execute_task (int n_traj, std::string c_dir="") {
                         continue;
                     }
                     if (!CollisionFree(robot, real_traj.q[i], obs_p[j], HR_clearance)) {
-                        std::cout << "Collision!!" << std::endl; 
                         collision = true;
                     }
                 }
             } 
             else {
-                std::cout << "no exitflag!!" << std::endl; 
                 collision = true;
             }
         } 

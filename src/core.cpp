@@ -29,11 +29,9 @@ static const KinematicsLimits k_limits;
 // Solve one SSM+PFL QP step for joint acceleration subject to joint limits
 // and per-link safety constraints against an obstacle at ro
 // ─────────────────────────────────────────────────────────────────────────────
-SSMPFLResult SSMPFL(const RobotModel& robot,
+bool SSMPFL(const RobotModel& robot,
                     double dt,
                     double stopping_time,
-                    const Eigen::VectorXd& q_t,
-                    const Eigen::VectorXd& qdot_t,
                     const Eigen::VectorXd& q_ref,
                     const Eigen::VectorXd& qdot_ref,
                     const Eigen::VectorXd& qddot_ref,
@@ -148,28 +146,13 @@ SSMPFLResult SSMPFL(const RobotModel& robot,
            - (dt * (ro - r5).transpose() * J5d * qdot_ref).value();
 
 
-    auto check_matrix = A*qddot_ref - b;
-    bool success = (check_matrix.array() <= 0).all();
+    // auto check_matrix = A*qddot_ref - b;
+    // bool success = (check_matrix.array() <= 0).all();
 
-    // ── Build the result ────────────────────────────────────────────────────
-    SSMPFLResult out;
-    out.exitflag = success;
+    const Eigen::Matrix<double, 10, 1> residual = A*qddot_ref - b;
+    bool success = (residual.array() <= 0.0).all();
 
-    if (out.exitflag) {
-        out.q_next = q_t + dt * qdot_t + dt2 / 2.0 * qddot_ref;
-        out.qd_next = qdot_t + dt * qddot_ref;
-        out.qdd_next = qddot_ref;
-        out.p_next = robot.GetJointPose("panda_link8", out.q_next).translation();
-        out.pd_next = robot.ComputeJacobian("panda_link8", out.q_next).topRows(3) * out.qd_next;
-    } else {
-        out.q_next = q_t;
-        out.qd_next = Eigen::VectorXd::Zero(n);
-        out.qdd_next = Eigen::VectorXd::Zero(n);
-        out.p_next = x_t;
-        out.pd_next = Eigen::Vector3d::Zero();
-    }
-
-    return out;
+    return success;
 }
 
 
