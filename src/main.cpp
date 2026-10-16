@@ -555,10 +555,10 @@ int execute_task (int n_traj, std::string c_dir="") {
             SSMPFLResult res;
             switch (core) {
                 case 0:
-                    res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[k], nominal_traj.qd[k],
-                                                nominal_traj.qdd[k], nominal_traj.p[rr], nominal_traj.pd[rr], 
-                                                nominal_traj.q[rr], ro, vo, delta, Qpj, Qpt, Qv);
-
+                    // res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[k], nominal_traj.qd[k],
+                    //                             nominal_traj.qdd[k], nominal_traj.p[rr], nominal_traj.pd[rr], 
+                    //                             nominal_traj.q[rr], ro, vo, delta, Qpj, Qpt, Qv);
+// 
                     break;
                 case 1:
                     res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[k], real_traj.qd[k],

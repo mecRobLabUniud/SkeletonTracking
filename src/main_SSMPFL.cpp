@@ -58,6 +58,7 @@ bool CollisionFree(const RobotModel& robot, const Eigen::VectorXd& q,
     Eigen::Vector3d prev = Eigen::Vector3d::Zero();
     for (const char* name : kLinks) {
         const Eigen::Vector3d cur = robot.GetJointPose(name).translation();
+        std::cout << "dist = " << PointSegmentDistance(p, prev, cur) << std::endl;
         if (PointSegmentDistance(p, prev, cur) < clearance) return false;
         prev = cur;
     }
@@ -129,7 +130,7 @@ int execute_task (int n_traj, std::string c_dir="") {
             temp.p.push_back(nominal_traj.p[r]);
             temp.pd.push_back(nominal_traj.pd[r]);
 
-            bool exitflag = false;
+            bool exitflag = true;
             int joint = 0;
 
             constexpr int kNumKeypoints = 11;
@@ -139,11 +140,13 @@ int execute_task (int n_traj, std::string c_dir="") {
             std::array<Eigen::Vector3d, kNumKeypoints> res_p, res_pd;
             std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
 
+            std::cout << "++++++++++++++++++++++" << std::endl;
+
             // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
             // #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads())) 
             // {
                 // #pragma omp parallel for // shared(qp_ok, res_q, res_qd, res_qdd, res_p, res_pd, obs_p, obs_v)// schedule(static)
-                for (int j = 0; j < kNumKeypoints; j++) {
+                for (int j = 8; j < kNumKeypoints; j++) {
                     RobotModel robot_local = robot;
                     if (std::isnan(skeleton[j][0])) {
                         continue;
@@ -156,13 +159,9 @@ int execute_task (int n_traj, std::string c_dir="") {
 
                     const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
 
-                    SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
-                                            nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
-                                            p_obs, v_obs, delta, Qpj, Qpt, Qv);
-
-                    // SSMPFLResult res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[i], nominal_traj.qd[i],
-                    //                             nominal_traj.qdd[i], nominal_traj.p[r], nominal_traj.pd[r], 
-                    //                             nominal_traj.q[r], ro, vo, delta, Qpj, Qpt, Qv);
+                    SSMPFLResult res = SSMPFL(robot, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
+                                                nominal_traj.q[r], nominal_traj.qd[r], nominal_traj.qdd[r],
+                                                ro, vo, delta, Qpj, Qpt, Qv);
 
                     qp_ok[j] = res.exitflag;
                     res_q[j] = res.q_next;
@@ -173,8 +172,17 @@ int execute_task (int n_traj, std::string c_dir="") {
                 }
             // }
 
+            std::cout << "qp_ok = " ; 
+            for (int j = 8; j < kNumKeypoints; j++) {
+                if (std::isnan(skeleton[j][0])) {
+                    continue;
+                }
+                std::cout << qp_ok[j] << ", "; 
+            }
+            std::cout << std::endl; 
+
             // ── Serial merge preserving the original best-result selection ──
-            for (int j = 0; j < kNumKeypoints; j++) {
+            for (int j = 8; j < kNumKeypoints; j++) {
                 if (std::isnan(skeleton[j][0])) {
                     continue;
                 }
@@ -211,6 +219,8 @@ int execute_task (int n_traj, std::string c_dir="") {
                     break;
                 }
             }
+
+            std::cout << "exitflag = " << exitflag << std::endl; 
             
             real_traj.q.push_back(temp.q[0]);
             real_traj.qd.push_back(temp.qd[0]);

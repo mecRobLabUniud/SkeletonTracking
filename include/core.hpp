@@ -32,20 +32,19 @@ struct SSMPFLResult {
 // and per-link safety constraints against an obstacle at ro
 // ─────────────────────────────────────────────────────────────────────────────
 SSMPFLResult SSMPFL(const RobotModel& robot,
-                        double dt,
-                        double stopping_time,
-                        const Eigen::VectorXd& q_t,
-                        const Eigen::VectorXd& qdot_t,
-                        const Eigen::VectorXd& qddot_t,
-                        const Eigen::Vector3d& x_ref,
-                        const Eigen::Vector3d& xd_ref,
-                        const Eigen::VectorXd& q_ref,
-                        Eigen::Vector3d ro,
-                        const Eigen::Vector3d& vo,
-                        double delta,
-                        double Qpj, 
-                        double Qpt, 
-                        double Qv);
+                    double dt,
+                    double stopping_time,
+                    const Eigen::VectorXd& q_t,
+                    const Eigen::VectorXd& qdot_t,
+                    const Eigen::VectorXd& q_ref,
+                    const Eigen::VectorXd& qdot_ref,
+                    const Eigen::VectorXd& qddot_ref,
+                    Eigen::Vector3d ro,
+                    const Eigen::Vector3d& vo,
+                    double delta,
+                    double Qpj, 
+                    double Qpt, 
+                    double Qv);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Solve one SSM+PFL+escape QP step for joint acceleration subject to joint limits
