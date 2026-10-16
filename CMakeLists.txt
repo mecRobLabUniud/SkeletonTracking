@@ -54,6 +54,7 @@ add_executable(main_SSMPFL
     src/trajectory_utils.cpp
     src/robot_model.cpp
 	src/core.cpp
+    src/min_distance_calculation.cpp
 )
 target_link_libraries(main_SSMPFL PRIVATE 
     Eigen3::Eigen
@@ -73,6 +74,7 @@ add_executable(main_SSMPFLescape
     src/trajectory_utils.cpp
     src/robot_model.cpp
 	src/core.cpp
+    src/min_distance_calculation.cpp
 )
 target_link_libraries(main_SSMPFLescape PRIVATE 
     Eigen3::Eigen

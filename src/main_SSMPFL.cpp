@@ -16,6 +16,8 @@
 #include "data_transmitter.hpp"
 #include "utils.hpp"
 #include "robot_model.hpp"
+#include "min_distance_calculation.hpp"
+
 
 
 #include "core.hpp"
@@ -193,14 +195,18 @@ int execute_task (int n_traj, std::string c_dir="") {
             r++;
 
             if (exitflag) {
-                for (int j = 0; j < kNumKeypoints; j++) {
-                    if (!valid_marker[j]) {
-                        continue;
-                    }
-                    if (!CollisionFree(robot, real_traj.q[i], obs_p[j], HR_clearance)) {
-                        collision = true;
-                    }
+                std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+                if (dist->length <= HR_clearance) {
+                    collision = true;
                 }
+                // for (int j = 0; j < kNumKeypoints; j++) {
+                //     if (!valid_marker[j]) {
+                //         continue;
+                //     }
+                //     if (!CollisionFree(robot, real_traj.q[i], obs_p[j], HR_clearance)) {
+                //         collision = true;
+                //     }
+                // }
             } 
             else {
                 collision = true;

@@ -16,6 +16,7 @@
 #include "data_transmitter.hpp"
 #include "utils.hpp"
 #include "robot_model.hpp"
+#include "min_distance_calculation.hpp"
 
 
 #include "core.hpp"
@@ -117,10 +118,9 @@ int execute_task (int n_traj, std::string c_dir="") {
     // while (i <= n_steps-1) {
     //     i++;
         auto t0 = std::chrono::steady_clock::now();
+        skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
         if (!collision) {
-            skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-
             // ── Core SSM, PFL and escape trajectory computation ─────────────
             Trajectory temp;
             temp.q.push_back(nominal_traj.q[r]);
@@ -145,7 +145,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                 // #pragma omp parallel for // shared(qp_ok, res_q, res_qd, res_qdd, res_p, res_pd, obs_p, obs_v)// schedule(static)
                 for (int j = 0; j < kNumKeypoints; j++) {
                     RobotModel robot_local = robot;
-                    if (std::isnan(skeleton[j][0])) {
+                    if (skeleton[j].hasNaN()) {
                         continue;
                     }
                     valid_marker[j] = true;
@@ -219,17 +219,22 @@ int execute_task (int n_traj, std::string c_dir="") {
 
             r++;
 
-            skeleton_prev = skeleton;
-
             if (exitflag) {
-                for (int j = 0; j < kNumKeypoints; j++) {
-                    if (!valid_marker[j]) {
-                        continue;
-                    }
-                    if (!CollisionFree(robot, real_traj.q[i], obs_p[j], HR_clearance)) {
-                        collision = true;
-                    }
+                std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+                if (dist->length <= HR_clearance) {
+                    collision = true;
                 }
+                // for (int j = 0; j < kNumKeypoints; j++) {
+                //     if (!valid_marker[j]) {
+                //         continue;
+                //     }
+                //     if (!CollisionFree(robot, real_traj.q[i], obs_p[j], HR_clearance)) {
+                //         std::optional<DistanceResult> dist = human_to_segm_distance(skeleton,
+                //             const Eigen::Vector3d& p2,
+                //             const Eigen::Vector3d& q2)
+                //         collision = true;
+                //     }
+                // }
             } 
             else {
                 collision = true;
@@ -243,12 +248,14 @@ int execute_task (int n_traj, std::string c_dir="") {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
-            if (collision_counter++ > pause_after_collision * rate_hz) {
-                collision = false;
-                collision_counter = 0;
-            }
-            // collision = false;
-        }        
+            // if (collision_counter++ > pause_after_collision * rate_hz) {
+            //     collision = false;
+            //     collision_counter = 0;
+            // }
+            collision = false;
+        }      
+
+        skeleton_prev = skeleton;   
 
         // ── Publish robot state, obstacle distance and trajectory ───────
         std::vector<nlohmann::json> payload;
