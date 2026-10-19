@@ -209,8 +209,15 @@ class DataTransmitter:
             socket.setsockopt(zmq.SNDHWM, 1)
             socket.bind(f"tcp://*:{self.port}")
             self.socket = socket
-        except Exception:
-            pass
+        except Exception as e:
+            # Fail here instead of leaving self.socket as None: otherwise every
+            # later send dies with "'NoneType' object has no attribute
+            # 'send_string'", hiding the real cause (usually a leftover process
+            # still holding the port).
+            raise RuntimeError(
+                f"ZMQ sender setup failed on port {self.port}: {e}. "
+                "Another instance of this program is probably still running."
+            ) from e
 
     # ─────────────────────────────────────────────────────────────────────────
     # Connect a subscribe socket for the receiver mode

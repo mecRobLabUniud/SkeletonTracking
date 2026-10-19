@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <iostream>
 
 #include "rula_score_computation.hpp"
 
@@ -156,7 +157,7 @@ int scoreNeck(const Vec3& head, const Vec3& upperTorso,
     // ── Neck flexion angle ──────────────────────────────────────────────────
     Vec3 neck = (head - upperTorso).normalized();
     Vec3 trunk = (upperTorso - lowerTorso).normalized();
-    double ang = angleDeg(neck, trunk) - 10.0;
+    double ang = angleDeg(neck, WORLD_UP) - 20.0;
 
     int score;
     if      (ang <= 10) score = 1;

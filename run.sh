@@ -118,7 +118,15 @@ fi
 
 n_devices=$(lsusb | grep -c 8086 || true)
 
-trap 'kill 0' INT
+# ── Stop leftovers of a previous run: they keep the ZMQ ports (6000+) and the
+# ── shared-memory segments busy, which makes every new run fail ──────────────
+# (anchored so that e.g. a "gdb --args ./build/main_SSMPFL" session is not killed)
+pkill -9 -f "^python3 $dir/scripts/(data_recording|data_merging|camera_stream|web_interface|calibration)\.py" 2>/dev/null || true
+pkill -9 -f "^$dir/build/(rula_evaluation|main_)" 2>/dev/null || true
+sleep 0.2
+rm -f /dev/shm/shared_image* 2>/dev/null || true
+
+trap 'kill 0' INT TERM
 
 camera_stream="python3 $dir/scripts/camera_stream.py"
 data_recording="python3 $dir/scripts/data_recording.py"
@@ -198,7 +206,7 @@ case "$mode" in
         n_devices=$(ls "$dir"/scripts/data/skeleton_data/test7/skeleton* 2>/dev/null | wc -l)
 
         echo "Testing temp..."
-        $data_recording "$n_devices" "-s" "7" &
+        $data_recording "$n_devices" "-s" "10" &
         $data_merging "$n_devices" &
         $rula_evaluation &
         $exec_trajectory "3" "$dir" &

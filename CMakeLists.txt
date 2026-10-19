@@ -8,7 +8,12 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
+# NOTE: do not add -march=native here. Pinocchio is installed as a prebuilt
+# shared library (built without it) and PINOCCHIO_ENABLE_TEMPLATE_INSTANTIATION
+# makes this code use the library's explicit instantiations. A mismatch in
+# CPU-feature/Eigen alignment between our objects and the library corrupts the
+# heap (SIGSEGV in free / boost::bad_get during URDF loading).
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dependencies
