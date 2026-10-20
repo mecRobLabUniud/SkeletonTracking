@@ -122,13 +122,6 @@ int execute_task (int n_traj, std::string c_dir="") {
 
         if (!collision) {
             // ── Core SSM, PFL and escape trajectory computation ─────────────
-            Trajectory temp;
-            temp.q.push_back(nominal_traj.q[r]);
-            temp.qd.push_back(nominal_traj.qd[r]);
-            temp.qdd.push_back(nominal_traj.qdd[r]);
-            temp.p.push_back(nominal_traj.p[r]);
-            temp.pd.push_back(nominal_traj.pd[r]);
-
             bool exitflag = true;
             int joint = 0;
 
@@ -139,34 +132,41 @@ int execute_task (int n_traj, std::string c_dir="") {
             std::array<Eigen::Vector3d, kNumKeypoints> res_p, res_pd;
             std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
 
+            for (int j = 0; j < kNumKeypoints; j++) {
+                ;
+            }
+
             // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
             // #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads())) 
             // {
                 // #pragma omp parallel for // shared(qp_ok, res_q, res_qd, res_qdd, res_p, res_pd, obs_p, obs_v)// schedule(static)
-                for (int j = 0; j < kNumKeypoints; j++) {
-                    RobotModel robot_local = robot;
-                    if (skeleton[j].hasNaN()) {
-                        continue;
-                    }
-                    valid_marker[j] = true;
-                    const Eigen::Vector3d p_obs = skeleton[j];
-                    const Eigen::Vector3d v_obs = (skeleton[j] - skeleton_prev[j]) / dt;
-                    obs_p[j] = p_obs;
-                    obs_v[j] = v_obs;
+            if (skeleton[j].hasNaN()) {
+                continue;
+            }
+            valid_marker[j] = true;
+            const Eigen::Vector3d p_obs = skeleton[j];
+            const Eigen::Vector3d v_obs = (skeleton[j] - skeleton_prev[j]) / dt;
+            obs_p[j] = p_obs;
+            obs_v[j] = v_obs;
 
-                    const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
+            const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
 
-                    SSMPFLResult res = SSMPFLescape(robot_local, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
-                                            nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
-                                            p_obs, v_obs, delta, Qpj, Qpt, Qv);
+            SSMPFLResult res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
+                                    nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
+                                    p_obs, v_obs, delta, Qpj, Qpt, Qv);
 
-                    qp_ok[j] = res.exitflag;
-                    res_q[j] = res.q_next;
-                    res_qd[j] = res.qd_next;
-                    res_qdd[j] = res.qdd_next;
-                    res_p[j] = res.p_next;
-                    res_pd[j] = res.pd_next;
-                }
+            qp_ok[j] = res.exitflag;
+            res_q[j] = res.q_next;
+            res_qd[j] = res.qd_next;
+            res_qdd[j] = res.qdd_next;
+            res_p[j] = res.p_next;
+            res_pd[j] = res.pd_next;
+
+            real_traj.q.push_back(temp.q[0]);
+            real_traj.qd.push_back(temp.qd[0]);
+            real_traj.qdd.push_back(temp.qdd[0]);
+            real_traj.p.push_back(temp.p[0]);
+            real_traj.pd.push_back(temp.pd[0]);
             // }
 
             // ── Serial merge preserving the original best-result selection ──
@@ -208,11 +208,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                 }
             }
             
-            real_traj.q.push_back(temp.q[0]);
-            real_traj.qd.push_back(temp.qd[0]);
-            real_traj.qdd.push_back(temp.qdd[0]);
-            real_traj.p.push_back(temp.p[0]);
-            real_traj.pd.push_back(temp.pd[0]);
+            
 
             // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
             // std::cout << "TEMP SSMPFL elapsed time = " << elapsed.count() << "\n";
