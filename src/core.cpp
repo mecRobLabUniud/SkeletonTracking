@@ -143,13 +143,13 @@ SSMPFLResult SSMPFLescape(const RobotModel& robot,
 
     // ── Objective: joint-space and task-space tracking ──────────────────────
     Eigen::MatrixXd weight_matrix = Eigen::MatrixXd::Zero(7, 7);
-    weight_matrix(0, 0) = 1.0;
-    weight_matrix(1, 1) = 1.0;
-    weight_matrix(2, 2) = 1.0;
-    weight_matrix(3, 3) = 5.0;
-    weight_matrix(4, 4) = 5.0;
-    weight_matrix(5, 5) = 10.0;
-    weight_matrix(6, 6) = 15.0;
+    weight_matrix(0, 0) = 1.5;
+    weight_matrix(1, 1) = 3.0;
+    weight_matrix(2, 2) = 3.0;
+    weight_matrix(3, 3) = 1.75;
+    weight_matrix(4, 4) = 1.75;
+    weight_matrix(5, 5) = 1.0;
+    weight_matrix(6, 6) = 0.1;
 
     Eigen::MatrixXd Hq = dt4/4.0*weight_matrix;
     Eigen::MatrixXd Hx = dt4/2.0*J_t.transpose()*J_t;
