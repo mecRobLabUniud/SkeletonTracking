@@ -27,6 +27,10 @@ struct SSMPFLResult {
     bool exitflag;
 };
 
+const double Qpj = 70.0;
+const double Qpt = 1.0;
+const double Qv = 0.08;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Solve one SSM+PFL QP step for joint acceleration subject to joint limits
 // and per-link safety constraints against an obstacle at ro
@@ -39,26 +43,20 @@ bool SSMPFL(const RobotModel& robot,
                     const Eigen::VectorXd& qddot_ref,
                     Eigen::Vector3d ro,
                     const Eigen::Vector3d& vo,
-                    double delta,
-                    double Qpj, 
-                    double Qpt, 
-                    double Qv);
+                    double delta);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Solve one SSM+PFL+escape QP step for joint acceleration subject to joint limits
 // and per-link safety constraints against an obstacle at ro
 // ─────────────────────────────────────────────────────────────────────────────
 SSMPFLResult SSMPFLescape(const RobotModel& robot,
-                            double dt,
-                            double stopping_time,
-                            const Eigen::VectorXd& q_t,
-                            const Eigen::VectorXd& qdot_t,
-                            const Eigen::Vector3d& x_ref,
-                            const Eigen::Vector3d& xd_ref,
-                            const Eigen::VectorXd& q_ref,
-                            Eigen::Vector3d ro,
-                            const Eigen::Vector3d& vo,
-                            double delta,
-                            double Qpj, 
-                            double Qpt, 
-                            double Qv);
+                        double dt,
+                        double stopping_time,
+                        const Eigen::VectorXd& q_t,
+                        const Eigen::VectorXd& qdot_t,
+                        const Eigen::Vector3d& x_ref,
+                        const Eigen::Vector3d& xd_ref,
+                        const Eigen::VectorXd& q_ref,
+                        const std::vector<Eigen::Vector3d>& ro_vec,
+                        const std::vector<Eigen::Vector3d>& vo_vec,
+                        const std::vector<double>& delta_vec);

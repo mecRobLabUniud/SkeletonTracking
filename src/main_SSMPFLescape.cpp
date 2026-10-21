@@ -29,9 +29,9 @@ const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
 const double pause_after_collision = 0.5;
 const double HR_clearance = 0.1;
-const double Qpj = 70.0;
-const double Qpt = 1.0;
-const double Qv = 0.08;
+// const double Qpj = 70.0;
+// const double Qpt = 1.0;
+// const double Qv = 0.08;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,6 +105,7 @@ int execute_task (int n_traj, std::string c_dir="") {
     bool collision = false;
     int collision_counter = 0;
     int r = 1;
+    int kNumKeypoints = 11;
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
     Eigen::Vector3d ro;
     Eigen::Vector3d vo;
@@ -114,123 +115,44 @@ int execute_task (int n_traj, std::string c_dir="") {
     auto next_time = std::chrono::steady_clock::now();
 
     for (int i = 0; i <= n_steps-1; ++i) {
-    // int i = 0;
-    // while (i <= n_steps-1) {
-    //     i++;
         auto t0 = std::chrono::steady_clock::now();
         skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
         if (!collision) {
-            // ── Core SSM, PFL and escape trajectory computation ─────────────
-            bool exitflag = true;
-            int joint = 0;
-
-            constexpr int kNumKeypoints = 11;
-            std::array<bool, kNumKeypoints> valid_marker{};
-            std::array<bool, kNumKeypoints> qp_ok{};
-            std::array<Eigen::VectorXd, kNumKeypoints> res_q, res_qd, res_qdd;
-            std::array<Eigen::Vector3d, kNumKeypoints> res_p, res_pd;
-            std::array<Eigen::Vector3d, kNumKeypoints> obs_p, obs_v;
-
+            // ── Construction of obstacle and velocity term vectors ──────────
+            std::vector<Eigen::Vector3d> ro_vec;
+            std::vector<Eigen::Vector3d> vo_vec;
+            std::vector<double> delta_vec;
             for (int j = 0; j < kNumKeypoints; j++) {
-                ;
-            }
-
-            // ── Parallel SSM+PFL evaluation over the skeleton keypoints ─────
-            // #pragma omp parallel num_threads(std::min(kNumKeypoints, omp_get_max_threads())) 
-            // {
-                // #pragma omp parallel for // shared(qp_ok, res_q, res_qd, res_qdd, res_p, res_pd, obs_p, obs_v)// schedule(static)
-            if (skeleton[j].hasNaN()) {
-                continue;
-            }
-            valid_marker[j] = true;
-            const Eigen::Vector3d p_obs = skeleton[j];
-            const Eigen::Vector3d v_obs = (skeleton[j] - skeleton_prev[j]) / dt;
-            obs_p[j] = p_obs;
-            obs_v[j] = v_obs;
-
-            const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
-
-            SSMPFLResult res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
-                                    nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
-                                    p_obs, v_obs, delta, Qpj, Qpt, Qv);
-
-            qp_ok[j] = res.exitflag;
-            res_q[j] = res.q_next;
-            res_qd[j] = res.qd_next;
-            res_qdd[j] = res.qdd_next;
-            res_p[j] = res.p_next;
-            res_pd[j] = res.pd_next;
-
-            real_traj.q.push_back(temp.q[0]);
-            real_traj.qd.push_back(temp.qd[0]);
-            real_traj.qdd.push_back(temp.qdd[0]);
-            real_traj.p.push_back(temp.p[0]);
-            real_traj.pd.push_back(temp.pd[0]);
-            // }
-
-            // ── Serial merge preserving the original best-result selection ──
-            for (int j = 0; j < kNumKeypoints; j++) {
-                if (!valid_marker[j]) {
+                if (skeleton[j].hasNaN() || skeleton_prev[j].hasNaN()) {
                     continue;
                 }
-                if (!qp_ok[j]) {
-                    temp.q[0] = res_q[j];
-                    temp.qd[0] = res_qd[j];
-                    temp.qdd[0] = res_qdd[j];
-                    temp.p[0] = res_p[j];
-                    temp.pd[0] = res_pd[j];
-
-                    exitflag = false;
-                    joint = j;
-
-                    break;
-                };
-
-                if ((res_qdd[j] - nominal_traj.qdd[r]).norm() > (temp.qdd[0] - nominal_traj.qdd[r]).norm()) {
-                    temp.q[0] = res_q[j];
-                    temp.qd[0] = res_qd[j];
-                    temp.qdd[0] = res_qdd[j];
-                    temp.p[0] = res_p[j];
-                    temp.pd[0] = res_pd[j];
-
-                    exitflag = true;
-                    joint = j;
-                }
+                ro_vec.push_back(skeleton[j]);
+                vo_vec.push_back((skeleton[j] - skeleton_prev[j]) / dt);
+                delta_vec.push_back(-(-(HR_clearance + vo_vec[j].norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
             }
 
-            // ── Obstacle state for publishing = last valid keypoint ─────────
-            for (int j = 10; j >= 0; --j) {
-                if (valid_marker[j]) {
-                    ro = obs_p[j];
-                    vo = obs_v[j];
-                    break;
-                }
-            }
+            // ── Core SSM, PFL and escape trajectory computation ─────────────
+            SSMPFLResult res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
+                                    nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
+                                    ro_vec, vo_vec, delta_vec);
             
+            real_traj.q.push_back(res.q_next);
+            real_traj.qd.push_back(res.qd_next);
+            real_traj.qdd.push_back(res.qdd_next);
+            real_traj.p.push_back(res.p_next);
+            real_traj.pd.push_back(res.pd_next);  
             
-
-            // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-            // std::cout << "TEMP SSMPFL elapsed time = " << elapsed.count() << "\n";
+            auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+            std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
 
             r++;
 
-            if (exitflag) {
+            if (res.exitflag) {
                 std::optional<DistanceResult> dist = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
                 if (dist->length <= HR_clearance) {
                     collision = true;
                 }
-                // for (int j = 0; j < kNumKeypoints; j++) {
-                //     if (!valid_marker[j]) {
-                //         continue;
-                //     }
-                //     if (!CollisionFree(robot, real_traj.q[i], obs_p[j], HR_clearance)) {
-                //         std::optional<DistanceResult> dist = human_to_segm_distance(skeleton,
-                //             const Eigen::Vector3d& p2,
-                //             const Eigen::Vector3d& q2)
-                //         collision = true;
-                //     }
-                // }
             } 
             else {
                 collision = true;
@@ -259,11 +181,6 @@ int execute_task (int n_traj, std::string c_dir="") {
         payload.push_back(std::vector<double>(real_traj.q[i].data(), real_traj.q[i].data() + real_traj.q[i].size()));
         payload.push_back(std::vector<int>{});
         transmitters[1]->send_data(payload);
-
-        // payload.clear();
-        // payload.push_back(std::array<double, 3>{{skeleton[joint][0], skeleton[joint][1], skeleton[joint][2]}});
-        // payload.push_back(std::array<double, 3>{{real_traj.p[i][0], real_traj.p[i][1], real_traj.p[i][2]}});
-        // transmitters[2]->send_data(payload);
 
         payload.clear();
         payload.push_back(std::vector<double>(real_traj.p[i].data(), real_traj.p[i].data() + real_traj.p[i].size()));

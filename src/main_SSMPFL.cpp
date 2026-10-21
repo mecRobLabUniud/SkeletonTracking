@@ -30,9 +30,9 @@ const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
 const double pause_after_collision = 0.5;
 const double HR_clearance = 0.1;
-const double Qpj = 70.0;
-const double Qpt = 1.0;
-const double Qv = 0.08;
+// const double Qpj = 70.0;
+// const double Qpt = 1.0;
+// const double Qv = 0.08;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                     const double delta = -(-(HR_clearance + v_obs.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time;
 
                     bool res = SSMPFL(robot, dt, stopping_time, nominal_traj.q[r], nominal_traj.qd[r], 
-                                        nominal_traj.qdd[r], ro, vo, delta, Qpj, Qpt, Qv);
+                                        nominal_traj.qdd[r], ro, vo, delta);
 
                     qp_ok[j] = res;
                 }
