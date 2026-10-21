@@ -41,9 +41,9 @@ bool SSMPFL(const RobotModel& robot,
                     const Eigen::VectorXd& q_ref,
                     const Eigen::VectorXd& qdot_ref,
                     const Eigen::VectorXd& qddot_ref,
-                    Eigen::Vector3d ro,
-                    const Eigen::Vector3d& vo,
-                    double delta);
+                    const std::vector<Eigen::Vector3d>& ro_vec,
+                    const std::vector<Eigen::Vector3d>& vo_vec,
+                    const std::vector<double>& delta_vec);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Solve one SSM+PFL+escape QP step for joint acceleration subject to joint limits

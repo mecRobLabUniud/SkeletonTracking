@@ -18,7 +18,6 @@
 #include "robot_model.hpp"
 #include "min_distance_calculation.hpp"
 
-
 #include "core.hpp"
 
 
@@ -94,7 +93,7 @@ int execute_task (int n_traj, std::string c_dir="") {
 
     const int n_steps = static_cast<int>(nominal_traj.t.size());
 
-    // ── PFL, SSM and escape trajectory simulation ───────────────────────────
+    // ── PFL, SSM and escape trajectory simulation ────────────────────────────────
     Trajectory real_traj;
     real_traj.q.push_back(nominal_traj.q[0]);
     real_traj.qd.push_back(nominal_traj.qd[0]);
@@ -107,8 +106,6 @@ int execute_task (int n_traj, std::string c_dir="") {
     int r = 1;
     int kNumKeypoints = 11;
     std::vector<Eigen::Vector3d> skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
-    Eigen::Vector3d ro;
-    Eigen::Vector3d vo;
     std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
 
     const int period_ms = static_cast<int>(dt*1000.0);
@@ -119,7 +116,7 @@ int execute_task (int n_traj, std::string c_dir="") {
         skeleton = json_to_keypoints(transmitters[0]->receive_data()[0]);
 
         if (!collision) {
-            // ── Construction of obstacle and velocity term vectors ──────────
+            // ── Construction of obstacle and velocity term vectors ───────────────────────
             std::vector<Eigen::Vector3d> ro_vec;
             std::vector<Eigen::Vector3d> vo_vec;
             std::vector<double> delta_vec;
@@ -132,7 +129,7 @@ int execute_task (int n_traj, std::string c_dir="") {
                 delta_vec.push_back(-(-(HR_clearance + vo_vec[j].norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
             }
 
-            // ── Core SSM, PFL and escape trajectory computation ─────────────
+            // ── Core SSM, PFL and escape trajectory computation ──────────────────────────
             SSMPFLResult res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
                                     nominal_traj.p[r], nominal_traj.pd[r], nominal_traj.q[r],
                                     ro_vec, vo_vec, delta_vec);
