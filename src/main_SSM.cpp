@@ -9,6 +9,7 @@
 #include <mutex>
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <filesystem>
 
 #include <Eigen/Dense>
@@ -23,6 +24,7 @@
 #include "calc_stop_duration.h"
 #include "skeleton_reader.h"
 #include "data_transmitter.hpp"
+#include "trajectory_loader.hpp"       // loadTrajectorySet (src/trajectories)
 #include "trajectory_publisher.hpp"   // PlaybackState, limitTorqueRate, TrajectoryPublisher
 
 // ============================================================
@@ -338,6 +340,13 @@ void executeTrajectory (
     const double TOLL_NO_STOP = 0.05; 
     double traj_duration_new = std::round(traj_duration / TRAJ_STEP) * TRAJ_STEP;
     bool flag_continue = true;
+
+    // A segment with no duration carries no motion: skip it instead of
+    // building a degenerate polynomial (which would divide by zero).
+    if (traj_duration_new <= 0.0) {
+        std::cout << "executeTrajectory: segment duration is not positive, skipped\n";
+        return;
+    }
 
     const pinocchio::FrameIndex EE_ID = model.getFrameId("panda_link8");
 
@@ -655,8 +664,8 @@ void executeTrajectory (
 
 
 void executeTask(
-    std::vector<Eigen::VectorXd>& q_traj,
-    std::vector<double>& traj_durations,
+    const std::vector<Eigen::VectorXd>& q_traj,
+    const std::vector<double>& traj_durations,
     TrajectoryPublisher& publisher,
     const pinocchio::Model& model,
     const std::filesystem::path& root) {
@@ -703,17 +712,31 @@ void executeTask(
     double traj_duration_prev = 0.0;
     Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
 
+    // The recorded trajectories reach their first waypoint at t = 0, i.e. the
+    // robot starts the task *at* that waypoint and the playback begins with
+    // the second one. When instead the first waypoint is reached after a
+    // positive time, the robot starts from the home configuration and the
+    // first segment moves it to that waypoint.
+    size_t first_segment = 0;
+    if (!traj_durations.empty() && !q_traj.empty() && traj_durations.front() <= 0.0) {
+        q_traj_prev         = q_traj.front();
+        traj_duration_prev  = traj_durations.front();
+        first_segment       = 1;
+    }
+
     auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
 
     // esegui la traiettoria secondo i tempi in traj_duration
     try {
-        for (int i = 0; i < (int)traj_durations.size(); i++) {
+        for (size_t i = first_segment; i < q_traj.size(); i++) {
             double segment_duration = traj_durations[i] - traj_duration_prev;
-            executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
-                            publisher, model, data);
+            if (segment_duration > 0.0) {
+                executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
+                                publisher, model, data);
 
-            traj_duration_prev = traj_durations[i];
-            q_traj_prev = q_traj[i];
+                traj_duration_prev = traj_durations[i];
+                q_traj_prev = q_traj[i];
+            }
         }
     } catch (...) {
         // A playback fault propagated up from executeTrajectory. Still need to
@@ -744,7 +767,8 @@ void executeTask(
 
     double real_elapsed = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - task_start).count();
-    std::cout << "Nominal trajectory duration: " << traj_durations.back()
+    const double nominal_duration = traj_durations.empty() ? 0.0 : traj_durations.back();
+    std::cout << "Nominal trajectory duration: " << nominal_duration
               << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
 
     trajectory_done.store(true);
@@ -769,38 +793,84 @@ void executeTask(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Locate the project root, i.e. the directory holding urdf/, traj/ and logs/.
-// The demo can be launched either from the build directory or from the project
-// root: the root is detected from the running executable, so no path depends
-// on the current working directory.
+// Locate the project root, i.e. the directory holding src/urdf/,
+// src/trajectories/ and logs/.
+//
+// The root is looked up in this order:
+//   1) the path given on the command line (run.sh passes the repository root)
+//   2) the current working directory
+//   3) the parent of the executable's directory (build/ -> project root)
+//
+// so that the demo can be launched either from the build directory or from the
+// project root, with no path depending on the current working directory.
 // ─────────────────────────────────────────────────────────────────────────────
-static std::filesystem::path findProjectRoot() {
+static std::filesystem::path findProjectRoot(const std::string& explicit_root = "") {
     namespace fs = std::filesystem;
     std::error_code ec;
 
-    // 1) the current working directory
-    fs::path cwd = fs::current_path(ec);
-    if (!ec && fs::exists(cwd / "urdf" / "panda.urdf")) return cwd;
+    const auto is_root = [](const fs::path& p) {
+        std::error_code ec2;
+        return fs::exists(p / "src" / "urdf" / "panda.urdf", ec2);
+    };
 
-    // 2) the parent of the executable's directory (build/ -> project root)
+    // 1) the path given on the command line
+    if (!explicit_root.empty()) {
+        fs::path p = fs::path(explicit_root);
+        if (p.is_relative()) p = fs::absolute(p, ec);
+        if (!ec && is_root(p)) return p;
+    }
+
+    // 2) the current working directory
+    fs::path cwd = fs::current_path(ec);
+    if (!ec && is_root(cwd)) return cwd;
+
+    // 3) the parent of the executable's directory (build/ -> project root)
     fs::path exe = fs::read_symlink("/proc/self/exe", ec);
     if (!ec) {
         fs::path root = exe.parent_path().parent_path();
-        if (fs::exists(root / "urdf" / "panda.urdf")) return root;
+        if (is_root(root)) return root;
 
         root = exe.parent_path();
-        if (fs::exists(root / "urdf" / "panda.urdf")) return root;
+        if (is_root(root)) return root;
     }
 
     return cwd;  // fallback: the files below will simply fail to open
 }
 
-int main(int argc, char** argv) {    
-    const std::filesystem::path root = findProjectRoot();
+
+int main(int argc, char** argv) {
+    // ── Command line: <trajectory index> [repository root] ──────────────────
+    // The trajectory index selects the set under src/trajectories (test<N>/),
+    // the repository root is the directory holding src/ and scripts/.
+    int n_traj = -1;
+    std::string root_arg;
+    if (argc > 1) {
+        try {
+            std::string arg(argv[1]);
+            const char* begin = arg.data();
+            const char* end   = arg.data() + arg.size();
+            auto [ptr, ec] = std::from_chars(begin, end, n_traj);
+            if (ec != std::errc{} || ptr != end || n_traj < 0)
+                throw 1;
+        }
+        catch (int) {
+            std::cerr << "Error: the trajectory index must be a valid non-negative integer."
+                      << std::endl;
+            return 1;
+        }
+    }
+    else {
+        std::cerr << "Error: the trajectory index is required "
+                     "(usage: " << argv[0] << " <traj_index> [repo_dir])." << std::endl;
+        return 1;
+    }
+    if (argc > 2) root_arg = argv[2];
+
+    const std::filesystem::path root = findProjectRoot(root_arg);
 
     // Caricamento del modello URDF del robot Panda utilizzando Pinocchio per calcoli cinematici avanzati
     pinocchio::Model model;
-    const std::filesystem::path urdf_path = root / "urdf" / "panda.urdf";
+    const std::filesystem::path urdf_path = root / "src" / "urdf" / "panda.urdf";
     if (!std::filesystem::exists(urdf_path)) {
         std::cerr << "URDF not found: " << urdf_path << "\n";
         return 1;
@@ -809,86 +879,71 @@ int main(int argc, char** argv) {
     pinocchio::Data data(model);
     const pinocchio::FrameIndex EE_ID = model.getFrameId("panda_link8");
 
+    // ── Traiettoria del robot, letta da src/trajectories/test<N>/ ───────────
+    // The set holds the waypoints (p_ref.csv, Cartesian, or q_ref.csv, joint
+    // space) and the cumulative time at which each of them is reached
+    // (t_ref.csv).
+    const std::filesystem::path traj_dir =
+        root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
-    // traiettoria nello spazio 3D
-    std::string filename = (root / "traj" / "traiettoria.txt").string();
-    std::ifstream filein(filename);
-    if (!filein.is_open()) {
-        std::cout << "Impossibile aprire il file di traiettoria" << std::endl;
-        std::cout << filename << std::endl;
+    TrajectoryData traj;
+    try {
+        traj = loadTrajectorySet(traj_dir);
+    } catch (const std::exception& e) {
+        std::cerr << "Cannot load the trajectory from " << traj_dir << ": "
+                  << e.what() << "\n";
         return 1;
     }
 
-    std::vector<Eigen::Vector3d> p_traj = {};  // vettore di waypoint nello spazio 3D
-    std::string line;
+    const std::vector<double>& t_traj = traj.t;
 
-    while (getline(filein, line)) {
-        std::stringstream ss(line);
-        std::string temp;
-        std::vector<double> a = {};
-
-        while (getline(ss, temp, ',')) {
-            a.push_back(std::stod(temp));
-        }
-        
-        p_traj.push_back(Eigen::Vector3d(a[0], a[1], a[2]));
-    }
-    filein.close();
-    
-    // vettore dei tempi
-    filename = (root / "traj" / "t.txt").string();
-    std::ifstream filein_t(filename);
-    if (!filein_t.is_open()) {
-        std::cout << "Impossibile aprire il file dei tempi" << std::endl;
-        std::cout << filename << std::endl;
-        return 1;
-    }
-    std::vector<double> t_traj = {};
-    while (getline(filein_t, line)) {
-        t_traj.push_back(std::stod(line));
-    }
-    filein_t.close();
-    
     // configurazione iniziale
     Eigen::VectorXd q0 = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
-    
-    // risoluzione cinematica inversa
-    const int N = p_traj.size();
-    std::vector<Eigen::VectorXd> q_traj(N);
 
-    for (int i = 0; i < N; ++i) {
-        pinocchio::SE3 target = buildTarget(p_traj[i]);
+    // Le waypoint: se sono espresse nello spazio 3D vengono risolte in
+    // configurazioni di giunti con la IK, se sono già in spazio giunti
+    // vengono usate direttamente.
+    std::vector<Eigen::VectorXd> q_traj;
+    if (traj.isJointSpace()) {
+        q_traj = traj.q;
+        std::cout << "Loaded " << q_traj.size()
+                  << " joint-space waypoints from " << traj_dir << "\n";
+    } else {
+        q_traj.reserve(traj.p.size());
+        for (size_t i = 0; i < traj.p.size(); ++i) {
+            pinocchio::SE3 target = buildTarget(traj.p[i]);
 
-        IKResult result = ikine_LM(model, data, target, EE_ID, q0);
-        /*
-        pinocchio::forwardKinematics(model, data, result.q);
-        pinocchio::updateFramePlacement(model, data, EE_ID);
-        Eigen::Vector3d achieved = data.oMf[EE_ID].translation();
-        Eigen::Vector3d wanted   = target.translation();
-        Eigen::Vector3d gap_world = wanted - achieved;                          // offset in world/base frame
-        Eigen::Vector3d gap_local = data.oMf[EE_ID].rotation().transpose() * gap_world; // offset in the EE's own frame
-
-        std::cerr << "    achieved: " << achieved.transpose() << "\n";
-        std::cerr << "    wanted:   " << wanted.transpose()   << "\n";
-        std::cerr << "    gap (world frame): " << gap_world.transpose() << "\n";
-        std::cerr << "    gap (EE-local frame): " << gap_local.transpose() << "\n";
-        */
-        q_traj[i] = result.q;
-        q0 = result.q;
+            IKResult result = ikine_LM(model, data, target, EE_ID, q0);
+            q_traj.push_back(result.q);
+            q0 = result.q;  // the next waypoint starts from the previous solution
+        }
+        std::cout << "Loaded " << q_traj.size()
+                  << " Cartesian waypoints from " << traj_dir
+                  << " and solved the IK for each of them\n";
     }
-    
+
+    if (q_traj.empty() || t_traj.empty()) {
+        std::cerr << "The trajectory in " << traj_dir << " is empty\n";
+        return 1;
+    }
+
+    // ── Configurazione di partenza ─────────────────────────────────────────
+    // The recorded trajectories reach their first waypoint at t = 0, so the
+    // task starts from that waypoint; otherwise the robot starts from the
+    // home configuration and the first segment moves it to the first
+    // waypoint (see executeTask).
+    const bool starts_at_first_waypoint = (t_traj.front() <= 0.0);
+    const Eigen::VectorXd q_task_start = starts_at_first_waypoint
+        ? q_traj.front()
+        : Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
+
     // movimento del robot
-    std::cout << "This will move the robot to the home position!\n";
-    std::cout << "Press Enter to continue...\n";
-    std::cin.get();
+    std::cout << "This will move the robot to the initial joint configuration!\n";
     try {
         // The trajectory publisher replaces the libfranka robot handle: the
         // samples that used to be streamed to the robot at 1 kHz are now
         // published to web_interface.py via DataTransmitter.
         TrajectoryPublisher publisher;
-
-        std::array<double, 7> q_home = Q_HOME;
-        double move_duration = 5.0; // seconds
 
         std::array<double, 7> q_start;
         {
@@ -900,6 +955,14 @@ int main(int argc, char** argv) {
                 q_start[j] = Q_HOME[j];
             }
         }
+
+        // Duration of the move to the initial joint configuration: it scales
+        // with the distance to travel and is capped, so that a configuration
+        // that is already the starting one does not delay the task.
+        const Eigen::VectorXd q_start_eig =
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>>(q_start.data());
+        const double max_joint_dist = (q_task_start - q_start_eig).cwiseAbs().maxCoeff();
+        const double move_duration = std::clamp(20.0 * max_joint_dist, 0.5, 5.0);
 
         pinocchio::Data move_data(model);
         auto next_tick = std::chrono::steady_clock::now();
@@ -918,7 +981,7 @@ int main(int argc, char** argv) {
 
             Eigen::VectorXd q_cmd(7);
             for (int j = 0; j < 7; ++j)
-                q_cmd[j] = q_start[j] + alpha * (q_home[j] - q_start[j]);
+                q_cmd[j] = q_start[j] + alpha * (q_task_start(j) - q_start[j]);
 
             // stream the commanded configuration to web_interface.py
             publisher.publishSample(model, move_data, q_cmd);
@@ -940,19 +1003,11 @@ int main(int argc, char** argv) {
         std::cout << "Finished moving to initial joint configuration\n";
         std::cout << "WARNING: Collision thresholds are set to high values.\n";
         std::cout << "Make sure you have the user stop at hand!\n";
-        std::cout << "This will start the joint control task\n";
-        std::cout << "Press Enter to continue...\n";
-        std::cin.get();
-
-        
-        for (int j = 0; j < 5; ++j) {
-            std::cout << 5-j << "...\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        }
+        std::cout << "Starting the joint control task\n";
 
         executeTask(q_traj, t_traj, publisher, model, root);
 
-        std::cout << "Trajectory completed, " << t_traj.back() 
+        std::cout << "Trajectory completed, " << t_traj.back()
                 << " seconds have passed, shutting down example\n";
 
     } catch (const std::exception& ex) {

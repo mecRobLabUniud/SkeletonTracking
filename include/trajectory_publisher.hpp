@@ -105,10 +105,13 @@ public:
                        const Eigen::VectorXd&  q) {
         std::array<Capsule, 4> capsules = computeRobotCapsules(model, data, q);
 
+        // The endpoints are published as (B, A) of each capsule, so that the
+        // first point is the base origin: the web interface uses it to place
+        // the robot mesh at the origin of the world frame (robot.js).
         nlohmann::json points = nlohmann::json::array();
         for (const auto& c : capsules) {
-            points.push_back(jsonPoint(c.A));
             points.push_back(jsonPoint(c.B));
+            points.push_back(jsonPoint(c.A));
         }
 
         nlohmann::json q_json = nlohmann::json::array();

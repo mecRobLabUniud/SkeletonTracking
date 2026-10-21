@@ -57,6 +57,7 @@ target_link_libraries(rula_evaluation PRIVATE
 add_executable(main_SSMPFL 
     src/main_SSMPFL.cpp
     src/trajectory_utils.cpp
+    src/trajectory_loader.cpp
     src/robot_model.cpp
 	src/core.cpp
     src/min_distance_calculation.cpp
@@ -77,6 +78,7 @@ target_link_libraries(main_SSMPFL PRIVATE
 add_executable(main_SSMPFLescape 
     src/main_SSMPFLescape.cpp
     src/trajectory_utils.cpp
+    src/trajectory_loader.cpp
     src/robot_model.cpp
 	src/core.cpp
     src/min_distance_calculation.cpp
@@ -96,6 +98,7 @@ target_link_libraries(main_SSMPFLescape PRIVATE
 # ── Main SSM ─────────────────────────────────────────────────────────────────
 add_executable(main_SSM
     src/main_SSM.cpp
+    src/trajectory_loader.cpp
     src/ik_solver.cpp
     src/calc_stop_duration.cpp
     src/flag_stop.cpp

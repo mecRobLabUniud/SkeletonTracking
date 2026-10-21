@@ -75,8 +75,12 @@ void receiveSkeletonMerged(const std::string& host, int device_id, const std::st
     std::cout << "skeleton_reader: subscribing to '" << topic << "_" << device_id
                << "' published by data_merging.py\n";
 
+    // The merged skeleton is published by data_merging.py on topic "MERGED",
+    // device_id 10 -> port 6000 + 10 = 6010 (the Python side uses the same
+    // "port + device_id" convention). No shared-memory image buffer is
+    // needed here: this thread only consumes the JSON payload.
     DataTransmitter dtr(DataTransmitter::Mode::Receiver, device_id, topic,
-                        6001, /*use_shm=*/false);
+                        6000, /*use_shm=*/false);
     dtr.set_receive_timeout(POLL_TIMEOUT_MS);  // conflate is set internally: we only ever want the latest frame
 
     auto last_valid_frame = std::chrono::steady_clock::now();

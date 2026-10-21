@@ -34,9 +34,21 @@ Camera frames are exchanged out-of-band through POSIX shared memory segments nam
 │   ├── minDistance.hpp         # Point/segment geometry primitives
 │   ├── rula_score_computation.hpp
 │   ├── trajectory_utils.hpp    # CSV waypoints + quintic p2p trajectory
+│   ├── trajectory_loader.hpp   # Trajectory sets read from src/trajectories
+│   ├── trajectory_publisher.hpp# Publication of the robot state to web_interface.py
+│   ├── skeleton_reader.h       # Reception of the merged skeleton
+│   ├── flag_stop.h             # Safe-Stop decision + robot capsules
+│   ├── calc_stop_duration.h    # CasADi stop-duration optimizer
+│   ├── ik_solver.h             # LM inverse kinematics
+│   ├── geometry.h              # Segment/segment distance primitives
+│   ├── shared_state.h          # Shared state between the playback and the collision threads
 │   └── utils.hpp               # JSON → keypoint conversion
 ├── src/
 │   ├── main.cpp                # Robot trajectory executor (robot mode)
+│   ├── main_SSM.cpp            # Safe-Stop-Monitor robot trajectory executor
+│   ├── main_SSMPFL.cpp         # Safe-Stop + Position/Force-Limiting executor
+│   ├── main_SSMPFLescape.cpp   # Safe-Stop + Position/Force-Limiting executor (escape)
+│   ├── trajectory_loader.cpp   # Loader of the trajectory sets in src/trajectories
 │   ├── rula_evaluation.cpp     # RULA scoring executable
 │   ├── rula_score_computation.cpp
 │   ├── robot_model.cpp
@@ -83,11 +95,13 @@ make -j$(nproc)
 cd ..
 ```
 
-This produces two executables in `build/`:
+This produces four executables in `build/`:
 
-| Executable    | Purpose                                                            |
-|---------------|--------------------------------------------------------------------|
-| `build/main`  | Robot trajectory executor; receives the merged skeleton and publishes robot/trajectory/distance data (only used with `--robot`) |
+| Executable            | Purpose                                                            |
+|-----------------------|--------------------------------------------------------------------|
+| `build/main_SSM`      | Safe-Stop-Monitor robot executor: loads the trajectory from `src/trajectories`, receives the merged skeleton and publishes the computed trajectory (only used with `--robot --core SSM`) |
+| `build/main_SSMPFL`   | Safe-Stop + Position/Force-Limiting robot executor (`--core SSMPFL`)  |
+| `build/main_SSMPFLescape` | Safe-Stop + Position/Force-Limiting robot executor with escape (`--core SSMPFLescape`, the default) |
 | `build/rula_evaluation` | Receives the merged skeleton and publishes RULA scores      |
 
 ## Usage — run.sh
@@ -113,8 +127,9 @@ This produces two executables in `build/`:
 |-------------|---------------------------------------------------------------------|
 | `--gui`     | Launch the web interface (3D scene + camera streams)                |
 | `--test N`  | Test number to stream (only with `--stream`; data in `scripts/data/skeleton_data/testN`) |
-| `--robot`   | Also run the robot simulation (needs `build/main`)                  |
+| `--robot`   | Also run the robot simulation (needs a `build/main_*` binary)       |
 | `--traj N`  | Trajectory number for robot execution (only with `--robot`; data in `src/trajectories/testN`) |
+| `--core C`  | Robot control strategy: `SSM`, `SSMPFL` or `SSMPFLescape` (default `SSMPFLescape`) |
 | `-h, --help`| Show usage                                                          |
 
 ### Examples
@@ -125,6 +140,9 @@ This produces two executables in `build/`:
 
 # Live tracking, robot trajectory #1, with web visualization
 ./run.sh --track --robot --traj 1 --gui
+
+# Live tracking with the Safe-Stop-Monitor core
+./run.sh --track --robot --traj 1 --core SSM --gui
 
 # Record a new dataset
 ./run.sh --record
@@ -145,12 +163,31 @@ If `--test` is omitted with `--stream`, the script prompts for the test number.
 
 | Mode       | Processes launched                                                                    |
 |------------|---------------------------------------------------------------------------------------|
-| `--track`  | `data_merging <ncams>`, `camera_stream`, `rula_evaluation` (+ optional `main <traj>`) |
+| `--track`  | `data_merging <ncams>`, `camera_stream`, `rula_evaluation` (+ optional `main_<core> <traj>`) |
 | `--record` | `data_recording <ncams> -r`, `camera_stream`                                          |
-| `--stream` | `data_recording <ncams> -s <test>`, `data_merging <ncams>`, `rula_evaluation` (+ optional `main <traj>`) |
+| `--stream` | `data_recording <ncams> -s <test>`, `data_merging <ncams>`, `rula_evaluation` (+ optional `main_<core> <traj>`) |
 | `--calibrate` | `calibration`                                                                     |
 
 `--gui` additionally starts `web_interface.py` and opens the visualization at `http://localhost:5000` (auto-opens in your browser).
+
+## Robot trajectory execution
+
+The robot executables are launched as `build/main_<core> <traj_index> <repo_dir>` and are
+wired into the pipeline as follows:
+
+- **Trajectory** — read from `src/trajectories/test<traj_index>/`, which holds the waypoints
+  (`p_ref.csv`, Cartesian, or `q_ref.csv`, joint space) and the cumulative time at which each
+  waypoint is reached (`t_ref.csv`).
+- **Skeleton** — received over ZeroMQ on the `MERGED_10` topic (port 6010), published by
+  `data_merging.py` after fusing the per-camera skeletons.
+- **Publication** — the computed trajectory is published to `web_interface.py` on the `ROBOT_12`
+  topic (robot capsules, joint positions, capsule radii) and on the `TRAJDATA_14` topic
+  (closest human/robot point pair and the collision flag), so the 3D scene shows the robot and
+  the human side by side.
+
+> **Note** — `main_SSM` reads both waypoint formats (`p_ref.csv` and `q_ref.csv`), while
+> `main_SSMPFL` / `main_SSMPFLescape` only read the Cartesian one (`p_ref.csv`). Use a
+> trajectory set that has a `p_ref.csv` (e.g. `test3`) with the SSMPFL cores.
 
 ## Manual launch (equivalent)
 
@@ -166,7 +203,7 @@ python3 scripts/data_recording.py <n_cameras> -r        # instead of camera_stre
 ./build/rula_evaluation
 
 # Terminal 3 — optional robot trajectory executor
-./build/main <traj_n> <repo_dir>
+./build/main_SSM <traj_n> <repo_dir>      # or main_SSMPFL / main_SSMPFLescape
 
 # Terminal 4 — web interface
 python3 scripts/web_interface.py <n_cameras> [--robot]
@@ -186,7 +223,7 @@ python3 scripts/web_interface.py <n_cameras> [--robot]
 ## Notes & troubleshooting
 
 - **No cameras / no calibration file**: `camera_stream.py` spins without data (or throws `FileNotFoundError` for a missing `pose_{serial}.txt`). Make sure cameras are plugged in and calibration was run.
-- **Robot mode requires a built binary**: `--robot`/`--traj` depend on `build/main`; run the build steps first.
+- **Robot mode requires a built binary**: `--robot`/`--traj` depend on `build/main_SSM` (or `build/main_SSMPFL` / `build/main_SSMPFLescape`, see `--core`); run the build steps first.
 - **Streaming from disk does not need cameras or RealSense** — only recorded test data.
 - **Ports are fixed** (6000–6014); do not run two senders on the same port at once (e.g. live recording and replaying simultaneously).
 - The ZMQ framework ensures topic/RX matching between sender and receiver via the `DataTransmitter` class; both Python and C++ implementations speak the same protocol.

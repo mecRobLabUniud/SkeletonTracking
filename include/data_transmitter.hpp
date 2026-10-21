@@ -21,6 +21,7 @@
 #include <iostream>
 #include <memory>
 #include <regex>
+#include <cerrno>
 
 using json = nlohmann::json;
 
@@ -193,19 +194,26 @@ public:
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Set up the ZeroMQ socket and shared memory for the given mode
+    //
+    // use_shm: when false, no shared-memory image buffer is set up. Consumers
+    // that only exchange JSON payloads (e.g. the skeleton reader, which only
+    // needs the merged skeleton) have no use for the camera frame buffer, and
+    // skipping it avoids waiting on a segment that may never be created.
     // ─────────────────────────────────────────────────────────────────────────────
-    DataTransmitter(Mode mode, int device_id, const std::string& topic, int port = 6000)
+    DataTransmitter(Mode mode, int device_id, const std::string& topic,
+                    int port = 6000, bool use_shm = true)
         : mode_(mode),
           device_id_(device_id),
           port_(port + device_id),
           topic_(topic),
+          use_shm_(use_shm),
           nbytes_(static_cast<size_t>(params::H) * params::W * params::C) {
         if (mode_ == Mode::Sender) {
             setup_zmq_sender();
-            setup_shm_sender();
+            if (use_shm_) setup_shm_sender();
         } else {
             setup_zmq_receiver();
-            setup_shm_receiver();
+            if (use_shm_) setup_shm_receiver();
         }
     }
 
@@ -268,20 +276,44 @@ public:
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Block for and return the next raw message (receiver mode)
+    //
+    // If a receive timeout has been set and no message arrives in time, an
+    // empty string is returned instead of blocking forever, so that callers
+    // can periodically re-check their own termination conditions.
     // ─────────────────────────────────────────────────────────────────────────────
     std::string receive_packed_msg() {
         require(Mode::Receiver);
         zmq::message_t zmsg;
-        auto result = socket_->recv(zmsg, zmq::recv_flags::none);
-        (void)result;
+        try {
+            auto result = socket_->recv(zmsg, zmq::recv_flags::none);
+            (void)result;
+        } catch (const zmq::error_t& e) {
+            // EAGAIN/ETIMEDOUT: the receive timeout expired without a message
+            if (e.num() == EAGAIN || e.num() == ETIMEDOUT) return std::string();
+            throw;
+        }
         return std::string(static_cast<char*>(zmsg.data()), zmsg.size());
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
+    // Set the receive timeout in milliseconds (receiver mode)
+    //
+    // With a timeout configured, receive_data() returns an empty vector when
+    // no message arrives in time, instead of blocking indefinitely.
+    // ─────────────────────────────────────────────────────────────────────────────
+    void set_receive_timeout(int timeout_ms) {
+        require(Mode::Receiver);
+        socket_->set(zmq::sockopt::rcvtimeo, timeout_ms);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
     // Parse the next message into a list of JSON values (receiver mode)
+    //
+    // Returns an empty vector if the receive timeout expired with no message.
     // ─────────────────────────────────────────────────────────────────────────────
     std::vector<nlohmann::json> receive_data() {
         std::string packed = receive_packed_msg();
+        if (packed.empty()) return {};
 
         std::vector<std::string> parts;
         size_t start = 0, pos;
@@ -321,6 +353,7 @@ private:
     int device_id_;
     int port_;
     std::string topic_;
+    bool use_shm_;
     size_t nbytes_;
 
     zmq::context_t ctx_{1};

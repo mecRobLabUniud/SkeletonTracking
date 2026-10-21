@@ -108,7 +108,10 @@ bool SSMPFL(const RobotModel& robot,
     // auto check_matrix = A*qddot_t - b;
     // bool success = (check_matrix.array() <= 0).all();
 
-    const Eigen::Matrix<double, 10, 1> residual = A*qddot_t - b;
+    // The residual holds one value per constraint row, i.e. 10 per obstacle:
+    // it is dynamic, so that it fits both a single obstacle and no obstacle at
+    // all (an empty residual trivially satisfies every constraint).
+    const Eigen::VectorXd residual = A*qddot_t - b;
     bool success = (residual.array() <= 0.0).all();
 
     return success;

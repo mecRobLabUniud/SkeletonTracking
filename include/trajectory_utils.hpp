@@ -34,9 +34,21 @@ struct Trajectory {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Build a point-to-point trajectory from CSV waypoints solved with IK
+// Build a point-to-point trajectory from the waypoints of a trajectory set
+//
+// The waypoints are read from <c_dir>/src/trajectories/test<n_traj>/ and can
+// be given either in Cartesian coordinates (p_ref.csv, solved with the inverse
+// kinematics) or in joint coordinates (q_ref.csv, used as they are). The
+// cumulative time of each waypoint is read from t_ref.csv and gives the
+// duration of each segment.
+//
+// p_csv / t_csv override the file names; when they are left empty the format
+// is detected from the files that are present in the trajectory directory.
+//
+// N is the number of samples used for a segment whose duration is unknown
+// (a segment with a non-positive duration carries no motion and is skipped).
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir,
                                int n_traj, int N, double dt,
-                               const std::string& p_csv = "p_ref.csv",
-                               const std::string& t_csv = "t_ref.csv");
+                               const std::string& p_csv = "",
+                               const std::string& t_csv = "");

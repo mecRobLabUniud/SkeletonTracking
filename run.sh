@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 # Usage:
-#   ./run.sh --track [--gui]
+#   ./run.sh --track [--gui] [--robot --traj N] [--core CORE]
 #   ./run.sh --record
-#   ./run.sh --stream [--test N] [--gui]
+#   ./run.sh --stream [--test N] [--gui] [--robot --traj N] [--core CORE]
 #   ./run.sh --calibrate
 
 set -euo pipefail
@@ -21,6 +21,9 @@ Qpj=1.0
 Qpt=1.0
 Qv=1.0
 
+# The robot trajectory executables, one per control strategy
+valid_cores="SSM SSMPFL SSMPFLescape"
+
 print_usage() {
     cat <<EOF
 Usage: $(basename "$0") MODE [OPTIONS]
@@ -36,6 +39,8 @@ Options:
   --test N          Test number to stream (only used with --stream)
   --robot           Include robot simulation
   --traj N          Traj number to execute (only used with --robot)
+  --core CORE       Robot control strategy: $(echo $valid_cores | tr ' ' '|')
+                    (default: $core)
   -h, --help        Show this help message
 EOF
 }
@@ -116,6 +121,20 @@ if [ -z "$mode" ]; then
     exit 1
 fi
 
+# ── Validate the robot control strategy and the trajectory it needs ─────────
+case " $valid_cores " in
+    *" $core "*) ;;
+    *)
+        echo "Error: unknown core '$core'. Valid cores: $valid_cores" >&2
+        exit 1
+        ;;
+esac
+
+if [ "$use_robot" = true ] && [ "$use_traj" != true ]; then
+    echo "Error: --robot requires a trajectory, add --traj N." >&2
+    exit 1
+fi
+
 n_devices=$(lsusb | grep -c 8086 || true)
 
 # ── Stop leftovers of a previous run: they keep the ZMQ ports (6000+) and the
@@ -136,6 +155,23 @@ calibration="python3 $dir/scripts/calibration.py"
 rula_evaluation="$dir/build/rula_evaluation"
 exec_trajectory="$dir/build/main_$core"
 
+# ── Start the robot trajectory executor, when the robot mode is requested ────
+# The executor takes the trajectory index and the repository root, loads the
+# trajectory from src/trajectories/test<N>/, receives the merged skeleton from
+# data_merging.py and publishes the computed trajectory to web_interface.py.
+start_robot() {
+    if [ "$use_robot" != true ]; then
+        return 0
+    fi
+    if [ ! -x "$exec_trajectory" ]; then
+        echo "Error: '$exec_trajectory' not found. Build it first:" >&2
+        echo "  mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j\$(nproc)" >&2
+        exit 1
+    fi
+    echo "Starting the robot trajectory executor: $exec_trajectory (trajectory $n_traj)"
+    $exec_trajectory "$n_traj" "$dir" &
+}
+
 case "$mode" in
     --track)
         echo "Starting tracking procedure..."
@@ -143,11 +179,7 @@ case "$mode" in
         sleep 0.1
         $camera_stream &
         $rula_evaluation &
-        if [ "$use_robot" = true ]; then
-            if [ "$use_traj" = true ]; then
-                $exec_trajectory "$n_traj" "$dir" &
-            fi
-        fi
+        start_robot
         if [ "$use_gui" = true ]; then
             sleep 1
             if [ "$use_robot" = true ]; then
@@ -185,11 +217,7 @@ case "$mode" in
         $data_recording "$n_devices" "-s" "$n_test" &
         $data_merging "$n_devices" &
         $rula_evaluation &
-        if [ "$use_robot" = true ]; then
-            if [ "$use_traj" = true ]; then
-                $exec_trajectory "$n_traj" "$dir" &
-            fi
-        fi
+        start_robot
         if [ "$use_gui" = true ]; then
             sleep 1
             if [ "$use_robot" = true ]; then
