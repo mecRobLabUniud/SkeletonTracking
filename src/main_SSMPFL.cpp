@@ -240,6 +240,21 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             real_traj.p.push_back(nominal_traj.p[r_idx]);
             real_traj.pd.push_back(nominal_traj.pd[r_idx]);
 
+
+
+            LogSample s;
+            s.t = g_t_log;
+            for (int j = 0; j < 7; ++j) {
+                s.q[j]          = real_traj.q[i][j];
+                s.dq[j]         = real_traj.qd[i][j];
+                // s.tau_cmd[j]    = tau_d_rate_limited[j];
+                // s.tau_meas[j]   = state.tau_J[j];
+            }
+            s.ee_pos = {real_traj.p[i][0], real_traj.p[i][1], real_traj.p[i][2]};
+            log_queue.push(s);
+
+
+
             auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
             std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
 
@@ -272,6 +287,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         }
 
         skeleton_prev = skeleton;
+
+        g_t_log += dt;
 
         // ── Publish robot state, obstacle distance and trajectory ───────
         // The robot capsules and the joint positions are published to the web

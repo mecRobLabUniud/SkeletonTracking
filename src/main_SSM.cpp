@@ -21,10 +21,7 @@ main_SSM.cpp
 #include <filesystem>
 
 #include <Eigen/Dense>
-#include <pinocchio/parsers/urdf.hpp>
-#include <pinocchio/algorithm/kinematics.hpp>
-#include <pinocchio/algorithm/frames.hpp>
-#include <pinocchio/algorithm/rnea.hpp>       // computeCoriolisMatrix (pinocchio >= 3.9)
+#include <pinocchio/algorithm/rnea.hpp>
 
 #include "ik_solver.h"
 #include "flag_stop.h"
@@ -34,6 +31,7 @@ main_SSM.cpp
 #include "data_transmitter.hpp"
 #include "trajectory_loader.hpp"       // loadTrajectorySet (src/trajectories)
 #include "trajectory_publisher.hpp"   // PlaybackState, limitTorqueRate, TrajectoryPublisher
+#include "robot_model.hpp"           // RobotModel wrapper around pinocchio
 #include "logs.hpp"
 
 // ============================================================
@@ -76,7 +74,6 @@ constexpr double STALE_STOP_GRACE_S        = 1.0;
 // Maximum time (s) the robot stays stopped waiting for the obstacle to clear
 // before it resumes the trajectory anyway.
 constexpr double MAX_STOP_WAIT_S            = 10.0;
-
 
 // Call once after the whole task (all waypoints/segments) has finished, to
 // commit a still-open idle streak (e.g. the robot's final resting period)
@@ -124,15 +121,13 @@ inline constexpr std::array<double, 7> Q_HOME = {
     0.2620
 };
 
-// Playback period, torque-rate limit and publication rate (plus the
-// PlaybackState struct and the TrajectoryPublisher class that replaces the
-// libfranka robot handle) live in trajectory_publisher.hpp
-
-
-void collisionCheckerThread(const pinocchio::Model& model, std::ofstream& outfile_dist,
+void collisionCheckerThread(RobotModel& robot, std::ofstream& outfile_dist,
                              TrajectoryPublisher& publisher) {
-    pinocchio::Data data(model);
-    StopDurationOptimizer optimizer(model);  // builds solver once here
+    StopDurationOptimizer optimizer(robot);  // builds solver once here
+    // Ensure FK/data are up to date for downstream consumers
+    Eigen::VectorXd q_home_init(7);
+    for (int j = 0; j < 7; ++j) q_home_init(j) = Q_HOME[j];
+    robot.ComputeFK(q_home_init);
 
     auto t_i = std::chrono::steady_clock::now();  // task start, for logging
     auto last_metrics_t = t_i;                    // for C-ACT-WS dt integration
@@ -227,8 +222,9 @@ void collisionCheckerThread(const pinocchio::Model& model, std::ofstream& outfil
             closest.C_h = Eigen::Vector3d::Constant(NAN);
             closest.C_r = Eigen::Vector3d::Constant(NAN);
 
+            robot.ComputeFK(q);
             bool should_stop = flagStop(stop_duration, q, q_p, q_pp,
-                                        skeleton, model, data, radii, &closest);
+                                        skeleton, robot.getModel(), robot.getData(), radii, &closest);
             stop_flag.store(should_stop);
             shared_rh_distance.store(closest.distance);
 
@@ -275,8 +271,7 @@ void executeTrajectory (
     const Eigen::VectorXd&  q_end,
     double                  traj_duration,
     TrajectoryPublisher&    publisher,
-    const pinocchio::Model& model,
-    pinocchio::Data&        data) {
+    RobotModel&             robot) {
     
     const double TOLL_NO_STOP = 0.05; 
     double traj_duration_new = std::round(traj_duration / TRAJ_STEP) * TRAJ_STEP;
@@ -289,7 +284,8 @@ void executeTrajectory (
         return;
     }
 
-    const pinocchio::FrameIndex EE_ID = model.getFrameId("panda_link8");
+    const pinocchio::FrameIndex EE_ID = robot.getModel().getFrameId("panda_link8");
+    pinocchio::Data& data = robot.getData();
 
     Eigen::VectorXd q_c = q_start;
 
@@ -479,7 +475,7 @@ void executeTrajectory (
                     // as feed-forward of the joint impedance law)
                     Eigen::VectorXd q_v   = Eigen::Map<const Eigen::VectorXd>(state.q.data(),   7);
                     Eigen::VectorXd dq_v  = Eigen::Map<const Eigen::VectorXd>(state.dq.data(),  7);
-                    pinocchio::computeCoriolisMatrix(model, data, q_v, dq_v);
+                    pinocchio::computeCoriolisMatrix(robot.getModel(), data, q_v, dq_v);
                     Eigen::VectorXd coriolis = data.C * dq_v;
 
                     // compute torques
@@ -502,8 +498,8 @@ void executeTrajectory (
                 if (!motion_finished) {
                     // End-effector position from Pinocchio FK (replaces
                     // state.O_T_EE from libfranka)
-                    pinocchio::forwardKinematics(model, data, q_meas);
-                    pinocchio::updateFramePlacements(model, data);
+                    pinocchio::forwardKinematics(robot.getModel(), data, q_meas);
+                    pinocchio::updateFramePlacements(robot.getModel(), data);
                     const Eigen::Vector3d ee_pos =
                         data.oMf[EE_ID].translation();
 
@@ -533,7 +529,8 @@ void executeTrajectory (
                 // (this replaces streaming the sample to the real robot)
                 t_publish += period_s;
                 if (t_publish >= TRAJ_PUBLISH_PERIOD) {
-                    publisher.publishSample(model, data, q_meas);
+                    robot.ComputeFK(q_meas);
+                    publisher.publishSample(robot.getModel(), robot.getData(), q_meas);
                     t_publish = 0.0;
                 }
 
@@ -606,15 +603,12 @@ void executeTrajectory (
 
 int execute_task (int n_traj, const std::filesystem::path& root) {
     // Caricamento del modello URDF del robot Panda utilizzando Pinocchio per calcoli cinematici avanzati
-    pinocchio::Model model;
     const std::filesystem::path urdf_path = root / "src" / "urdf" / "panda.urdf";
     if (!std::filesystem::exists(urdf_path)) {
         std::cerr << "URDF not found: " << urdf_path << "\n";
         return 1;
     }
-    pinocchio::urdf::buildModel(urdf_path.string(), model);
-    pinocchio::Data data(model);
-    const pinocchio::FrameIndex EE_ID = model.getFrameId("panda_link8");
+    RobotModel robot(urdf_path.string());
 
     // ── Traiettoria del robot, letta da src/trajectories/test<N>/ ───────────
     // The set holds the waypoints (p_ref.csv, Cartesian, or q_ref.csv, joint
@@ -646,11 +640,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         std::cout << "Loaded " << q_traj.size()
                   << " joint-space waypoints from " << traj_dir << "\n";
     } else {
+        const pinocchio::FrameIndex EE_ID = robot.getModel().getFrameId("panda_link8");
+        pinocchio::Data& data_ik = robot.getData();
         q_traj.reserve(traj.p.size());
         for (size_t i = 0; i < traj.p.size(); ++i) {
             pinocchio::SE3 target = buildTarget(traj.p[i]);
 
-            IKResult result = ikine_LM(model, data, target, EE_ID, q0);
+            IKResult result = ikine_LM(robot.getModel(), data_ik, target, EE_ID, q0);
             q_traj.push_back(result.q);
             q0 = result.q;  // the next waypoint starts from the previous solution
         }
@@ -701,7 +697,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         const double max_joint_dist = (q_task_start - q_start_eig).cwiseAbs().maxCoeff();
         const double move_duration = std::clamp(20.0 * max_joint_dist, 0.5, 5.0);
 
-        pinocchio::Data move_data(model);
+        pinocchio::Data& move_data = robot.getData();
         auto next_tick = std::chrono::steady_clock::now();
 
         // Simulated playback of the move to the initial joint configuration:
@@ -721,7 +717,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 q_cmd[j] = q_start[j] + alpha * (q_task_start(j) - q_start[j]);
 
             // stream the commanded configuration to web_interface.py
-            publisher.publishSample(model, move_data, q_cmd);
+            robot.ComputeFK(q_cmd);
+            publisher.publishSample(robot.getModel(), robot.getData(), q_cmd);
 
             // update the shared state the collision checker reads
             {
@@ -746,10 +743,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         
 
 
-
-
         // apri file per logging
-        const std::filesystem::path logs_dir = root / "logs" / "SSM";
+        const std::filesystem::path logs_dir = root / "logs";
         std::string pathname = logs_dir.string() + "/";
         resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
         {
@@ -780,12 +775,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                                     pathname + "skeleton_received.txt");
 
         std::thread collision_thread(collisionCheckerThread,
-        std::cref(model), std::ref(outfile_dist), std::ref(publisher));
+        std::ref(robot), std::ref(outfile_dist), std::ref(publisher));
         
         std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
 
         //StopDurationOptimizer optimizer(model);
-        pinocchio::Data data(model);
 
         double traj_duration_prev = 0.0;
         Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
@@ -810,7 +804,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 double segment_duration = t_traj[i] - traj_duration_prev;
                 if (segment_duration > 0.0) {
                     executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
-                                    publisher, model, data);
+                                    publisher, robot);
 
                     traj_duration_prev = t_traj[i];
                     q_traj_prev = q_traj[i];
@@ -884,6 +878,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         trajectory_done.store(true);
         return -1;
     }
+
+
+
+
+    
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

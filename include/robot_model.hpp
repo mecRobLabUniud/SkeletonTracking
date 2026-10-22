@@ -67,6 +67,12 @@ class RobotModel {
                     int max_iters = 1000,
                     double damping = 1e-6) const;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Access underlying Pinocchio model (for code paths that still need it)
+    // ─────────────────────────────────────────────────────────────────────────────
+    const pinocchio::Model& getModel() const { return model_; }
+    pinocchio::Data& getData() const { return data_; }
+
     private:
     // ─────────────────────────────────────────────────────────────────────────────
     // Resolve a frame name to its Pinocchio index, throwing if absent

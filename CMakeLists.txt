@@ -104,6 +104,7 @@ add_executable(main_SSM
     src/flag_stop.cpp
     src/geometry.cpp
     src/skeleton_reader.cpp
+    src/robot_model.cpp
 )
 
 target_link_options(main_SSM PRIVATE

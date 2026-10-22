@@ -11,6 +11,7 @@ calc_stop_duration.h
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
 #include <Eigen/Dense>
+#include "robot_model.hpp"
 
 struct Poly5Traj {
     casadi::SX q;    // (N+1) x 1
@@ -21,6 +22,7 @@ struct Poly5Traj {
 class StopDurationOptimizer
 {
 public:
+    StopDurationOptimizer(const RobotModel& robot);
     StopDurationOptimizer(const pinocchio::Model& model);
 
     double solve(const Eigen::VectorXd& q,

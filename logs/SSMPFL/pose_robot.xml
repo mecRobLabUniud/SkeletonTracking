@@ -1,0 +1,1338 @@
+<pose>
+	<keypoint time='0'>
+		<ee_position>
+			<x>0.699999</x>
+			<y>0.100001</y>
+			<z>0.299999</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.0166667'>
+		<ee_position>
+			<x>0.699999</x>
+			<y>0.100002</y>
+			<z>0.299999</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.0333333'>
+		<ee_position>
+			<x>0.699997</x>
+			<y>0.100015</y>
+			<z>0.299997</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.05'>
+		<ee_position>
+			<x>0.699992</x>
+			<y>0.100048</y>
+			<z>0.29999</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.0666667'>
+		<ee_position>
+			<x>0.699981</x>
+			<y>0.100113</y>
+			<z>0.299977</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.0833333'>
+		<ee_position>
+			<x>0.699964</x>
+			<y>0.100218</y>
+			<z>0.299956</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.1'>
+		<ee_position>
+			<x>0.699939</x>
+			<y>0.100373</y>
+			<z>0.299925</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.116667'>
+		<ee_position>
+			<x>0.699904</x>
+			<y>0.100587</y>
+			<z>0.299882</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.133333'>
+		<ee_position>
+			<x>0.699859</x>
+			<y>0.100868</y>
+			<z>0.299826</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.15'>
+		<ee_position>
+			<x>0.6998</x>
+			<y>0.101224</y>
+			<z>0.299755</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.166667'>
+		<ee_position>
+			<x>0.699728</x>
+			<y>0.101665</y>
+			<z>0.299667</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.183333'>
+		<ee_position>
+			<x>0.699641</x>
+			<y>0.102196</y>
+			<z>0.299561</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.2'>
+		<ee_position>
+			<x>0.699536</x>
+			<y>0.102826</y>
+			<z>0.299436</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.216667'>
+		<ee_position>
+			<x>0.699414</x>
+			<y>0.103561</y>
+			<z>0.29929</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.233333'>
+		<ee_position>
+			<x>0.699272</x>
+			<y>0.104408</y>
+			<z>0.299122</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.25'>
+		<ee_position>
+			<x>0.699109</x>
+			<y>0.105373</y>
+			<z>0.298931</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.266667'>
+		<ee_position>
+			<x>0.698923</x>
+			<y>0.106461</y>
+			<z>0.298716</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.283333'>
+		<ee_position>
+			<x>0.698713</x>
+			<y>0.107679</y>
+			<z>0.298476</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.3'>
+		<ee_position>
+			<x>0.698477</x>
+			<y>0.109032</y>
+			<z>0.29821</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.316667'>
+		<ee_position>
+			<x>0.698214</x>
+			<y>0.110524</y>
+			<z>0.297918</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.333333'>
+		<ee_position>
+			<x>0.697921</x>
+			<y>0.112161</y>
+			<z>0.297598</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.35'>
+		<ee_position>
+			<x>0.697597</x>
+			<y>0.113946</y>
+			<z>0.297251</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.366667'>
+		<ee_position>
+			<x>0.69724</x>
+			<y>0.115883</y>
+			<z>0.296876</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.383333'>
+		<ee_position>
+			<x>0.696848</x>
+			<y>0.117976</y>
+			<z>0.296473</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.4'>
+		<ee_position>
+			<x>0.696419</x>
+			<y>0.120229</y>
+			<z>0.296041</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.416667'>
+		<ee_position>
+			<x>0.69595</x>
+			<y>0.122643</y>
+			<z>0.295581</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.433333'>
+		<ee_position>
+			<x>0.69544</x>
+			<y>0.125222</y>
+			<z>0.295092</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.45'>
+		<ee_position>
+			<x>0.694885</x>
+			<y>0.127969</y>
+			<z>0.294575</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.466667'>
+		<ee_position>
+			<x>0.694283</x>
+			<y>0.130884</y>
+			<z>0.294029</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.483333'>
+		<ee_position>
+			<x>0.693633</x>
+			<y>0.13397</y>
+			<z>0.293456</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.5'>
+		<ee_position>
+			<x>0.69293</x>
+			<y>0.137228</y>
+			<z>0.292856</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.516667'>
+		<ee_position>
+			<x>0.692172</x>
+			<y>0.140658</y>
+			<z>0.292228</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.533333'>
+		<ee_position>
+			<x>0.691356</x>
+			<y>0.144263</y>
+			<z>0.291575</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.55'>
+		<ee_position>
+			<x>0.69048</x>
+			<y>0.148042</y>
+			<z>0.290897</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.566667'>
+		<ee_position>
+			<x>0.689539</x>
+			<y>0.151994</y>
+			<z>0.290195</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.583333'>
+		<ee_position>
+			<x>0.688531</x>
+			<y>0.156121</y>
+			<z>0.289469</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.6'>
+		<ee_position>
+			<x>0.687453</x>
+			<y>0.160421</y>
+			<z>0.288722</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.616667'>
+		<ee_position>
+			<x>0.686301</x>
+			<y>0.164893</y>
+			<z>0.287954</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.633333'>
+		<ee_position>
+			<x>0.685072</x>
+			<y>0.169536</y>
+			<z>0.287167</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.65'>
+		<ee_position>
+			<x>0.683762</x>
+			<y>0.174349</y>
+			<z>0.286362</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.666667'>
+		<ee_position>
+			<x>0.682368</x>
+			<y>0.17933</y>
+			<z>0.28554</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.683333'>
+		<ee_position>
+			<x>0.680887</x>
+			<y>0.184476</y>
+			<z>0.284704</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.7'>
+		<ee_position>
+			<x>0.679314</x>
+			<y>0.189785</y>
+			<z>0.283856</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.716667'>
+		<ee_position>
+			<x>0.677646</x>
+			<y>0.195255</y>
+			<z>0.282996</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.733333'>
+		<ee_position>
+			<x>0.67588</x>
+			<y>0.200882</y>
+			<z>0.282128</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.75'>
+		<ee_position>
+			<x>0.674012</x>
+			<y>0.206664</y>
+			<z>0.281253</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.766667'>
+		<ee_position>
+			<x>0.67204</x>
+			<y>0.212596</y>
+			<z>0.280373</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.783333'>
+		<ee_position>
+			<x>0.669958</x>
+			<y>0.218674</y>
+			<z>0.27949</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.8'>
+		<ee_position>
+			<x>0.667764</x>
+			<y>0.224894</y>
+			<z>0.278607</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.816667'>
+		<ee_position>
+			<x>0.665455</x>
+			<y>0.231253</y>
+			<z>0.277726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.833333'>
+		<ee_position>
+			<x>0.663028</x>
+			<y>0.237744</y>
+			<z>0.27685</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.85'>
+		<ee_position>
+			<x>0.660479</x>
+			<y>0.244364</y>
+			<z>0.275981</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.866667'>
+		<ee_position>
+			<x>0.657805</x>
+			<y>0.251107</y>
+			<z>0.27512</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.883333'>
+		<ee_position>
+			<x>0.655004</x>
+			<y>0.257967</y>
+			<z>0.274272</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.9'>
+		<ee_position>
+			<x>0.652073</x>
+			<y>0.264939</y>
+			<z>0.273438</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.916667'>
+		<ee_position>
+			<x>0.64901</x>
+			<y>0.272017</y>
+			<z>0.272622</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.933333'>
+		<ee_position>
+			<x>0.645812</x>
+			<y>0.279195</y>
+			<z>0.271825</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.95'>
+		<ee_position>
+			<x>0.642477</x>
+			<y>0.286466</y>
+			<z>0.27105</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.966667'>
+		<ee_position>
+			<x>0.639003</x>
+			<y>0.293824</y>
+			<z>0.2703</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='0.983333'>
+		<ee_position>
+			<x>0.635389</x>
+			<y>0.301262</y>
+			<z>0.269578</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1'>
+		<ee_position>
+			<x>0.631633</x>
+			<y>0.308774</y>
+			<z>0.268886</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.01667'>
+		<ee_position>
+			<x>0.627734</x>
+			<y>0.316353</y>
+			<z>0.268227</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.03333'>
+		<ee_position>
+			<x>0.623691</x>
+			<y>0.323991</y>
+			<z>0.267604</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.05'>
+		<ee_position>
+			<x>0.619504</x>
+			<y>0.331682</y>
+			<z>0.267018</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.06667'>
+		<ee_position>
+			<x>0.615172</x>
+			<y>0.339418</y>
+			<z>0.266473</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.08333'>
+		<ee_position>
+			<x>0.610695</x>
+			<y>0.347191</y>
+			<z>0.265971</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.1'>
+		<ee_position>
+			<x>0.606073</x>
+			<y>0.354995</y>
+			<z>0.265514</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.11667'>
+		<ee_position>
+			<x>0.601307</x>
+			<y>0.362822</y>
+			<z>0.265105</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.13333'>
+		<ee_position>
+			<x>0.596397</x>
+			<y>0.370664</y>
+			<z>0.264746</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.15'>
+		<ee_position>
+			<x>0.591346</x>
+			<y>0.378514</y>
+			<z>0.264439</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.16667'>
+		<ee_position>
+			<x>0.586153</x>
+			<y>0.386365</y>
+			<z>0.264187</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.18333'>
+		<ee_position>
+			<x>0.580821</x>
+			<y>0.394209</y>
+			<z>0.263991</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.2'>
+		<ee_position>
+			<x>0.575352</x>
+			<y>0.402039</y>
+			<z>0.263853</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.21667'>
+		<ee_position>
+			<x>0.569748</x>
+			<y>0.409847</y>
+			<z>0.263776</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.23333'>
+		<ee_position>
+			<x>0.564012</x>
+			<y>0.417626</y>
+			<z>0.263761</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.25'>
+		<ee_position>
+			<x>0.558147</x>
+			<y>0.425369</y>
+			<z>0.263809</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.26667'>
+		<ee_position>
+			<x>0.552156</x>
+			<y>0.43307</y>
+			<z>0.263922</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.28333'>
+		<ee_position>
+			<x>0.546042</x>
+			<y>0.44072</y>
+			<z>0.264101</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.3'>
+		<ee_position>
+			<x>0.53981</x>
+			<y>0.448314</y>
+			<z>0.264348</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.31667'>
+		<ee_position>
+			<x>0.533463</x>
+			<y>0.455845</y>
+			<z>0.264664</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.33333'>
+		<ee_position>
+			<x>0.527007</x>
+			<y>0.463307</y>
+			<z>0.265049</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.35'>
+		<ee_position>
+			<x>0.520444</x>
+			<y>0.470692</y>
+			<z>0.265505</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.36667'>
+		<ee_position>
+			<x>0.513781</x>
+			<y>0.477996</y>
+			<z>0.266032</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.38333'>
+		<ee_position>
+			<x>0.507023</x>
+			<y>0.485213</y>
+			<z>0.266631</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.4'>
+		<ee_position>
+			<x>0.500174</x>
+			<y>0.492337</y>
+			<z>0.267301</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.41667'>
+		<ee_position>
+			<x>0.49324</x>
+			<y>0.499362</y>
+			<z>0.268044</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.43333'>
+		<ee_position>
+			<x>0.486227</x>
+			<y>0.506284</y>
+			<z>0.268859</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.45'>
+		<ee_position>
+			<x>0.47914</x>
+			<y>0.513098</y>
+			<z>0.269746</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.46667'>
+		<ee_position>
+			<x>0.471987</x>
+			<y>0.519799</y>
+			<z>0.270704</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.48333'>
+		<ee_position>
+			<x>0.464772</x>
+			<y>0.526384</y>
+			<z>0.271735</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.5'>
+		<ee_position>
+			<x>0.457502</x>
+			<y>0.532848</y>
+			<z>0.272836</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.51667'>
+		<ee_position>
+			<x>0.450183</x>
+			<y>0.539187</y>
+			<z>0.274007</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.53333'>
+		<ee_position>
+			<x>0.442823</x>
+			<y>0.545399</y>
+			<z>0.275247</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.55'>
+		<ee_position>
+			<x>0.435426</x>
+			<y>0.55148</y>
+			<z>0.276555</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.56667'>
+		<ee_position>
+			<x>0.428001</x>
+			<y>0.557428</y>
+			<z>0.27793</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.58333'>
+		<ee_position>
+			<x>0.420553</x>
+			<y>0.563239</y>
+			<z>0.279371</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.6'>
+		<ee_position>
+			<x>0.41309</x>
+			<y>0.568913</y>
+			<z>0.280876</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.61667'>
+		<ee_position>
+			<x>0.405617</x>
+			<y>0.574446</y>
+			<z>0.282443</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.63333'>
+		<ee_position>
+			<x>0.398142</x>
+			<y>0.579837</y>
+			<z>0.284071</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.65'>
+		<ee_position>
+			<x>0.390671</x>
+			<y>0.585086</y>
+			<z>0.285757</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.66667'>
+		<ee_position>
+			<x>0.38321</x>
+			<y>0.590191</y>
+			<z>0.287501</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.68333'>
+		<ee_position>
+			<x>0.375766</x>
+			<y>0.595152</y>
+			<z>0.289299</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.7'>
+		<ee_position>
+			<x>0.368346</x>
+			<y>0.599967</y>
+			<z>0.291149</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.71667'>
+		<ee_position>
+			<x>0.360955</x>
+			<y>0.604637</y>
+			<z>0.29305</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.73333'>
+		<ee_position>
+			<x>0.353601</x>
+			<y>0.609162</y>
+			<z>0.294998</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.75'>
+		<ee_position>
+			<x>0.346288</x>
+			<y>0.613543</y>
+			<z>0.296991</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.76667'>
+		<ee_position>
+			<x>0.339024</x>
+			<y>0.617779</y>
+			<z>0.299026</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.78333'>
+		<ee_position>
+			<x>0.331813</x>
+			<y>0.621872</y>
+			<z>0.301101</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.81667'>
+		<ee_position>
+			<x>0.331813</x>
+			<y>0.621872</y>
+			<z>0.301101</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.83333'>
+		<ee_position>
+			<x>0.317575</x>
+			<y>0.629634</y>
+			<z>0.305359</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.85'>
+		<ee_position>
+			<x>0.310558</x>
+			<y>0.633305</y>
+			<z>0.307536</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.88333'>
+		<ee_position>
+			<x>0.310558</x>
+			<y>0.633305</y>
+			<z>0.307536</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.91667'>
+		<ee_position>
+			<x>0.310558</x>
+			<y>0.633305</y>
+			<z>0.307536</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.95'>
+		<ee_position>
+			<x>0.310558</x>
+			<y>0.633305</y>
+			<z>0.307536</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='1.96667'>
+		<ee_position>
+			<x>0.283294</x>
+			<y>0.646632</y>
+			<z>0.316492</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2'>
+		<ee_position>
+			<x>0.283294</x>
+			<y>0.646632</y>
+			<z>0.316492</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.03333'>
+		<ee_position>
+			<x>0.283294</x>
+			<y>0.646632</y>
+			<z>0.316492</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.05'>
+		<ee_position>
+			<x>0.263813</x>
+			<y>0.655266</y>
+			<z>0.323386</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.08333'>
+		<ee_position>
+			<x>0.263813</x>
+			<y>0.655266</y>
+			<z>0.323386</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.11667'>
+		<ee_position>
+			<x>0.263813</x>
+			<y>0.655266</y>
+			<z>0.323386</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.13333'>
+		<ee_position>
+			<x>0.245281</x>
+			<y>0.66281</y>
+			<z>0.330336</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.16667'>
+		<ee_position>
+			<x>0.245281</x>
+			<y>0.66281</y>
+			<z>0.330336</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.2'>
+		<ee_position>
+			<x>0.245281</x>
+			<y>0.66281</y>
+			<z>0.330336</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.21667'>
+		<ee_position>
+			<x>0.227785</x>
+			<y>0.669345</y>
+			<z>0.33726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.25'>
+		<ee_position>
+			<x>0.227785</x>
+			<y>0.669345</y>
+			<z>0.33726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.28333'>
+		<ee_position>
+			<x>0.227785</x>
+			<y>0.669345</y>
+			<z>0.33726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.31667'>
+		<ee_position>
+			<x>0.227785</x>
+			<y>0.669345</y>
+			<z>0.33726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.35'>
+		<ee_position>
+			<x>0.227785</x>
+			<y>0.669345</y>
+			<z>0.33726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.38333'>
+		<ee_position>
+			<x>0.227785</x>
+			<y>0.669345</y>
+			<z>0.33726</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.4'>
+		<ee_position>
+			<x>0.196162</x>
+			<y>0.679726</y>
+			<z>0.350705</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.43333'>
+		<ee_position>
+			<x>0.196162</x>
+			<y>0.679726</y>
+			<z>0.350705</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.46667'>
+		<ee_position>
+			<x>0.196162</x>
+			<y>0.679726</y>
+			<z>0.350705</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.48333'>
+		<ee_position>
+			<x>0.182122</x>
+			<y>0.68375</y>
+			<z>0.357076</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.51667'>
+		<ee_position>
+			<x>0.182122</x>
+			<y>0.68375</y>
+			<z>0.357076</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.55'>
+		<ee_position>
+			<x>0.182122</x>
+			<y>0.68375</y>
+			<z>0.357076</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.56667'>
+		<ee_position>
+			<x>0.169295</x>
+			<y>0.687111</y>
+			<z>0.363126</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.6'>
+		<ee_position>
+			<x>0.169295</x>
+			<y>0.687111</y>
+			<z>0.363126</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.63333'>
+		<ee_position>
+			<x>0.169295</x>
+			<y>0.687111</y>
+			<z>0.363126</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.65'>
+		<ee_position>
+			<x>0.157687</x>
+			<y>0.689893</y>
+			<z>0.368795</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.68333'>
+		<ee_position>
+			<x>0.157687</x>
+			<y>0.689893</y>
+			<z>0.368795</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.71667'>
+		<ee_position>
+			<x>0.157687</x>
+			<y>0.689893</y>
+			<z>0.368795</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.75'>
+		<ee_position>
+			<x>0.157687</x>
+			<y>0.689893</y>
+			<z>0.368795</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.76667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.8'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.83333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.86667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.9'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.93333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='2.96667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.03333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.06667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.1'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.13333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.16667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.2'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.23333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.26667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.3'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.33333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.36667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.4'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.43333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.46667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.5'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.53333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.56667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.6'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.63333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.66667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.7'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.73333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.76667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.8'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.83333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.86667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.9'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.93333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='3.96667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.03333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.06667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.1'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.13333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.16667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.2'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.23333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.26667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.3'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.33333'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>
+	<keypoint time='4.36667'>
+		<ee_position>
+			<x>0.144089</x>
+			<y>0.692836</y>
+			<z>0.375681</z>
+		</ee_position>
+	</keypoint>

@@ -37,6 +37,11 @@ static casadi::SX computeFrictionSX(const casadi::SX& dq)
 }
 
 
+StopDurationOptimizer::StopDurationOptimizer(const RobotModel& robot)
+    : StopDurationOptimizer(robot.getModel())
+{
+}
+
 StopDurationOptimizer::StopDurationOptimizer(const pinocchio::Model& model)
     : stop_duration_prev_(UBX)  // mirrors: stop_duration_prec = ubx
 {
