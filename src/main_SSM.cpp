@@ -77,24 +77,6 @@ constexpr double STALE_STOP_GRACE_S        = 1.0;
 // before it resumes the trajectory anyway.
 constexpr double MAX_STOP_WAIT_S            = 10.0;
 
-static std::atomic<int> g_stop_count{0};        // R-STOPS
-static double            g_idle_time = 0.0;      // seconds, robot velocity below threshold
-static double            g_concurrent_ws_time = 0.0; // seconds, robot active & human in workspace
-static double            g_t_log = 0.0;          // seconds, total accumulated control time (T-TIME)
-
-// Debounce state for R-IDLE: tracks the length of the low-velocity streak
-// currently in progress. Only written by the thread running the playback
-// loop, so no synchronization needed (same reasoning as g_t_log/g_idle_time
-// above).
-static double            g_idle_streak_duration = 0.0;
-
-static void resetMetrics() {
-    g_stop_count.store(0);
-    g_idle_time = 0.0;
-    g_concurrent_ws_time = 0.0;
-    g_t_log = 0.0;
-    g_idle_streak_duration = 0.0;
-}
 
 // Call once after the whole task (all waypoints/segments) has finished, to
 // commit a still-open idle streak (e.g. the robot's final resting period)
@@ -145,9 +127,6 @@ inline constexpr std::array<double, 7> Q_HOME = {
 // Playback period, torque-rate limit and publication rate (plus the
 // PlaybackState struct and the TrajectoryPublisher class that replaces the
 // libfranka robot handle) live in trajectory_publisher.hpp
-
-
-
 
 
 void collisionCheckerThread(const pinocchio::Model& model, std::ofstream& outfile_dist,

@@ -29,7 +29,7 @@ main_SSMPFL.cpp
 #include "min_distance_calculation.hpp"
 #include "project_root.hpp"
 #include "robot_capsules.hpp"
-
+#include "logs.hpp"
 #include "core.hpp"
 
 
@@ -161,6 +161,41 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
+
+
+
+
+    // apri file per logging
+    const std::filesystem::path logs_dir = root / "logs" / "SSMPFL";
+    std::string pathname = logs_dir.string() + "/";
+    resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(logs_dir, ec);
+        if (ec) {
+            std::cerr << "executeTask: WARNING could not create '" << logs_dir
+                    << "': " << ec.message() << "\n";
+        }
+    }
+    std::ofstream outfile_q(pathname + "q_robot.xml");
+    std::ofstream outfile_dist(pathname + "dist_segment.xml");
+    std::ofstream outfile_dq(pathname + "dq_robot.xml");
+    std::ofstream outfile_tau(pathname + "tau_robot.xml");
+    std::ofstream outfile_pose(pathname + "pose_robot.xml");
+
+    outfile_q << "<q>\n";
+    outfile_dist << "<distance>\n";
+    outfile_dq << "<dq>\n";
+    outfile_tau << "<tau>\n";
+    outfile_pose << "<pose>\n";
+    std::cout << "Outfiles initiated\n";
+    
+    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
+
+
+
+
+
 
     for (int i = 0; i <= n_steps-1; ++i) {
         auto t0 = std::chrono::steady_clock::now();

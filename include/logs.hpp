@@ -5,6 +5,26 @@
 
 #include "shared_state.h"
 
+static std::atomic<int> g_stop_count{0};        // R-STOPS
+static double            g_idle_time = 0.0;      // seconds, robot velocity below threshold
+static double            g_concurrent_ws_time = 0.0; // seconds, robot active & human in workspace
+static double            g_t_log = 0.0;          // seconds, total accumulated control time (T-TIME)
+
+// Debounce state for R-IDLE: tracks the length of the low-velocity streak
+// currently in progress. Only written by the thread running the playback
+// loop, so no synchronization needed (same reasoning as g_t_log/g_idle_time
+// above).
+static double            g_idle_streak_duration = 0.0;
+
+
+static void resetMetrics() {
+    g_stop_count.store(0);
+    g_idle_time = 0.0;
+    g_concurrent_ws_time = 0.0;
+    g_t_log = 0.0;
+    g_idle_streak_duration = 0.0;
+}
+
 void writeSample(std::ofstream& outfile_q,
                   std::ofstream& outfile_dq,
                   std::ofstream& outfile_tau,
