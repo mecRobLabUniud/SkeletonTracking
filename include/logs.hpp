@@ -41,3 +41,18 @@ void writeSample(std::ofstream& outfile_q,
     outfile_pose << "\t\t\t<z>" << s.ee_pos[2] << "</z>\n";
     outfile_pose << "\t\t</ee_position>\n\t</keypoint>\n";
 }
+
+
+void loggerThread(std::ofstream& outfile_q, std::ofstream& outfile_dq, std::ofstream& outfile_tau, std::ofstream& outfile_pose) {
+    LogSample s;
+    while (true) {
+        bool drained_any = false;
+        while (log_queue.pop(s)) {
+            writeSample(outfile_q, outfile_dq, outfile_tau, outfile_pose, s);
+            drained_any = true;
+        }
+        if (trajectory_done.load() && !drained_any) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    while (log_queue.pop(s)) writeSample(outfile_q, outfile_dq, outfile_tau, outfile_pose, s); // final drain
+}

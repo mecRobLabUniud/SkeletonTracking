@@ -1,4 +1,0 @@
-T-TIME (s)      : 43.2801
-R-IDLE (%)      : 59.0852
-C-ACT-WS (%)    : 26.2836
-R-STOPS (count) : 11

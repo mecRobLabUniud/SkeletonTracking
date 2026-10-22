@@ -148,19 +148,7 @@ inline constexpr std::array<double, 7> Q_HOME = {
 
 
 
-void loggerThread(std::ofstream& outfile_q, std::ofstream& outfile_dq, std::ofstream& outfile_tau, std::ofstream& outfile_pose) {
-    LogSample s;
-    while (true) {
-        bool drained_any = false;
-        while (log_queue.pop(s)) {
-            writeSample(outfile_q, outfile_dq, outfile_tau, outfile_pose, s);
-            drained_any = true;
-        }
-        if (trajectory_done.load() && !drained_any) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    while (log_queue.pop(s)) writeSample(outfile_q, outfile_dq, outfile_tau, outfile_pose, s); // final drain
-}
+
 
 void collisionCheckerThread(const pinocchio::Model& model, std::ofstream& outfile_dist,
                              TrajectoryPublisher& publisher) {
@@ -782,7 +770,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
 
         // apri file per logging
-        const std::filesystem::path logs_dir = root / "logs";
+        const std::filesystem::path logs_dir = root / "logs" / "SSM";
         std::string pathname = logs_dir.string() + "/";
         resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
         {
