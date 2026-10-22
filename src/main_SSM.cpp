@@ -32,33 +32,12 @@ main_SSM.cpp - Main executable: replays a recorded trajectory on the Panda while
 #include "trajectory_loader.hpp"       // loadTrajectorySet (src/trajectories)
 #include "trajectory_publisher.hpp"   // PlaybackState, limitTorqueRate, TrajectoryPublisher
 #include "robot_model.hpp"           // RobotModel wrapper around pinocchio
+#include "trajectory_utils.hpp"
 #include "logs.hpp"
 
-// ============================================================
-//  Task metrics: T-TIME, R-IDLE, C-ACT-WS, R-STOPS
-// ============================================================
-//
-// Definitions used (tune freely):
-//   - Robot workspace: the robot is always considered inside its own
-//     workspace (fixed base, reach < 0.85 m), so no distance check
-//     is applied to the robot.
-//   - Robot "active": joint-velocity norm > ROBOT_ACTIVE_VEL_THRESH.
-//   - Human "active": at least one tracked skeleton point is within
-//     WORKSPACE_RADIUS of the base. The human does not need to be
-//     moving to count as active.
-//   - C-ACT-WS: fraction of T-TIME where the robot is active AND a
-//     human point is inside the workspace, simultaneously.
-//
-// Thread-safety note: g_t_log / g_idle_time are written only by the
-// thread running the 1 kHz playback loop and read only after that
-// loop returns, so no synchronization is needed for them -- and none
-// is used, since a mutex inside the playback loop risks blowing the
-// 1 ms step. Likewise g_concurrent_ws_time is written only by
-// collisionCheckerThread and read only after collision_thread.join(),
-// which itself establishes the necessary happens-before ordering.
-// g_stop_count uses a plain lock-free atomic (a single fetch_add is
-// negligible even at 1 kHz).
-//
+// ── Parameters ──────────────────────────────────────────────────────────────
+const double rate_hz = 60.0;
+const double dt = 1.0 / rate_hz;
 constexpr double WORKSPACE_RADIUS          = 0.9;  // meters, from robot base
 constexpr double ROBOT_ACTIVE_VEL_THRESH   = 0.05;  // rad/s (joint velocity norm)
 constexpr double IDLE_DEBOUNCE_SEC         = 0.2;   // s -- a low-velocity streak shorter
@@ -269,17 +248,17 @@ void collisionCheckerThread(RobotModel& robot, std::ofstream& outfile_dist,
 void executeTrajectory (
     const Eigen::VectorXd&  q_start,
     const Eigen::VectorXd&  q_end,
-    double                  traj_duration,
+    double                  t_traj,
     TrajectoryPublisher&    publisher,
     RobotModel&             robot) {
     
     const double TOLL_NO_STOP = 0.05; 
-    double traj_duration_new = std::round(traj_duration / TRAJ_STEP) * TRAJ_STEP;
+    double t_traj_new = std::round(t_traj / TRAJ_STEP) * TRAJ_STEP;
     bool flag_continue = true;
 
     // A segment with no duration carries no motion: skip it instead of
     // building a degenerate polynomial (which would divide by zero).
-    if (traj_duration_new <= 0.0) {
+    if (t_traj_new <= 0.0) {
         std::cout << "executeTrajectory: segment duration is not positive, skipped\n";
         return;
     }
@@ -302,7 +281,7 @@ void executeTrajectory (
     State current_state = RUNNING;
 
     while (flag_continue) {
-        int num_points = static_cast<int>(traj_duration / TRAJ_STEP) + 1;
+        int num_points = static_cast<int>(t_traj / TRAJ_STEP) + 1;
 
         Eigen::MatrixXd Q(num_points, 7);
         Eigen::MatrixXd Q_p(num_points, 7);
@@ -313,7 +292,7 @@ void executeTrajectory (
 
             Eigen::MatrixXd traj = trajPoly5Numeric(q_c(j), 0.0, 0.0,
                                                     q_end(j), 0.0, 0.0,
-                                                    traj_duration_new, num_points);
+                                                    t_traj_new, num_points);
             Q.col(j)    = traj.col(0);
             Q_p.col(j)  = traj.col(1);
             Q_pp.col(j) = traj.col(2);
@@ -460,7 +439,7 @@ void executeTrajectory (
                     idx = std::min(idx, num_points - 1);
 
                     //  Check if trajectory is complete 
-                    if (t >= traj_duration_new) {
+                    if (t >= t_traj_new) {
                         motion_finished = true;
                     } else {
                         q_d = Q.row(idx).transpose();
@@ -561,7 +540,7 @@ void executeTrajectory (
             double t_acc    = vect_t_acc.maxCoeff();
             double added_time = std::max({t_vel, t_acc, 0.5});
 
-            traj_duration_new = std::round(added_time / TRAJ_STEP) * TRAJ_STEP;
+            t_traj_new = std::round(added_time / TRAJ_STEP) * TRAJ_STEP;
             q_c = q_meas;  // restart from where we stopped
 
             // wait for obstacle to move -- this is real idle time: the robot is
@@ -610,138 +589,35 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     }
     RobotModel robot(urdf_path.string());
 
-    // ── Traiettoria del robot, letta da src/trajectories/test<N>/ ───────────
-    // The set holds the waypoints (p_ref.csv, Cartesian, or q_ref.csv, joint
-    // space) and the cumulative time at which each of them is reached
-    // (t_ref.csv).
+    // ── Delay for loading the web interface ─────────────────────────────────
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    // The trajectory is read from src/trajectories/test<N>/: the waypoints can
+    // be given in Cartesian coordinates (p_ref.csv) or in joint coordinates
+    // (q_ref.csv), and the cumulative times (t_ref.csv) give the duration of
+    // every segment.
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
-    TrajectoryData traj;
+    Trajectory nominal_traj;
     try {
-        traj = loadTrajectorySet(traj_dir);
+        nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
     } catch (const std::exception& e) {
-        std::cerr << "Cannot load the trajectory from " << traj_dir << ": "
+        std::cerr << "Cannot load the nominal trajectory from " << traj_dir << ": "
                   << e.what() << "\n";
         return 1;
     }
 
-    const std::vector<double>& t_traj = traj.t;
-
-    // configurazione iniziale
-    Eigen::VectorXd q0 = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
-
-    // Le waypoint: se sono espresse nello spazio 3D vengono risolte in
-    // configurazioni di giunti con la IK, se sono già in spazio giunti
-    // vengono usate direttamente.
-    std::vector<Eigen::VectorXd> q_traj;
-    if (traj.isJointSpace()) {
-        q_traj = traj.q;
-        std::cout << "Loaded " << q_traj.size()
-                  << " joint-space waypoints from " << traj_dir << "\n";
-    } else {
-        const pinocchio::FrameIndex EE_ID = robot.getModel().getFrameId("panda_link8");
-        pinocchio::Data& data_ik = robot.getData();
-        q_traj.reserve(traj.p.size());
-        for (size_t i = 0; i < traj.p.size(); ++i) {
-            pinocchio::SE3 target = buildTarget(traj.p[i]);
-
-            IKResult result = ikine_LM(robot.getModel(), data_ik, target, EE_ID, q0);
-            q_traj.push_back(result.q);
-            q0 = result.q;  // the next waypoint starts from the previous solution
-        }
-        std::cout << "Loaded " << q_traj.size()
-                  << " Cartesian waypoints from " << traj_dir
-                  << " and solved the IK for each of them\n";
-    }
-
-    if (q_traj.empty() || t_traj.empty()) {
-        std::cerr << "The trajectory in " << traj_dir << " is empty\n";
+    if (nominal_traj.q.size() < 2 || nominal_traj.t.empty()) {
+        std::cerr << "The nominal trajectory in " << traj_dir << " is empty\n";
         return 1;
     }
 
-    // ── Configurazione di partenza ─────────────────────────────────────────
-    // The recorded trajectories reach their first waypoint at t = 0, so the
-    // task starts from that waypoint; otherwise the robot starts from the
-    // home configuration and the first segment moves it to the first
-    // waypoint (see executeTask).
-    const bool starts_at_first_waypoint = (t_traj.front() <= 0.0);
-    const Eigen::VectorXd q_task_start = starts_at_first_waypoint
-        ? q_traj.front()
-        : Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
+    auto q_traj = nominal_traj.q;
+    auto t_traj = nominal_traj.t;
 
-    // movimento del robot
-    std::cout << "This will move the robot to the initial joint configuration!\n";
-    try {
-        // The trajectory publisher replaces the libfranka robot handle: the
-        // samples that used to be streamed to the robot at 1 kHz are now
-        // published to web_interface.py via DataTransmitter.
+    try{
         TrajectoryPublisher publisher;
-
-        std::array<double, 7> q_start;
-        {
-            // The simulated robot starts from the home configuration, which is
-            // also what the collision checker sees before the first control tick
-            std::lock_guard<std::mutex> lock(robot_state_mutex);
-            for (int j = 0; j < 7; ++j) {
-                shared_robot_state.q[j] = Q_HOME[j];
-                q_start[j] = Q_HOME[j];
-            }
-        }
-
-        // Duration of the move to the initial joint configuration: it scales
-        // with the distance to travel and is capped, so that a configuration
-        // that is already the starting one does not delay the task.
-        const Eigen::VectorXd q_start_eig =
-            Eigen::Map<const Eigen::Matrix<double, 7, 1>>(q_start.data());
-        const double max_joint_dist = (q_task_start - q_start_eig).cwiseAbs().maxCoeff();
-        const double move_duration = std::clamp(20.0 * max_joint_dist, 0.5, 5.0);
-
-        pinocchio::Data& move_data = robot.getData();
-        auto next_tick = std::chrono::steady_clock::now();
-
-        // Simulated playback of the move to the initial joint configuration:
-        // the same smoothstep interpolation as before, at the old 1 kHz rate
-        for (int tick = 0; ; ++tick) {
-            // period 0 on the first cycle, then the fixed 1 kHz step
-            const double time = tick * TRAJ_STEP;
-            if (time > move_duration) break;
-
-            // Smooth step interpolation (zero velocity at start and end)
-            double s = time / move_duration;
-            s = std::min(s, 1.0);
-            double alpha = s * s * (3.0 - 2.0 * s);  // smoothstep
-
-            Eigen::VectorXd q_cmd(7);
-            for (int j = 0; j < 7; ++j)
-                q_cmd[j] = q_start[j] + alpha * (q_task_start(j) - q_start[j]);
-
-            // stream the commanded configuration to web_interface.py
-            robot.ComputeFK(q_cmd);
-            publisher.publishSample(robot.getModel(), robot.getData(), q_cmd);
-
-            // update the shared state the collision checker reads
-            {
-                std::lock_guard<std::mutex> lock(robot_state_mutex);
-                for (int j = 0; j < 7; ++j) {
-                    shared_robot_state.q[j] = q_cmd(j);
-                    shared_robot_state.q_p[j] = 0.0;
-                    shared_robot_state.q_pp[j] = 0.0;
-                }
-            }
-
-            next_tick += std::chrono::milliseconds(1);
-            std::this_thread::sleep_until(next_tick);
-        }
-
-        std::cout << "Finished moving to initial joint configuration\n";
-        std::cout << "WARNING: Collision thresholds are set to high values.\n";
-        std::cout << "Make sure you have the user stop at hand!\n";
-        std::cout << "Starting the joint control task\n";
-
-        
-        
-
 
         // apri file per logging
         const std::filesystem::path logs_dir = root / "logs";
@@ -781,7 +657,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         //StopDurationOptimizer optimizer(model);
 
-        double traj_duration_prev = 0.0;
+        double t_traj_prev = 0.0;
         Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
 
         // The recorded trajectories reach their first waypoint at t = 0, i.e. the
@@ -792,22 +668,28 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         size_t first_segment = 0;
         if (!t_traj.empty() && !q_traj.empty() && t_traj.front() <= 0.0) {
             q_traj_prev         = q_traj.front();
-            traj_duration_prev  = t_traj.front();
+            t_traj_prev  = t_traj.front();
             first_segment       = 1;
         }
 
         auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
 
-        // esegui la traiettoria secondo i tempi in traj_duration
+        // esegui la traiettoria secondo i tempi in t_traj
         try {
+            const int period_ms = static_cast<int>(dt*1000.0);
+            auto next_time = std::chrono::steady_clock::now();
+
             for (size_t i = first_segment; i < q_traj.size(); i++) {
-                double segment_duration = t_traj[i] - traj_duration_prev;
+                double segment_duration = t_traj[i] - t_traj_prev;
                 if (segment_duration > 0.0) {
                     executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
                                     publisher, robot);
 
-                    traj_duration_prev = t_traj[i];
+                    t_traj_prev = t_traj[i];
                     q_traj_prev = q_traj[i];
+
+                    next_time += std::chrono::milliseconds(period_ms);
+                    std::this_thread::sleep_until(next_time);
                 }
             }
         } catch (...) {

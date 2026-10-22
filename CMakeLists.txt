@@ -53,6 +53,42 @@ target_link_libraries(rula_evaluation PRIVATE
     rt
 )
 
+# ── Main SSM ─────────────────────────────────────────────────────────────────
+add_executable(main_SSM
+    src/main_SSM.cpp
+    src/trajectory_loader.cpp
+    src/trajectory_utils.cpp
+    src/calc_stop_duration.cpp
+    src/flag_stop.cpp
+    src/geometry.cpp
+    src/skeleton_reader.cpp
+    src/robot_model.cpp
+)
+
+target_link_options(main_SSM PRIVATE
+    -Wl,--disable-new-dtags
+    -Wl,-rpath,/usr/local/lib)
+
+target_link_libraries(main_SSM PRIVATE
+    stdc++fs
+    pinocchio::pinocchio
+    Eigen3::Eigen
+    casadi
+    nlohmann_json::nlohmann_json
+    Threads::Threads
+    ${ZMQ_LIBRARIES}
+    rt   # shm_open / shm_unlink used by data_transmitter.hpp
+    /usr/lib/x86_64-linux-gnu/liburdfdom_model.so
+    /usr/lib/x86_64-linux-gnu/liburdfdom_world.so
+    /usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so
+    /usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so
+)
+
+target_include_directories(main_SSM PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${ZMQ_INCLUDE_DIRS}
+)
+
 # ── Main SSMPFL ──────────────────────────────────────────────────────────────
 add_executable(main_SSMPFL 
     src/main_SSMPFL.cpp
@@ -95,38 +131,3 @@ target_link_libraries(main_SSMPFLescape PRIVATE
     OpenMP::OpenMP_CXX
 )
 
-# ── Main SSM ─────────────────────────────────────────────────────────────────
-add_executable(main_SSM
-    src/main_SSM.cpp
-    src/trajectory_loader.cpp
-    src/ik_solver.cpp
-    src/calc_stop_duration.cpp
-    src/flag_stop.cpp
-    src/geometry.cpp
-    src/skeleton_reader.cpp
-    src/robot_model.cpp
-)
-
-target_link_options(main_SSM PRIVATE
-    -Wl,--disable-new-dtags
-    -Wl,-rpath,/usr/local/lib)
-
-target_link_libraries(main_SSM PRIVATE
-    stdc++fs
-    pinocchio::pinocchio
-    Eigen3::Eigen
-    casadi
-    nlohmann_json::nlohmann_json
-    Threads::Threads
-    ${ZMQ_LIBRARIES}
-    rt   # shm_open / shm_unlink used by data_transmitter.hpp
-    /usr/lib/x86_64-linux-gnu/liburdfdom_model.so
-    /usr/lib/x86_64-linux-gnu/liburdfdom_world.so
-    /usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so
-    /usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so
-)
-
-target_include_directories(main_SSM PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${ZMQ_INCLUDE_DIRS}
-)

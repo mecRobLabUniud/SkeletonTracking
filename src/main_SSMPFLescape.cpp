@@ -119,11 +119,18 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
-    Trajectory nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
+    Trajectory nominal_traj;
+    try {
+        nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
+    } catch (const std::exception& e) {
+        std::cerr << "Cannot load the nominal trajectory from " << traj_dir << ": "
+                  << e.what() << "\n";
+        return 1;
+    }
 
-    const int n_steps = static_cast<int>(nominal_traj.t.size());
-    if (n_steps < 2) {
-        throw std::runtime_error(traj_dir.string() + ": the trajectory is too short");
+    if (nominal_traj.q.size() < 2 || nominal_traj.t.empty()) {
+        std::cerr << "The nominal trajectory in " << traj_dir << " is empty\n";
+        return 1;
     }
 
     // ── PFL, SSM and escape trajectory simulation ────────────────────────────────
@@ -188,7 +195,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
 
 
-
+    const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
         auto t0 = std::chrono::steady_clock::now();
         const std::vector<Eigen::Vector3d> skeleton_new = receiveSkeleton(*transmitters[0]);
