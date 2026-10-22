@@ -671,211 +671,7 @@ void executeTrajectory (
 }
 
 
-void executeTask(
-    const std::vector<Eigen::VectorXd>& q_traj,
-    const std::vector<double>& traj_durations,
-    TrajectoryPublisher& publisher,
-    const pinocchio::Model& model,
-    const std::filesystem::path& root) {
-
-    // apri file per logging
-    const std::filesystem::path logs_dir = root / "logs";
-    std::string pathname = logs_dir.string() + "/";
-    resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
-    {
-        std::error_code ec;
-        std::filesystem::create_directories(logs_dir, ec);
-        if (ec) {
-            std::cerr << "executeTask: WARNING could not create '" << logs_dir
-                      << "': " << ec.message() << "\n";
-        }
-    }
-    std::ofstream outfile_q(pathname + "q_robot.xml");
-    std::ofstream outfile_dist(pathname + "dist_segment.xml");
-    std::ofstream outfile_dq(pathname + "dq_robot.xml");
-    std::ofstream outfile_tau(pathname + "tau_robot.xml");
-    std::ofstream outfile_pose(pathname + "pose_robot.xml");
-
-    outfile_q << "<q>\n";
-    outfile_dist << "<distance>\n";
-    outfile_dq << "<dq>\n";
-    outfile_tau << "<tau>\n";
-    outfile_pose << "<pose>\n";
-    std::cout << "Outfiles initiated\n";
-
-    // thread per scheletro e collision check
-    // il processo live riceve lo scheletro fuso pubblicato da data_merging.py
-    // (topic "MERGED", device_id 10 -> porta 6001 + 10 = 6011)
-    std::thread skeleton_thread(receiveSkeletonMerged, "localhost", 10, "MERGED",
-                                 pathname + "skeleton_received.txt");
-
-    std::thread collision_thread(collisionCheckerThread,
-    std::cref(model), std::ref(outfile_dist), std::ref(publisher));
-    
-    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
-
-    //StopDurationOptimizer optimizer(model);
-    pinocchio::Data data(model);
-
-    double traj_duration_prev = 0.0;
-    Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
-
-    // The recorded trajectories reach their first waypoint at t = 0, i.e. the
-    // robot starts the task *at* that waypoint and the playback begins with
-    // the second one. When instead the first waypoint is reached after a
-    // positive time, the robot starts from the home configuration and the
-    // first segment moves it to that waypoint.
-    size_t first_segment = 0;
-    if (!traj_durations.empty() && !q_traj.empty() && traj_durations.front() <= 0.0) {
-        q_traj_prev         = q_traj.front();
-        traj_duration_prev  = traj_durations.front();
-        first_segment       = 1;
-    }
-
-    auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
-
-    // esegui la traiettoria secondo i tempi in traj_duration
-    try {
-        for (size_t i = first_segment; i < q_traj.size(); i++) {
-            double segment_duration = traj_durations[i] - traj_duration_prev;
-            if (segment_duration > 0.0) {
-                executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
-                                publisher, model, data);
-
-                traj_duration_prev = traj_durations[i];
-                q_traj_prev = q_traj[i];
-            }
-        }
-    } catch (...) {
-        // A playback fault propagated up from executeTrajectory. Still need to
-        // stop the skeleton/collision threads and close the log files
-        // properly before this task ends otherwise a fault leaks
-        // threads and leaves truncated/unflushed log files behind, on top
-        // of the actual error.
-        std::cerr << "executeTask: aborting due to playback fault, cleaning up\n";
-        trajectory_done.store(true);
-        skeleton_thread.join();
-        collision_thread.join();
-        logger_thread.join();
-        outfile_q << "</q>\n";
-        outfile_dist << "</distance>\n";
-        outfile_dq << "</dq>\n";
-        outfile_tau << "</tau>\n";
-        outfile_pose << "</pose>\n";
-        outfile_q.close();
-        outfile_dist.close();
-        outfile_dq.close();
-        outfile_tau.close();
-        outfile_pose.close();
-        flushIdleStreak();
-        writeMetricsFile(pathname);  // still save whatever metrics were gathered before the fault
-        throw;  // let the caller (main) know the task did not complete
-
-    }
-
-    double real_elapsed = std::chrono::duration<double>(
-        std::chrono::steady_clock::now() - task_start).count();
-    const double nominal_duration = traj_durations.empty() ? 0.0 : traj_durations.back();
-    std::cout << "Nominal trajectory duration: " << nominal_duration
-              << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
-
-    trajectory_done.store(true);
-
-    skeleton_thread.join();
-    collision_thread.join();
-    logger_thread.join();
-
-    outfile_q << "</q>\n";
-    outfile_dist << "</distance>\n";
-    outfile_dq << "</dq>\n";
-    outfile_tau << "</tau>\n";
-    outfile_pose << "</pose>\n";
-    outfile_q.close();
-    outfile_dist.close();
-    outfile_dq.close();
-    outfile_tau.close();
-    outfile_pose.close();
-
-    flushIdleStreak();
-    writeMetricsFile(pathname);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Locate the project root, i.e. the directory holding src/urdf/,
-// src/trajectories/ and logs/.
-//
-// The root is looked up in this order:
-//   1) the path given on the command line (run.sh passes the repository root)
-//   2) the current working directory
-//   3) the parent of the executable's directory (build/ -> project root)
-//
-// so that the demo can be launched either from the build directory or from the
-// project root, with no path depending on the current working directory.
-// ─────────────────────────────────────────────────────────────────────────────
-static std::filesystem::path findProjectRoot(const std::string& explicit_root = "") {
-    namespace fs = std::filesystem;
-    std::error_code ec;
-
-    const auto is_root = [](const fs::path& p) {
-        std::error_code ec2;
-        return fs::exists(p / "src" / "urdf" / "panda.urdf", ec2);
-    };
-
-    // 1) the path given on the command line
-    if (!explicit_root.empty()) {
-        fs::path p = fs::path(explicit_root);
-        if (p.is_relative()) p = fs::absolute(p, ec);
-        if (!ec && is_root(p)) return p;
-    }
-
-    // 2) the current working directory
-    fs::path cwd = fs::current_path(ec);
-    if (!ec && is_root(cwd)) return cwd;
-
-    // 3) the parent of the executable's directory (build/ -> project root)
-    fs::path exe = fs::read_symlink("/proc/self/exe", ec);
-    if (!ec) {
-        fs::path root = exe.parent_path().parent_path();
-        if (is_root(root)) return root;
-
-        root = exe.parent_path();
-        if (is_root(root)) return root;
-    }
-
-    return cwd;  // fallback: the files below will simply fail to open
-}
-
-
-int main(int argc, char** argv) {
-    // ── Command line: <trajectory index> [repository root] ──────────────────
-    // The trajectory index selects the set under src/trajectories (test<N>/),
-    // the repository root is the directory holding src/ and scripts/.
-    int n_traj = -1;
-    std::string root_arg;
-    if (argc > 1) {
-        try {
-            std::string arg(argv[1]);
-            const char* begin = arg.data();
-            const char* end   = arg.data() + arg.size();
-            auto [ptr, ec] = std::from_chars(begin, end, n_traj);
-            if (ec != std::errc{} || ptr != end || n_traj < 0)
-                throw 1;
-        }
-        catch (int) {
-            std::cerr << "Error: the trajectory index must be a valid non-negative integer."
-                      << std::endl;
-            return 1;
-        }
-    }
-    else {
-        std::cerr << "Error: the trajectory index is required "
-                     "(usage: " << argv[0] << " <traj_index> [repo_dir])." << std::endl;
-        return 1;
-    }
-    if (argc > 2) root_arg = argv[2];
-
-    const std::filesystem::path root = findProjectRoot(root_arg);
-
+int execute_task (int n_traj, const std::filesystem::path& root) {
     // Caricamento del modello URDF del robot Panda utilizzando Pinocchio per calcoli cinematici avanzati
     pinocchio::Model model;
     const std::filesystem::path urdf_path = root / "src" / "urdf" / "panda.urdf";
@@ -1013,7 +809,137 @@ int main(int argc, char** argv) {
         std::cout << "Make sure you have the user stop at hand!\n";
         std::cout << "Starting the joint control task\n";
 
-        executeTask(q_traj, t_traj, publisher, model, root);
+        
+        
+
+
+
+
+        // apri file per logging
+        const std::filesystem::path logs_dir = root / "logs";
+        std::string pathname = logs_dir.string() + "/";
+        resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
+        {
+            std::error_code ec;
+            std::filesystem::create_directories(logs_dir, ec);
+            if (ec) {
+                std::cerr << "executeTask: WARNING could not create '" << logs_dir
+                        << "': " << ec.message() << "\n";
+            }
+        }
+        std::ofstream outfile_q(pathname + "q_robot.xml");
+        std::ofstream outfile_dist(pathname + "dist_segment.xml");
+        std::ofstream outfile_dq(pathname + "dq_robot.xml");
+        std::ofstream outfile_tau(pathname + "tau_robot.xml");
+        std::ofstream outfile_pose(pathname + "pose_robot.xml");
+
+        outfile_q << "<q>\n";
+        outfile_dist << "<distance>\n";
+        outfile_dq << "<dq>\n";
+        outfile_tau << "<tau>\n";
+        outfile_pose << "<pose>\n";
+        std::cout << "Outfiles initiated\n";
+
+        // thread per scheletro e collision check
+        // il processo live riceve lo scheletro fuso pubblicato da data_merging.py
+        // (topic "MERGED", device_id 10 -> porta 6001 + 10 = 6011)
+        std::thread skeleton_thread(receiveSkeletonMerged, "localhost", 10, "MERGED",
+                                    pathname + "skeleton_received.txt");
+
+        std::thread collision_thread(collisionCheckerThread,
+        std::cref(model), std::ref(outfile_dist), std::ref(publisher));
+        
+        std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
+
+        //StopDurationOptimizer optimizer(model);
+        pinocchio::Data data(model);
+
+        double traj_duration_prev = 0.0;
+        Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
+
+        // The recorded trajectories reach their first waypoint at t = 0, i.e. the
+        // robot starts the task *at* that waypoint and the playback begins with
+        // the second one. When instead the first waypoint is reached after a
+        // positive time, the robot starts from the home configuration and the
+        // first segment moves it to that waypoint.
+        size_t first_segment = 0;
+        if (!t_traj.empty() && !q_traj.empty() && t_traj.front() <= 0.0) {
+            q_traj_prev         = q_traj.front();
+            traj_duration_prev  = t_traj.front();
+            first_segment       = 1;
+        }
+
+        auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
+
+        // esegui la traiettoria secondo i tempi in traj_duration
+        try {
+            for (size_t i = first_segment; i < q_traj.size(); i++) {
+                double segment_duration = t_traj[i] - traj_duration_prev;
+                if (segment_duration > 0.0) {
+                    executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
+                                    publisher, model, data);
+
+                    traj_duration_prev = t_traj[i];
+                    q_traj_prev = q_traj[i];
+                }
+            }
+        } catch (...) {
+            // A playback fault propagated up from executeTrajectory. Still need to
+            // stop the skeleton/collision threads and close the log files
+            // properly before this task ends otherwise a fault leaks
+            // threads and leaves truncated/unflushed log files behind, on top
+            // of the actual error.
+            std::cerr << "executeTask: aborting due to playback fault, cleaning up\n";
+            trajectory_done.store(true);
+            skeleton_thread.join();
+            collision_thread.join();
+            logger_thread.join();
+            outfile_q << "</q>\n";
+            outfile_dist << "</distance>\n";
+            outfile_dq << "</dq>\n";
+            outfile_tau << "</tau>\n";
+            outfile_pose << "</pose>\n";
+            outfile_q.close();
+            outfile_dist.close();
+            outfile_dq.close();
+            outfile_tau.close();
+            outfile_pose.close();
+            flushIdleStreak();
+            writeMetricsFile(pathname);  // still save whatever metrics were gathered before the fault
+            throw;  // let the caller (main) know the task did not complete
+
+        }
+
+        double real_elapsed = std::chrono::duration<double>(
+            std::chrono::steady_clock::now() - task_start).count();
+        const double nominal_duration = t_traj.empty() ? 0.0 : t_traj.back();
+        std::cout << "Nominal trajectory duration: " << nominal_duration
+                << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
+
+        trajectory_done.store(true);
+
+        skeleton_thread.join();
+        collision_thread.join();
+        logger_thread.join();
+
+        outfile_q << "</q>\n";
+        outfile_dist << "</distance>\n";
+        outfile_dq << "</dq>\n";
+        outfile_tau << "</tau>\n";
+        outfile_pose << "</pose>\n";
+        outfile_q.close();
+        outfile_dist.close();
+        outfile_dq.close();
+        outfile_tau.close();
+        outfile_pose.close();
+
+        flushIdleStreak();
+        writeMetricsFile(pathname);
+
+
+
+
+
 
         std::cout << "Trajectory completed, " << t_traj.back()
                 << " seconds have passed, shutting down example\n";
@@ -1025,6 +951,95 @@ int main(int argc, char** argv) {
         trajectory_done.store(true);
         return -1;
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Locate the project root, i.e. the directory holding src/urdf/,
+// src/trajectories/ and logs/.
+//
+// The root is looked up in this order:
+//   1) the path given on the command line (run.sh passes the repository root)
+//   2) the current working directory
+//   3) the parent of the executable's directory (build/ -> project root)
+//
+// so that the demo can be launched either from the build directory or from the
+// project root, with no path depending on the current working directory.
+// ─────────────────────────────────────────────────────────────────────────────
+static std::filesystem::path findProjectRoot(const std::string& explicit_root = "") {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+
+    const auto is_root = [](const fs::path& p) {
+        std::error_code ec2;
+        return fs::exists(p / "src" / "urdf" / "panda.urdf", ec2);
+    };
+
+    // 1) the path given on the command line
+    if (!explicit_root.empty()) {
+        fs::path p = fs::path(explicit_root);
+        if (p.is_relative()) p = fs::absolute(p, ec);
+        if (!ec && is_root(p)) return p;
+    }
+
+    // 2) the current working directory
+    fs::path cwd = fs::current_path(ec);
+    if (!ec && is_root(cwd)) return cwd;
+
+    // 3) the parent of the executable's directory (build/ -> project root)
+    fs::path exe = fs::read_symlink("/proc/self/exe", ec);
+    if (!ec) {
+        fs::path root = exe.parent_path().parent_path();
+        if (is_root(root)) return root;
+
+        root = exe.parent_path();
+        if (is_root(root)) return root;
+    }
+
+    return cwd;  // fallback: the files below will simply fail to open
+}
+
+
+int main(int argc, char** argv) {
+    // ── Command line: <trajectory index> [repository root] ──────────────────
+    // The trajectory index selects the set under src/trajectories (test<N>/),
+    // the repository root is the directory holding src/ and scripts/.
+    int n_traj = -1;
+    std::string root_arg;
+    if (argc > 1) {
+        try {
+            std::string arg(argv[1]);
+            const char* begin = arg.data();
+            const char* end   = arg.data() + arg.size();
+            auto [ptr, ec] = std::from_chars(begin, end, n_traj);
+            if (ec != std::errc{} || ptr != end || n_traj < 0)
+                throw 1;
+        }
+        catch (int) {
+            std::cerr << "Error: the trajectory index must be a valid non-negative integer."
+                      << std::endl;
+            return 1;
+        }
+    }
+    else {
+        std::cerr << "Error: the trajectory index is required "
+                     "(usage: " << argv[0] << " <traj_index> [repo_dir])." << std::endl;
+        return 1;
+    }
+    if (argc > 2) root_arg = argv[2];
+
+    const std::filesystem::path root = findProjectRoot(root_arg);
+
+    try {
+        if (execute_task(n_traj, root)) return 1;
+    }
+    catch (const std::exception& e) {
+        // Anything unexpected exits cleanly with a clear message, instead of
+        // terminating the process with a core dump.
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+
+    printf("Exiting cleanly...\n");
 
     return 0;
 }
