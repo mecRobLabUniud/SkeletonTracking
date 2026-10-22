@@ -53,7 +53,7 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
 // segment, so each segment is sampled at the control rate and the playback
 // takes exactly the recorded time.
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj, int N,
+Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj,
                                double dt, const std::string& p_csv,
                                const std::string& t_csv) {
 
@@ -131,7 +131,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
                           std::vector<double>* vnorm, Trajectory& out, const double t_end, double& t) {
         // The segment is sampled at the control rate, so that the playback
         // takes exactly the recorded duration.
-        const int n = std::max(2, static_cast<int>(std::lround(t_end / dt)) + 1);
+        const int n = std::max(2, static_cast<int>(std::lround(t_end / dt)));
 
         Traj tr = QuinticPolyTraj(a, b, t_end, dt, n);
 
@@ -155,13 +155,14 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     // ── Segment assembly ────────────────────────────────────────────────────
     const size_t n_seg = robot_q.size() - 1;
     std::vector<double> v_norm;
+    int N = robot_t[robot_t.size() - 1]/dt;
     Trajectory traj;
-    traj.q.reserve(N * n_seg);
-    traj.qd.reserve(N * n_seg);
-    traj.qdd.reserve(N * n_seg);
-    traj.p.reserve(N * n_seg);
-    traj.pd.reserve(N * n_seg);
-    traj.t.reserve(N * n_seg);
+    traj.q.reserve(N);
+    traj.qd.reserve(N);
+    traj.qdd.reserve(N);
+    traj.p.reserve(N);
+    traj.pd.reserve(N);
+    traj.t.reserve(N);
 
     double t = 0;
     for (size_t i = 0; i < n_seg; ++i) {

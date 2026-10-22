@@ -57,6 +57,6 @@ struct Trajectory {
 // (a segment with a non-positive duration carries no motion and is skipped).
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir,
-                               int n_traj, int N, double dt,
+                               int n_traj, double dt,
                                const std::string& p_csv = "",
                                const std::string& t_csv = "");

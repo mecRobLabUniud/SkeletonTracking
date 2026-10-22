@@ -104,20 +104,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── Data transmitters ───────────────────────────────────────────────────
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
     transmitters.reserve(3);
-    // The merged skeleton is received over ZeroMQ only: the shared-memory
-    // frame buffer is not needed here, and attaching to it would block until
-    // data_merging.py creates the segment.
     transmitters.push_back(std::make_unique<DataTransmitter>(
-        DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, /*use_shm=*/false));
+        DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
     // ── Delay for loading the web interface ─────────────────────────────────
     std::this_thread::sleep_for(std::chrono::seconds(5));
-
-    double time_final = 5.0;
-
-    const int N = static_cast<int>(std::lround(time_final / dt)) + 1;
 
     // The trajectory is read from src/trajectories/test<N>/: the waypoints can
     // be given in Cartesian coordinates (p_ref.csv) or in joint coordinates
@@ -126,7 +119,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
-    Trajectory nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, N, dt);
+    Trajectory nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
 
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     if (n_steps < 2) {

@@ -9,267 +9,6 @@
 		<point id='6'>0.127787</point>
 	</keypoint>
 	<keypoint time='0.0166667'>
-		<point id='0'>0.171434</point>
-		<point id='1'>0.619047</point>
-		<point id='2'>-0.0369391</point>
-		<point id='3'>-1.51607</point>
-		<point id='4'>0.0253548</point>
-		<point id='5'>2.13465</point>
-		<point id='6'>0.12779</point>
-	</keypoint>
-	<keypoint time='0.0333333'>
-		<point id='0'>0.171439</point>
-		<point id='1'>0.619051</point>
-		<point id='2'>-0.0369238</point>
-		<point id='3'>-1.51607</point>
-		<point id='4'>0.0253439</point>
-		<point id='5'>2.13465</point>
-		<point id='6'>0.127811</point>
-	</keypoint>
-	<keypoint time='0.05'>
-		<point id='0'>0.171454</point>
-		<point id='1'>0.619062</point>
-		<point id='2'>-0.0368825</point>
-		<point id='3'>-1.51607</point>
-		<point id='4'>0.0253148</point>
-		<point id='5'>2.13463</point>
-		<point id='6'>0.127865</point>
-	</keypoint>
-	<keypoint time='0.0666667'>
-		<point id='0'>0.171483</point>
-		<point id='1'>0.619082</point>
-		<point id='2'>-0.036803</point>
-		<point id='3'>-1.51606</point>
-		<point id='4'>0.0252587</point>
-		<point id='5'>2.13461</point>
-		<point id='6'>0.12797</point>
-	</keypoint>
-	<keypoint time='0.0833333'>
-		<point id='0'>0.171529</point>
-		<point id='1'>0.619115</point>
-		<point id='2'>-0.0366735</point>
-		<point id='3'>-1.51604</point>
-		<point id='4'>0.0251673</point>
-		<point id='5'>2.13456</point>
-		<point id='6'>0.128142</point>
-	</keypoint>
-	<keypoint time='0.1'>
-		<point id='0'>0.171598</point>
-		<point id='1'>0.619163</point>
-		<point id='2'>-0.0364824</point>
-		<point id='3'>-1.51601</point>
-		<point id='4'>0.0250325</point>
-		<point id='5'>2.13449</point>
-		<point id='6'>0.128394</point>
-	</keypoint>
-	<keypoint time='0.116667'>
-		<point id='0'>0.171694</point>
-		<point id='1'>0.61923</point>
-		<point id='2'>-0.0362188</point>
-		<point id='3'>-1.51598</point>
-		<point id='4'>0.0248464</point>
-		<point id='5'>2.1344</point>
-		<point id='6'>0.128743</point>
-	</keypoint>
-	<keypoint time='0.133333'>
-		<point id='0'>0.171819</point>
-		<point id='1'>0.619317</point>
-		<point id='2'>-0.035872</point>
-		<point id='3'>-1.51594</point>
-		<point id='4'>0.0246017</point>
-		<point id='5'>2.13428</point>
-		<point id='6'>0.129202</point>
-	</keypoint>
-	<keypoint time='0.15'>
-		<point id='0'>0.171978</point>
-		<point id='1'>0.619429</point>
-		<point id='2'>-0.0354319</point>
-		<point id='3'>-1.51588</point>
-		<point id='4'>0.024291</point>
-		<point id='5'>2.13413</point>
-		<point id='6'>0.129784</point>
-	</keypoint>
-	<keypoint time='0.166667'>
-		<point id='0'>0.172174</point>
-		<point id='1'>0.619566</point>
-		<point id='2'>-0.0348886</point>
-		<point id='3'>-1.51581</point>
-		<point id='4'>0.0239076</point>
-		<point id='5'>2.13394</point>
-		<point id='6'>0.130503</point>
-	</keypoint>
-	<keypoint time='0.183333'>
-		<point id='0'>0.172411</point>
-		<point id='1'>0.619732</point>
-		<point id='2'>-0.0342327</point>
-		<point id='3'>-1.51572</point>
-		<point id='4'>0.0234447</point>
-		<point id='5'>2.13371</point>
-		<point id='6'>0.13137</point>
-	</keypoint>
-	<keypoint time='0.2'>
-		<point id='0'>0.172692</point>
-		<point id='1'>0.619929</point>
-		<point id='2'>-0.0334554</point>
-		<point id='3'>-1.51562</point>
-		<point id='4'>0.0228961</point>
-		<point id='5'>2.13343</point>
-		<point id='6'>0.132399</point>
-	</keypoint>
-	<keypoint time='0.216667'>
-		<point id='0'>0.173019</point>
-		<point id='1'>0.620158</point>
-		<point id='2'>-0.0325479</point>
-		<point id='3'>-1.5155</point>
-		<point id='4'>0.0222556</point>
-		<point id='5'>2.13312</point>
-		<point id='6'>0.133599</point>
-	</keypoint>
-	<keypoint time='0.233333'>
-		<point id='0'>0.173397</point>
-		<point id='1'>0.620423</point>
-		<point id='2'>-0.0315021</point>
-		<point id='3'>-1.51537</point>
-		<point id='4'>0.0215175</point>
-		<point id='5'>2.13275</point>
-		<point id='6'>0.134983</point>
-	</keypoint>
-	<keypoint time='0.25'>
-		<point id='0'>0.173828</point>
-		<point id='1'>0.620725</point>
-		<point id='2'>-0.0303101</point>
-		<point id='3'>-1.51521</point>
-		<point id='4'>0.0206763</point>
-		<point id='5'>2.13233</point>
-		<point id='6'>0.136559</point>
-	</keypoint>
-	<keypoint time='0.266667'>
-		<point id='0'>0.174314</point>
-		<point id='1'>0.621065</point>
-		<point id='2'>-0.0289644</point>
-		<point id='3'>-1.51504</point>
-		<point id='4'>0.0197266</point>
-		<point id='5'>2.13186</point>
-		<point id='6'>0.138339</point>
-	</keypoint>
-	<keypoint time='0.283333'>
-		<point id='0'>0.174858</point>
-		<point id='1'>0.621446</point>
-		<point id='2'>-0.0274581</point>
-		<point id='3'>-1.51484</point>
-		<point id='4'>0.0186635</point>
-		<point id='5'>2.13134</point>
-		<point id='6'>0.140332</point>
-	</keypoint>
-	<keypoint time='0.3'>
-		<point id='0'>0.175462</point>
-		<point id='1'>0.62187</point>
-		<point id='2'>-0.0257844</point>
-		<point id='3'>-1.51462</point>
-		<point id='4'>0.0174823</point>
-		<point id='5'>2.13075</point>
-		<point id='6'>0.142546</point>
-	</keypoint>
-	<keypoint time='0.316667'>
-		<point id='0'>0.176129</point>
-		<point id='1'>0.622337</point>
-		<point id='2'>-0.023937</point>
-		<point id='3'>-1.51438</point>
-		<point id='4'>0.0161784</point>
-		<point id='5'>2.1301</point>
-		<point id='6'>0.14499</point>
-	</keypoint>
-	<keypoint time='0.333333'>
-		<point id='0'>0.176861</point>
-		<point id='1'>0.62285</point>
-		<point id='2'>-0.0219098</point>
-		<point id='3'>-1.51412</point>
-		<point id='4'>0.0147477</point>
-		<point id='5'>2.1294</point>
-		<point id='6'>0.147672</point>
-	</keypoint>
-	<keypoint time='0.35'>
-		<point id='0'>0.177661</point>
-		<point id='1'>0.62341</point>
-		<point id='2'>-0.0196972</point>
-		<point id='3'>-1.51383</point>
-		<point id='4'>0.0131861</point>
-		<point id='5'>2.12862</point>
-		<point id='6'>0.150598</point>
-	</keypoint>
-	<keypoint time='0.366667'>
-		<point id='0'>0.178528</point>
-		<point id='1'>0.624018</point>
-		<point id='2'>-0.0172939</point>
-		<point id='3'>-1.51351</point>
-		<point id='4'>0.01149</point>
-		<point id='5'>2.12778</point>
-		<point id='6'>0.153778</point>
-	</keypoint>
-	<keypoint time='0.383333'>
-		<point id='0'>0.179467</point>
-		<point id='1'>0.624675</point>
-		<point id='2'>-0.014695</point>
-		<point id='3'>-1.51318</point>
-		<point id='4'>0.00965584</point>
-		<point id='5'>2.12687</point>
-		<point id='6'>0.157215</point>
-	</keypoint>
-	<keypoint time='0.4'>
-		<point id='0'>0.180478</point>
-		<point id='1'>0.625384</point>
-		<point id='2'>-0.0118959</point>
-		<point id='3'>-1.51281</point>
-		<point id='4'>0.00768035</point>
-		<point id='5'>2.12589</point>
-		<point id='6'>0.160918</point>
-	</keypoint>
-	<keypoint time='0.416667'>
-		<point id='0'>0.181563</point>
-		<point id='1'>0.626144</point>
-		<point id='2'>-0.00889227</point>
-		<point id='3'>-1.51242</point>
-		<point id='4'>0.00556051</point>
-		<point id='5'>2.12484</point>
-		<point id='6'>0.164891</point>
-	</keypoint>
-	<keypoint time='0.433333'>
-		<point id='0'>0.182723</point>
-		<point id='1'>0.626956</point>
-		<point id='2'>-0.00568018</point>
-		<point id='3'>-1.512</point>
-		<point id='4'>0.00329356</point>
-		<point id='5'>2.12372</point>
-		<point id='6'>0.16914</point>
-	</keypoint>
-	<keypoint time='0.45'>
-		<point id='0'>0.183959</point>
-		<point id='1'>0.627823</point>
-		<point id='2'>-0.00225601</point>
-		<point id='3'>-1.51156</point>
-		<point id='4'>0.000876932</point>
-		<point id='5'>2.12252</point>
-		<point id='6'>0.17367</point>
-	</keypoint>
-	<keypoint time='0.466667'>
-		<point id='0'>0.185274</point>
-		<point id='1'>0.628744</point>
-		<point id='2'>0.00138355</point>
-		<point id='3'>-1.51108</point>
-		<point id='4'>-0.00169172</point>
-		<point id='5'>2.12125</point>
-		<point id='6'>0.178484</point>
-	</keypoint>
-	<keypoint time='0.483333'>
-		<point id='0'>0.186667</point>
-		<point id='1'>0.62972</point>
-		<point id='2'>0.0052415</point>
-		<point id='3'>-1.51058</point>
-		<point id='4'>-0.00441449</point>
-		<point id='5'>2.1199</point>
-		<point id='6'>0.183588</point>
-	</keypoint>
-	<keypoint time='0.5'>
 		<point id='0'>0.18814</point>
 		<point id='1'>0.630752</point>
 		<point id='2'>0.00932053</point>
@@ -278,268 +17,7 @@
 		<point id='5'>2.11847</point>
 		<point id='6'>0.188984</point>
 	</keypoint>
-	<keypoint time='0.516667'>
-		<point id='0'>0.189694</point>
-		<point id='1'>0.63184</point>
-		<point id='2'>0.013623</point>
-		<point id='3'>-1.50949</point>
-		<point id='4'>-0.0103298</point>
-		<point id='5'>2.11697</point>
-		<point id='6'>0.194675</point>
-	</keypoint>
-	<keypoint time='0.533333'>
-		<point id='0'>0.19133</point>
-		<point id='1'>0.632986</point>
-		<point id='2'>0.0181511</point>
-		<point id='3'>-1.5089</point>
-		<point id='4'>-0.0135255</point>
-		<point id='5'>2.11538</point>
-		<point id='6'>0.200665</point>
-	</keypoint>
-	<keypoint time='0.55'>
-		<point id='0'>0.193047</point>
-		<point id='1'>0.634189</point>
-		<point id='2'>0.0229064</point>
-		<point id='3'>-1.50828</point>
-		<point id='4'>-0.0168817</point>
-		<point id='5'>2.11372</point>
-		<point id='6'>0.206955</point>
-	</keypoint>
-	<keypoint time='0.566667'>
-		<point id='0'>0.194847</point>
-		<point id='1'>0.63545</point>
-		<point id='2'>0.0278907</point>
-		<point id='3'>-1.50763</point>
-		<point id='4'>-0.0203993</point>
-		<point id='5'>2.11198</point>
-		<point id='6'>0.213549</point>
-	</keypoint>
-	<keypoint time='0.583333'>
-		<point id='0'>0.19673</point>
-		<point id='1'>0.636769</point>
-		<point id='2'>0.033105</point>
-		<point id='3'>-1.50695</point>
-		<point id='4'>-0.0240793</point>
-		<point id='5'>2.11015</point>
-		<point id='6'>0.220446</point>
-	</keypoint>
-	<keypoint time='0.6'>
-		<point id='0'>0.198697</point>
-		<point id='1'>0.638147</point>
-		<point id='2'>0.0385503</point>
-		<point id='3'>-1.50624</point>
-		<point id='4'>-0.0279224</point>
-		<point id='5'>2.10825</point>
-		<point id='6'>0.22765</point>
-	</keypoint>
-	<keypoint time='0.616667'>
-		<point id='0'>0.200747</point>
-		<point id='1'>0.639583</point>
-		<point id='2'>0.0442273</point>
-		<point id='3'>-1.5055</point>
-		<point id='4'>-0.031929</point>
-		<point id='5'>2.10626</point>
-		<point id='6'>0.235159</point>
-	</keypoint>
-	<keypoint time='0.633333'>
-		<point id='0'>0.202881</point>
-		<point id='1'>0.641078</point>
-		<point id='2'>0.0501364</point>
-		<point id='3'>-1.50473</point>
-		<point id='4'>-0.0360994</point>
-		<point id='5'>2.10419</point>
-		<point id='6'>0.242976</point>
-	</keypoint>
-	<keypoint time='0.65'>
-		<point id='0'>0.205099</point>
-		<point id='1'>0.642632</point>
-		<point id='2'>0.0562778</point>
-		<point id='3'>-1.50393</point>
-		<point id='4'>-0.0404337</point>
-		<point id='5'>2.10205</point>
-		<point id='6'>0.2511</point>
-	</keypoint>
-	<keypoint time='0.666667'>
-		<point id='0'>0.207401</point>
-		<point id='1'>0.644245</point>
-		<point id='2'>0.0626512</point>
-		<point id='3'>-1.5031</point>
-		<point id='4'>-0.0449318</point>
-		<point id='5'>2.09982</point>
-		<point id='6'>0.259531</point>
-	</keypoint>
-	<keypoint time='0.683333'>
-		<point id='0'>0.209786</point>
-		<point id='1'>0.645916</point>
-		<point id='2'>0.0692564</point>
-		<point id='3'>-1.50224</point>
-		<point id='4'>-0.0495935</point>
-		<point id='5'>2.09751</point>
-		<point id='6'>0.268268</point>
-	</keypoint>
-	<keypoint time='0.7'>
-		<point id='0'>0.212255</point>
-		<point id='1'>0.647646</point>
-		<point id='2'>0.0760927</point>
-		<point id='3'>-1.50135</point>
-		<point id='4'>-0.0544183</point>
-		<point id='5'>2.09511</point>
-		<point id='6'>0.277312</point>
-	</keypoint>
-	<keypoint time='0.716667'>
-		<point id='0'>0.214808</point>
-		<point id='1'>0.649434</point>
-		<point id='2'>0.0831593</point>
-		<point id='3'>-1.50043</point>
-		<point id='4'>-0.0594056</point>
-		<point id='5'>2.09264</point>
-		<point id='6'>0.286659</point>
-	</keypoint>
-	<keypoint time='0.733333'>
-		<point id='0'>0.217442</point>
-		<point id='1'>0.65128</point>
-		<point id='2'>0.0904551</point>
-		<point id='3'>-1.49948</point>
-		<point id='4'>-0.0645546</point>
-		<point id='5'>2.09009</point>
-		<point id='6'>0.29631</point>
-	</keypoint>
-	<keypoint time='0.75'>
-		<point id='0'>0.22016</point>
-		<point id='1'>0.653183</point>
-		<point id='2'>0.0979787</point>
-		<point id='3'>-1.4985</point>
-		<point id='4'>-0.0698644</point>
-		<point id='5'>2.08746</point>
-		<point id='6'>0.306263</point>
-	</keypoint>
-	<keypoint time='0.766667'>
-		<point id='0'>0.222958</point>
-		<point id='1'>0.655144</point>
-		<point id='2'>0.105728</point>
-		<point id='3'>-1.49749</point>
-		<point id='4'>-0.0753339</point>
-		<point id='5'>2.08475</point>
-		<point id='6'>0.316514</point>
-	</keypoint>
-	<keypoint time='0.783333'>
-		<point id='0'>0.225838</point>
-		<point id='1'>0.657161</point>
-		<point id='2'>0.113703</point>
-		<point id='3'>-1.49645</point>
-		<point id='4'>-0.0809618</point>
-		<point id='5'>2.08196</point>
-		<point id='6'>0.327063</point>
-	</keypoint>
-	<keypoint time='0.8'>
-		<point id='0'>0.228799</point>
-		<point id='1'>0.659235</point>
-		<point id='2'>0.1219</point>
-		<point id='3'>-1.49538</point>
-		<point id='4'>-0.0867468</point>
-		<point id='5'>2.07909</point>
-		<point id='6'>0.337906</point>
-	</keypoint>
-	<keypoint time='0.816667'>
-		<point id='0'>0.231839</point>
-		<point id='1'>0.661365</point>
-		<point id='2'>0.130317</point>
-		<point id='3'>-1.49429</point>
-		<point id='4'>-0.0926871</point>
-		<point id='5'>2.07615</point>
-		<point id='6'>0.34904</point>
-	</keypoint>
-	<keypoint time='0.833333'>
-		<point id='0'>0.234957</point>
-		<point id='1'>0.66355</point>
-		<point id='2'>0.138951</point>
-		<point id='3'>-1.49316</point>
-		<point id='4'>-0.0987813</point>
-		<point id='5'>2.07313</point>
-		<point id='6'>0.360462</point>
-	</keypoint>
-	<keypoint time='0.85'>
-		<point id='0'>0.238153</point>
-		<point id='1'>0.665789</point>
-		<point id='2'>0.147802</point>
-		<point id='3'>-1.49201</point>
-		<point id='4'>-0.105027</point>
-		<point id='5'>2.07003</point>
-		<point id='6'>0.37217</point>
-	</keypoint>
-	<keypoint time='0.866667'>
-		<point id='0'>0.241426</point>
-		<point id='1'>0.668082</point>
-		<point id='2'>0.156864</point>
-		<point id='3'>-1.49083</point>
-		<point id='4'>-0.111423</point>
-		<point id='5'>2.06686</point>
-		<point id='6'>0.384157</point>
-	</keypoint>
-	<keypoint time='0.883333'>
-		<point id='0'>0.244775</point>
-		<point id='1'>0.670428</point>
-		<point id='2'>0.166136</point>
-		<point id='3'>-1.48962</point>
-		<point id='4'>-0.117967</point>
-		<point id='5'>2.06362</point>
-		<point id='6'>0.396422</point>
-	</keypoint>
-	<keypoint time='0.9'>
-		<point id='0'>0.248198</point>
-		<point id='1'>0.672826</point>
-		<point id='2'>0.175614</point>
-		<point id='3'>-1.48838</point>
-		<point id='4'>-0.124656</point>
-		<point id='5'>2.0603</point>
-		<point id='6'>0.40896</point>
-	</keypoint>
-	<keypoint time='0.916667'>
-		<point id='0'>0.251694</point>
-		<point id='1'>0.675275</point>
-		<point id='2'>0.185294</point>
-		<point id='3'>-1.48712</point>
-		<point id='4'>-0.131488</point>
-		<point id='5'>2.05691</point>
-		<point id='6'>0.421766</point>
-	</keypoint>
-	<keypoint time='0.933333'>
-		<point id='0'>0.255262</point>
-		<point id='1'>0.677774</point>
-		<point id='2'>0.195174</point>
-		<point id='3'>-1.48584</point>
-		<point id='4'>-0.138461</point>
-		<point id='5'>2.05346</point>
-		<point id='6'>0.434835</point>
-	</keypoint>
-	<keypoint time='0.95'>
-		<point id='0'>0.258901</point>
-		<point id='1'>0.680324</point>
-		<point id='2'>0.205249</point>
-		<point id='3'>-1.48452</point>
-		<point id='4'>-0.145571</point>
-		<point id='5'>2.04993</point>
-		<point id='6'>0.448163</point>
-	</keypoint>
-	<keypoint time='0.966667'>
-		<point id='0'>0.262609</point>
-		<point id='1'>0.682921</point>
-		<point id='2'>0.215516</point>
-		<point id='3'>-1.48319</point>
-		<point id='4'>-0.152817</point>
-		<point id='5'>2.04634</point>
-		<point id='6'>0.461744</point>
-	</keypoint>
-	<keypoint time='0.983333'>
-		<point id='0'>0.266384</point>
-		<point id='1'>0.685566</point>
-		<point id='2'>0.22597</point>
-		<point id='3'>-1.48182</point>
-		<point id='4'>-0.160195</point>
-		<point id='5'>2.04269</point>
-		<point id='6'>0.475572</point>
-	</keypoint>
-	<keypoint time='1'>
+	<keypoint time='0.0333333'>
 		<point id='0'>0.270226</point>
 		<point id='1'>0.688258</point>
 		<point id='2'>0.236607</point>
@@ -548,268 +26,7 @@
 		<point id='5'>2.03897</point>
 		<point id='6'>0.489644</point>
 	</keypoint>
-	<keypoint time='1.01667'>
-		<point id='0'>0.274132</point>
-		<point id='1'>0.690994</point>
-		<point id='2'>0.247423</point>
-		<point id='3'>-1.47903</point>
-		<point id='4'>-0.175336</point>
-		<point id='5'>2.03518</point>
-		<point id='6'>0.503951</point>
-	</keypoint>
-	<keypoint time='1.03333'>
-		<point id='0'>0.278101</point>
-		<point id='1'>0.693775</point>
-		<point id='2'>0.258413</point>
-		<point id='3'>-1.4776</point>
-		<point id='4'>-0.183092</point>
-		<point id='5'>2.03134</point>
-		<point id='6'>0.51849</point>
-	</keypoint>
-	<keypoint time='1.05'>
-		<point id='0'>0.282132</point>
-		<point id='1'>0.696598</point>
-		<point id='2'>0.269573</point>
-		<point id='3'>-1.47614</point>
-		<point id='4'>-0.190969</point>
-		<point id='5'>2.02743</point>
-		<point id='6'>0.533252</point>
-	</keypoint>
-	<keypoint time='1.06667'>
-		<point id='0'>0.286221</point>
-		<point id='1'>0.699464</point>
-		<point id='2'>0.280898</point>
-		<point id='3'>-1.47467</point>
-		<point id='4'>-0.198961</point>
-		<point id='5'>2.02347</point>
-		<point id='6'>0.548232</point>
-	</keypoint>
-	<keypoint time='1.08333'>
-		<point id='0'>0.290369</point>
-		<point id='1'>0.702369</point>
-		<point id='2'>0.292382</point>
-		<point id='3'>-1.47317</point>
-		<point id='4'>-0.207066</point>
-		<point id='5'>2.01946</point>
-		<point id='6'>0.563424</point>
-	</keypoint>
-	<keypoint time='1.1'>
-		<point id='0'>0.294572</point>
-		<point id='1'>0.705314</point>
-		<point id='2'>0.304021</point>
-		<point id='3'>-1.47166</point>
-		<point id='4'>-0.21528</point>
-		<point id='5'>2.01538</point>
-		<point id='6'>0.57882</point>
-	</keypoint>
-	<keypoint time='1.11667'>
-		<point id='0'>0.29883</point>
-		<point id='1'>0.708297</point>
-		<point id='2'>0.31581</point>
-		<point id='3'>-1.47012</point>
-		<point id='4'>-0.2236</point>
-		<point id='5'>2.01126</point>
-		<point id='6'>0.594414</point>
-	</keypoint>
-	<keypoint time='1.13333'>
-		<point id='0'>0.303139</point>
-		<point id='1'>0.711316</point>
-		<point id='2'>0.327742</point>
-		<point id='3'>-1.46857</point>
-		<point id='4'>-0.232022</point>
-		<point id='5'>2.00709</point>
-		<point id='6'>0.610199</point>
-	</keypoint>
-	<keypoint time='1.15'>
-		<point id='0'>0.307499</point>
-		<point id='1'>0.71437</point>
-		<point id='2'>0.339813</point>
-		<point id='3'>-1.46699</point>
-		<point id='4'>-0.240541</point>
-		<point id='5'>2.00286</point>
-		<point id='6'>0.626167</point>
-	</keypoint>
-	<keypoint time='1.16667'>
-		<point id='0'>0.311907</point>
-		<point id='1'>0.717458</point>
-		<point id='2'>0.352018</point>
-		<point id='3'>-1.4654</point>
-		<point id='4'>-0.249154</point>
-		<point id='5'>1.99859</point>
-		<point id='6'>0.642311</point>
-	</keypoint>
-	<keypoint time='1.18333'>
-		<point id='0'>0.31636</point>
-		<point id='1'>0.720578</point>
-		<point id='2'>0.364349</point>
-		<point id='3'>-1.4638</point>
-		<point id='4'>-0.257858</point>
-		<point id='5'>1.99428</point>
-		<point id='6'>0.658624</point>
-	</keypoint>
-	<keypoint time='1.2'>
-		<point id='0'>0.320858</point>
-		<point id='1'>0.723729</point>
-		<point id='2'>0.376803</point>
-		<point id='3'>-1.46218</point>
-		<point id='4'>-0.266647</point>
-		<point id='5'>1.98992</point>
-		<point id='6'>0.675098</point>
-	</keypoint>
-	<keypoint time='1.21667'>
-		<point id='0'>0.325397</point>
-		<point id='1'>0.726909</point>
-		<point id='2'>0.389372</point>
-		<point id='3'>-1.46054</point>
-		<point id='4'>-0.275518</point>
-		<point id='5'>1.98553</point>
-		<point id='6'>0.691725</point>
-	</keypoint>
-	<keypoint time='1.23333'>
-		<point id='0'>0.329977</point>
-		<point id='1'>0.730117</point>
-		<point id='2'>0.402052</point>
-		<point id='3'>-1.45889</point>
-		<point id='4'>-0.284466</point>
-		<point id='5'>1.98109</point>
-		<point id='6'>0.708497</point>
-	</keypoint>
-	<keypoint time='1.25'>
-		<point id='0'>0.334593</point>
-		<point id='1'>0.733351</point>
-		<point id='2'>0.414835</point>
-		<point id='3'>-1.45722</point>
-		<point id='4'>-0.293488</point>
-		<point id='5'>1.97662</point>
-		<point id='6'>0.725407</point>
-	</keypoint>
-	<keypoint time='1.26667'>
-		<point id='0'>0.339245</point>
-		<point id='1'>0.73661</point>
-		<point id='2'>0.427716</point>
-		<point id='3'>-1.45554</point>
-		<point id='4'>-0.302579</point>
-		<point id='5'>1.97211</point>
-		<point id='6'>0.742446</point>
-	</keypoint>
-	<keypoint time='1.28333'>
-		<point id='0'>0.34393</point>
-		<point id='1'>0.739892</point>
-		<point id='2'>0.440688</point>
-		<point id='3'>-1.45385</point>
-		<point id='4'>-0.311734</point>
-		<point id='5'>1.96758</point>
-		<point id='6'>0.759607</point>
-	</keypoint>
-	<keypoint time='1.3'>
-		<point id='0'>0.348646</point>
-		<point id='1'>0.743196</point>
-		<point id='2'>0.453746</point>
-		<point id='3'>-1.45215</point>
-		<point id='4'>-0.32095</point>
-		<point id='5'>1.96301</point>
-		<point id='6'>0.77688</point>
-	</keypoint>
-	<keypoint time='1.31667'>
-		<point id='0'>0.353391</point>
-		<point id='1'>0.74652</point>
-		<point id='2'>0.466883</point>
-		<point id='3'>-1.45044</point>
-		<point id='4'>-0.330221</point>
-		<point id='5'>1.95841</point>
-		<point id='6'>0.794258</point>
-	</keypoint>
-	<keypoint time='1.33333'>
-		<point id='0'>0.358161</point>
-		<point id='1'>0.749862</point>
-		<point id='2'>0.480092</point>
-		<point id='3'>-1.44872</point>
-		<point id='4'>-0.339544</point>
-		<point id='5'>1.95379</point>
-		<point id='6'>0.811732</point>
-	</keypoint>
-	<keypoint time='1.35'>
-		<point id='0'>0.362956</point>
-		<point id='1'>0.753221</point>
-		<point id='2'>0.493368</point>
-		<point id='3'>-1.44699</point>
-		<point id='4'>-0.348913</point>
-		<point id='5'>1.94915</point>
-		<point id='6'>0.829293</point>
-	</keypoint>
-	<keypoint time='1.36667'>
-		<point id='0'>0.367772</point>
-		<point id='1'>0.756595</point>
-		<point id='2'>0.506704</point>
-		<point id='3'>-1.44525</point>
-		<point id='4'>-0.358325</point>
-		<point id='5'>1.94448</point>
-		<point id='6'>0.846934</point>
-	</keypoint>
-	<keypoint time='1.38333'>
-		<point id='0'>0.372607</point>
-		<point id='1'>0.759982</point>
-		<point id='2'>0.520092</point>
-		<point id='3'>-1.44351</point>
-		<point id='4'>-0.367774</point>
-		<point id='5'>1.9398</point>
-		<point id='6'>0.864644</point>
-	</keypoint>
-	<keypoint time='1.4'>
-		<point id='0'>0.37746</point>
-		<point id='1'>0.763382</point>
-		<point id='2'>0.533528</point>
-		<point id='3'>-1.44176</point>
-		<point id='4'>-0.377256</point>
-		<point id='5'>1.9351</point>
-		<point id='6'>0.882417</point>
-	</keypoint>
-	<keypoint time='1.41667'>
-		<point id='0'>0.382326</point>
-		<point id='1'>0.766791</point>
-		<point id='2'>0.547003</point>
-		<point id='3'>-1.44</point>
-		<point id='4'>-0.386767</point>
-		<point id='5'>1.93039</point>
-		<point id='6'>0.900242</point>
-	</keypoint>
-	<keypoint time='1.43333'>
-		<point id='0'>0.387205</point>
-		<point id='1'>0.770209</point>
-		<point id='2'>0.560512</point>
-		<point id='3'>-1.43824</point>
-		<point id='4'>-0.3963</point>
-		<point id='5'>1.92566</point>
-		<point id='6'>0.918112</point>
-	</keypoint>
-	<keypoint time='1.45'>
-		<point id='0'>0.392093</point>
-		<point id='1'>0.773633</point>
-		<point id='2'>0.574047</point>
-		<point id='3'>-1.43648</point>
-		<point id='4'>-0.405853</point>
-		<point id='5'>1.92093</point>
-		<point id='6'>0.936017</point>
-	</keypoint>
-	<keypoint time='1.46667'>
-		<point id='0'>0.396989</point>
-		<point id='1'>0.777063</point>
-		<point id='2'>0.587603</point>
-		<point id='3'>-1.43471</point>
-		<point id='4'>-0.41542</point>
-		<point id='5'>1.91619</point>
-		<point id='6'>0.953949</point>
-	</keypoint>
-	<keypoint time='1.48333'>
-		<point id='0'>0.40189</point>
-		<point id='1'>0.780496</point>
-		<point id='2'>0.601172</point>
-		<point id='3'>-1.43295</point>
-		<point id='4'>-0.424997</point>
-		<point id='5'>1.91144</point>
-		<point id='6'>0.971898</point>
-	</keypoint>
-	<keypoint time='1.5'>
+	<keypoint time='0.05'>
 		<point id='0'>0.406793</point>
 		<point id='1'>0.783931</point>
 		<point id='2'>0.614748</point>
@@ -818,268 +35,7 @@
 		<point id='5'>1.90669</point>
 		<point id='6'>0.989857</point>
 	</keypoint>
-	<keypoint time='1.51667'>
-		<point id='0'>0.411695</point>
-		<point id='1'>0.787366</point>
-		<point id='2'>0.628323</point>
-		<point id='3'>-1.42941</point>
-		<point id='4'>-0.444159</point>
-		<point id='5'>1.90194</point>
-		<point id='6'>1.00781</point>
-	</keypoint>
-	<keypoint time='1.53333'>
-		<point id='0'>0.416596</point>
-		<point id='1'>0.790799</point>
-		<point id='2'>0.641892</point>
-		<point id='3'>-1.42764</point>
-		<point id='4'>-0.453735</point>
-		<point id='5'>1.89719</point>
-		<point id='6'>1.02576</point>
-	</keypoint>
-	<keypoint time='1.55'>
-		<point id='0'>0.421492</point>
-		<point id='1'>0.794229</point>
-		<point id='2'>0.655448</point>
-		<point id='3'>-1.42588</point>
-		<point id='4'>-0.463302</point>
-		<point id='5'>1.89245</point>
-		<point id='6'>1.0437</point>
-	</keypoint>
-	<keypoint time='1.56667'>
-		<point id='0'>0.42638</point>
-		<point id='1'>0.797653</point>
-		<point id='2'>0.668984</point>
-		<point id='3'>-1.42411</point>
-		<point id='4'>-0.472855</point>
-		<point id='5'>1.88772</point>
-		<point id='6'>1.0616</point>
-	</keypoint>
-	<keypoint time='1.58333'>
-		<point id='0'>0.431259</point>
-		<point id='1'>0.801071</point>
-		<point id='2'>0.682492</point>
-		<point id='3'>-1.42235</point>
-		<point id='4'>-0.482389</point>
-		<point id='5'>1.88299</point>
-		<point id='6'>1.07947</point>
-	</keypoint>
-	<keypoint time='1.6'>
-		<point id='0'>0.436125</point>
-		<point id='1'>0.804481</point>
-		<point id='2'>0.695968</point>
-		<point id='3'>-1.4206</point>
-		<point id='4'>-0.4919</point>
-		<point id='5'>1.87828</point>
-		<point id='6'>1.0973</point>
-	</keypoint>
-	<keypoint time='1.61667'>
-		<point id='0'>0.440978</point>
-		<point id='1'>0.80788</point>
-		<point id='2'>0.709403</point>
-		<point id='3'>-1.41885</point>
-		<point id='4'>-0.501382</point>
-		<point id='5'>1.87358</point>
-		<point id='6'>1.11507</point>
-	</keypoint>
-	<keypoint time='1.63333'>
-		<point id='0'>0.445813</point>
-		<point id='1'>0.811267</point>
-		<point id='2'>0.722792</point>
-		<point id='3'>-1.4171</point>
-		<point id='4'>-0.510831</point>
-		<point id='5'>1.8689</point>
-		<point id='6'>1.13278</point>
-	</keypoint>
-	<keypoint time='1.65'>
-		<point id='0'>0.450629</point>
-		<point id='1'>0.814641</point>
-		<point id='2'>0.736127</point>
-		<point id='3'>-1.41537</point>
-		<point id='4'>-0.520242</point>
-		<point id='5'>1.86423</point>
-		<point id='6'>1.15042</point>
-	</keypoint>
-	<keypoint time='1.66667'>
-		<point id='0'>0.455424</point>
-		<point id='1'>0.818</point>
-		<point id='2'>0.749403</point>
-		<point id='3'>-1.41364</point>
-		<point id='4'>-0.529612</point>
-		<point id='5'>1.85959</point>
-		<point id='6'>1.16798</point>
-	</keypoint>
-	<keypoint time='1.68333'>
-		<point id='0'>0.460194</point>
-		<point id='1'>0.821342</point>
-		<point id='2'>0.762612</point>
-		<point id='3'>-1.41192</point>
-		<point id='4'>-0.538934</point>
-		<point id='5'>1.85497</point>
-		<point id='6'>1.18546</point>
-	</keypoint>
-	<keypoint time='1.7'>
-		<point id='0'>0.464939</point>
-		<point id='1'>0.824666</point>
-		<point id='2'>0.775749</point>
-		<point id='3'>-1.4102</point>
-		<point id='4'>-0.548206</point>
-		<point id='5'>1.85037</point>
-		<point id='6'>1.20283</point>
-	</keypoint>
-	<keypoint time='1.71667'>
-		<point id='0'>0.469655</point>
-		<point id='1'>0.82797</point>
-		<point id='2'>0.788807</point>
-		<point id='3'>-1.4085</point>
-		<point id='4'>-0.557422</point>
-		<point id='5'>1.8458</point>
-		<point id='6'>1.22011</point>
-	</keypoint>
-	<keypoint time='1.73333'>
-		<point id='0'>0.47434</point>
-		<point id='1'>0.831252</point>
-		<point id='2'>0.80178</point>
-		<point id='3'>-1.40681</point>
-		<point id='4'>-0.566577</point>
-		<point id='5'>1.84127</point>
-		<point id='6'>1.23727</point>
-	</keypoint>
-	<keypoint time='1.75'>
-		<point id='0'>0.478992</point>
-		<point id='1'>0.834511</point>
-		<point id='2'>0.814661</point>
-		<point id='3'>-1.40514</point>
-		<point id='4'>-0.575668</point>
-		<point id='5'>1.83676</point>
-		<point id='6'>1.25431</point>
-	</keypoint>
-	<keypoint time='1.76667'>
-		<point id='0'>0.483608</point>
-		<point id='1'>0.837745</point>
-		<point id='2'>0.827444</point>
-		<point id='3'>-1.40347</point>
-		<point id='4'>-0.58469</point>
-		<point id='5'>1.83229</point>
-		<point id='6'>1.27122</point>
-	</keypoint>
-	<keypoint time='1.78333'>
-		<point id='0'>0.488188</point>
-		<point id='1'>0.840953</point>
-		<point id='2'>0.840123</point>
-		<point id='3'>-1.40182</point>
-		<point id='4'>-0.593638</point>
-		<point id='5'>1.82785</point>
-		<point id='6'>1.28799</point>
-	</keypoint>
-	<keypoint time='1.81667'>
-		<point id='0'>0.488188</point>
-		<point id='1'>0.840953</point>
-		<point id='2'>0.840123</point>
-		<point id='3'>-1.40182</point>
-		<point id='4'>-0.593638</point>
-		<point id='5'>1.82785</point>
-		<point id='6'>1.28799</point>
-	</keypoint>
-	<keypoint time='1.83333'>
-		<point id='0'>0.497225</point>
-		<point id='1'>0.847284</point>
-		<point id='2'>0.865146</point>
-		<point id='3'>-1.39856</point>
-		<point id='4'>-0.611298</point>
-		<point id='5'>1.8191</point>
-		<point id='6'>1.32109</point>
-	</keypoint>
-	<keypoint time='1.85'>
-		<point id='0'>0.501678</point>
-		<point id='1'>0.850404</point>
-		<point id='2'>0.877478</point>
-		<point id='3'>-1.39695</point>
-		<point id='4'>-0.620001</point>
-		<point id='5'>1.81479</point>
-		<point id='6'>1.3374</point>
-	</keypoint>
-	<keypoint time='1.88333'>
-		<point id='0'>0.501678</point>
-		<point id='1'>0.850404</point>
-		<point id='2'>0.877478</point>
-		<point id='3'>-1.39695</point>
-		<point id='4'>-0.620001</point>
-		<point id='5'>1.81479</point>
-		<point id='6'>1.3374</point>
-	</keypoint>
-	<keypoint time='1.91667'>
-		<point id='0'>0.501678</point>
-		<point id='1'>0.850404</point>
-		<point id='2'>0.877478</point>
-		<point id='3'>-1.39695</point>
-		<point id='4'>-0.620001</point>
-		<point id='5'>1.81479</point>
-		<point id='6'>1.3374</point>
-	</keypoint>
-	<keypoint time='1.95'>
-		<point id='0'>0.501678</point>
-		<point id='1'>0.850404</point>
-		<point id='2'>0.877478</point>
-		<point id='3'>-1.39695</point>
-		<point id='4'>-0.620001</point>
-		<point id='5'>1.81479</point>
-		<point id='6'>1.3374</point>
-	</keypoint>
-	<keypoint time='1.96667'>
-		<point id='0'>0.519013</point>
-		<point id='1'>0.862548</point>
-		<point id='2'>0.925474</point>
-		<point id='3'>-1.3907</point>
-		<point id='4'>-0.653875</point>
-		<point id='5'>1.798</point>
-		<point id='6'>1.40089</point>
-	</keypoint>
-	<keypoint time='2'>
-		<point id='0'>0.519013</point>
-		<point id='1'>0.862548</point>
-		<point id='2'>0.925474</point>
-		<point id='3'>-1.3907</point>
-		<point id='4'>-0.653875</point>
-		<point id='5'>1.798</point>
-		<point id='6'>1.40089</point>
-	</keypoint>
-	<keypoint time='2.03333'>
-		<point id='0'>0.519013</point>
-		<point id='1'>0.862548</point>
-		<point id='2'>0.925474</point>
-		<point id='3'>-1.3907</point>
-		<point id='4'>-0.653875</point>
-		<point id='5'>1.798</point>
-		<point id='6'>1.40089</point>
-	</keypoint>
-	<keypoint time='2.05'>
-		<point id='0'>0.531453</point>
-		<point id='1'>0.871264</point>
-		<point id='2'>0.959922</point>
-		<point id='3'>-1.38621</point>
-		<point id='4'>-0.678187</point>
-		<point id='5'>1.78595</point>
-		<point id='6'>1.44646</point>
-	</keypoint>
-	<keypoint time='2.08333'>
-		<point id='0'>0.531453</point>
-		<point id='1'>0.871264</point>
-		<point id='2'>0.959922</point>
-		<point id='3'>-1.38621</point>
-		<point id='4'>-0.678187</point>
-		<point id='5'>1.78595</point>
-		<point id='6'>1.44646</point>
-	</keypoint>
-	<keypoint time='2.11667'>
-		<point id='0'>0.531453</point>
-		<point id='1'>0.871264</point>
-		<point id='2'>0.959922</point>
-		<point id='3'>-1.38621</point>
-		<point id='4'>-0.678187</point>
-		<point id='5'>1.78595</point>
-		<point id='6'>1.44646</point>
-	</keypoint>
-	<keypoint time='2.13333'>
+	<keypoint time='0.0666667'>
 		<point id='0'>0.543359</point>
 		<point id='1'>0.879605</point>
 		<point id='2'>0.992888</point>
@@ -1088,7 +44,34 @@
 		<point id='5'>1.77441</point>
 		<point id='6'>1.49007</point>
 	</keypoint>
-	<keypoint time='2.16667'>
+	<keypoint time='0.0833333'>
+		<point id='0'>0.625445</point>
+		<point id='1'>0.93711</point>
+		<point id='2'>1.22017</point>
+		<point id='3'>-1.35231</point>
+		<point id='4'>-0.861862</point>
+		<point id='5'>1.69491</point>
+		<point id='6'>1.79073</point>
+	</keypoint>
+	<keypoint time='0.1'>
+		<point id='0'>0.642152</point>
+		<point id='1'>0.948815</point>
+		<point id='2'>1.26644</point>
+		<point id='3'>-1.34628</point>
+		<point id='4'>-0.894512</point>
+		<point id='5'>1.67873</point>
+		<point id='6'>1.85193</point>
+	</keypoint>
+	<keypoint time='0.116667'>
+		<point id='0'>0.625445</point>
+		<point id='1'>0.93711</point>
+		<point id='2'>1.22017</point>
+		<point id='3'>-1.35231</point>
+		<point id='4'>-0.861862</point>
+		<point id='5'>1.69491</point>
+		<point id='6'>1.79073</point>
+	</keypoint>
+	<keypoint time='0.133333'>
 		<point id='0'>0.543359</point>
 		<point id='1'>0.879605</point>
 		<point id='2'>0.992888</point>
@@ -1097,7 +80,70 @@
 		<point id='5'>1.77441</point>
 		<point id='6'>1.49007</point>
 	</keypoint>
-	<keypoint time='2.2'>
+	<keypoint time='0.15'>
+		<point id='0'>0.406793</point>
+		<point id='1'>0.783931</point>
+		<point id='2'>0.614748</point>
+		<point id='3'>-1.43118</point>
+		<point id='4'>-0.434578</point>
+		<point id='5'>1.90669</point>
+		<point id='6'>0.989857</point>
+	</keypoint>
+	<keypoint time='0.166667'>
+		<point id='0'>0.270226</point>
+		<point id='1'>0.688258</point>
+		<point id='2'>0.236607</point>
+		<point id='3'>-1.48044</point>
+		<point id='4'>-0.167702</point>
+		<point id='5'>2.03897</point>
+		<point id='6'>0.489644</point>
+	</keypoint>
+	<keypoint time='0.183333'>
+		<point id='0'>0.18814</point>
+		<point id='1'>0.630752</point>
+		<point id='2'>0.00932053</point>
+		<point id='3'>-1.51005</point>
+		<point id='4'>-0.0072933</point>
+		<point id='5'>2.11847</point>
+		<point id='6'>0.188984</point>
+	</keypoint>
+	<keypoint time='0.2'>
+		<point id='0'>0.171433</point>
+		<point id='1'>0.619047</point>
+		<point id='2'>-0.0369413</point>
+		<point id='3'>-1.51607</point>
+		<point id='4'>0.0253564</point>
+		<point id='5'>2.13465</point>
+		<point id='6'>0.127787</point>
+	</keypoint>
+	<keypoint time='0.216667'>
+		<point id='0'>0.18814</point>
+		<point id='1'>0.630752</point>
+		<point id='2'>0.00932053</point>
+		<point id='3'>-1.51005</point>
+		<point id='4'>-0.0072933</point>
+		<point id='5'>2.11847</point>
+		<point id='6'>0.188984</point>
+	</keypoint>
+	<keypoint time='0.233333'>
+		<point id='0'>0.270226</point>
+		<point id='1'>0.688258</point>
+		<point id='2'>0.236607</point>
+		<point id='3'>-1.48044</point>
+		<point id='4'>-0.167702</point>
+		<point id='5'>2.03897</point>
+		<point id='6'>0.489644</point>
+	</keypoint>
+	<keypoint time='0.25'>
+		<point id='0'>0.406793</point>
+		<point id='1'>0.783931</point>
+		<point id='2'>0.614748</point>
+		<point id='3'>-1.43118</point>
+		<point id='4'>-0.434578</point>
+		<point id='5'>1.90669</point>
+		<point id='6'>0.989857</point>
+	</keypoint>
+	<keypoint time='0.266667'>
 		<point id='0'>0.543359</point>
 		<point id='1'>0.879605</point>
 		<point id='2'>0.992888</point>
@@ -1106,816 +152,123 @@
 		<point id='5'>1.77441</point>
 		<point id='6'>1.49007</point>
 	</keypoint>
-	<keypoint time='2.21667'>
-		<point id='0'>0.554684</point>
-		<point id='1'>0.887538</point>
-		<point id='2'>1.02425</point>
-		<point id='3'>-1.37783</point>
-		<point id='4'>-0.723584</point>
-		<point id='5'>1.76345</point>
-		<point id='6'>1.53155</point>
-	</keypoint>
-	<keypoint time='2.25'>
-		<point id='0'>0.554684</point>
-		<point id='1'>0.887538</point>
-		<point id='2'>1.02425</point>
-		<point id='3'>-1.37783</point>
-		<point id='4'>-0.723584</point>
-		<point id='5'>1.76345</point>
-		<point id='6'>1.53155</point>
-	</keypoint>
-	<keypoint time='2.28333'>
-		<point id='0'>0.554684</point>
-		<point id='1'>0.887538</point>
-		<point id='2'>1.02425</point>
-		<point id='3'>-1.37783</point>
-		<point id='4'>-0.723584</point>
-		<point id='5'>1.76345</point>
-		<point id='6'>1.53155</point>
-	</keypoint>
-	<keypoint time='2.31667'>
-		<point id='0'>0.554684</point>
-		<point id='1'>0.887538</point>
-		<point id='2'>1.02425</point>
-		<point id='3'>-1.37783</point>
-		<point id='4'>-0.723584</point>
-		<point id='5'>1.76345</point>
-		<point id='6'>1.53155</point>
-	</keypoint>
-	<keypoint time='2.35'>
-		<point id='0'>0.554684</point>
-		<point id='1'>0.887538</point>
-		<point id='2'>1.02425</point>
-		<point id='3'>-1.37783</point>
-		<point id='4'>-0.723584</point>
-		<point id='5'>1.76345</point>
-		<point id='6'>1.53155</point>
-	</keypoint>
-	<keypoint time='2.38333'>
-		<point id='0'>0.554684</point>
-		<point id='1'>0.887538</point>
-		<point id='2'>1.02425</point>
-		<point id='3'>-1.37783</point>
-		<point id='4'>-0.723584</point>
-		<point id='5'>1.76345</point>
-		<point id='6'>1.53155</point>
-	</keypoint>
-	<keypoint time='2.4'>
-		<point id='0'>0.575432</point>
-		<point id='1'>0.902073</point>
-		<point id='2'>1.08169</point>
-		<point id='3'>-1.37035</point>
-		<point id='4'>-0.764128</point>
-		<point id='5'>1.74335</point>
-		<point id='6'>1.60754</point>
-	</keypoint>
-	<keypoint time='2.43333'>
-		<point id='0'>0.575432</point>
-		<point id='1'>0.902073</point>
-		<point id='2'>1.08169</point>
-		<point id='3'>-1.37035</point>
-		<point id='4'>-0.764128</point>
-		<point id='5'>1.74335</point>
-		<point id='6'>1.60754</point>
-	</keypoint>
-	<keypoint time='2.46667'>
-		<point id='0'>0.575432</point>
-		<point id='1'>0.902073</point>
-		<point id='2'>1.08169</point>
-		<point id='3'>-1.37035</point>
-		<point id='4'>-0.764128</point>
-		<point id='5'>1.74335</point>
-		<point id='6'>1.60754</point>
-	</keypoint>
-	<keypoint time='2.48333'>
-		<point id='0'>0.584786</point>
-		<point id='1'>0.908627</point>
-		<point id='2'>1.1076</point>
-		<point id='3'>-1.36697</point>
-		<point id='4'>-0.782409</point>
-		<point id='5'>1.73429</point>
-		<point id='6'>1.64181</point>
-	</keypoint>
-	<keypoint time='2.51667'>
-		<point id='0'>0.584786</point>
-		<point id='1'>0.908627</point>
-		<point id='2'>1.1076</point>
-		<point id='3'>-1.36697</point>
-		<point id='4'>-0.782409</point>
-		<point id='5'>1.73429</point>
-		<point id='6'>1.64181</point>
-	</keypoint>
-	<keypoint time='2.55'>
-		<point id='0'>0.584786</point>
-		<point id='1'>0.908627</point>
-		<point id='2'>1.1076</point>
-		<point id='3'>-1.36697</point>
-		<point id='4'>-0.782409</point>
-		<point id='5'>1.73429</point>
-		<point id='6'>1.64181</point>
-	</keypoint>
-	<keypoint time='2.56667'>
-		<point id='0'>0.593425</point>
-		<point id='1'>0.914679</point>
-		<point id='2'>1.13152</point>
-		<point id='3'>-1.36386</point>
-		<point id='4'>-0.799291</point>
-		<point id='5'>1.72592</point>
-		<point id='6'>1.67345</point>
-	</keypoint>
-	<keypoint time='2.6'>
-		<point id='0'>0.593425</point>
-		<point id='1'>0.914679</point>
-		<point id='2'>1.13152</point>
-		<point id='3'>-1.36386</point>
-		<point id='4'>-0.799291</point>
-		<point id='5'>1.72592</point>
-		<point id='6'>1.67345</point>
-	</keypoint>
-	<keypoint time='2.63333'>
-		<point id='0'>0.593425</point>
-		<point id='1'>0.914679</point>
-		<point id='2'>1.13152</point>
-		<point id='3'>-1.36386</point>
-		<point id='4'>-0.799291</point>
-		<point id='5'>1.72592</point>
-		<point id='6'>1.67345</point>
-	</keypoint>
-	<keypoint time='2.65'>
-		<point id='0'>0.60133</point>
-		<point id='1'>0.920216</point>
-		<point id='2'>1.1534</point>
-		<point id='3'>-1.36101</point>
-		<point id='4'>-0.814737</point>
-		<point id='5'>1.71827</point>
-		<point id='6'>1.7024</point>
-	</keypoint>
-	<keypoint time='2.68333'>
-		<point id='0'>0.60133</point>
-		<point id='1'>0.920216</point>
-		<point id='2'>1.1534</point>
-		<point id='3'>-1.36101</point>
-		<point id='4'>-0.814737</point>
-		<point id='5'>1.71827</point>
-		<point id='6'>1.7024</point>
-	</keypoint>
-	<keypoint time='2.71667'>
-		<point id='0'>0.60133</point>
-		<point id='1'>0.920216</point>
-		<point id='2'>1.1534</point>
-		<point id='3'>-1.36101</point>
-		<point id='4'>-0.814737</point>
-		<point id='5'>1.71827</point>
-		<point id='6'>1.7024</point>
-	</keypoint>
-	<keypoint time='2.75'>
-		<point id='0'>0.60133</point>
-		<point id='1'>0.920216</point>
-		<point id='2'>1.1534</point>
-		<point id='3'>-1.36101</point>
-		<point id='4'>-0.814737</point>
-		<point id='5'>1.71827</point>
-		<point id='6'>1.7024</point>
-	</keypoint>
-	<keypoint time='2.76667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='2.8'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='2.83333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='2.86667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='2.9'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='2.93333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='2.96667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.03333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.06667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.1'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.13333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.16667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.2'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.23333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.26667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.3'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.33333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.36667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.4'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.43333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.46667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.5'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.53333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.56667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.6'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.63333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.66667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.7'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.73333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.76667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.8'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.83333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.86667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.9'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.93333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='3.96667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.03333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.06667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.1'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.13333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.16667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.2'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.23333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.26667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.3'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.33333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.36667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.4'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.43333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.46667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.5'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.53333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.56667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.6'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.63333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.66667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.7'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.73333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.76667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.8'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.83333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.86667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.9'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.93333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='4.96667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='5'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='5.03333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='5.06667'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='5.1'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
-		<point id='2'>1.17936</point>
-		<point id='3'>-1.35763</point>
-		<point id='4'>-0.833056</point>
-		<point id='5'>1.70919</point>
-		<point id='6'>1.73674</point>
-	</keypoint>
-	<keypoint time='5.13333'>
-		<point id='0'>0.610704</point>
-		<point id='1'>0.926784</point>
+	<keypoint time='0.283333'>
+		<point id='0'>0.625445</point>
+		<point id='1'>0.93711</point>
+		<point id='2'>1.22017</point>
+		<point id='3'>-1.35231</point>
+		<point id='4'>-0.861862</point>
+		<point id='5'>1.69491</point>
+		<point id='6'>1.79073</point>
+	</keypoint>
+	<keypoint time='0.3'>
+		<point id='0'>0.642152</point>
+		<point id='1'>0.948815</point>
+		<point id='2'>1.26644</point>
+		<point id='3'>-1.34628</point>
+		<point id='4'>-0.894512</point>
+		<point id='5'>1.67873</point>
+		<point id='6'>1.85193</point>
+	</keypoint>
+	<keypoint time='0.316667'>
+		<point id='0'>0.625445</point>
+		<point id='1'>0.93711</point>
+		<point id='2'>1.22017</point>
+		<point id='3'>-1.35231</point>
+		<point id='4'>-0.861862</point>
+		<point id='5'>1.69491</point>
+		<point id='6'>1.79073</point>
+	</keypoint>
+	<keypoint time='0.333333'>
+		<point id='0'>0.543359</point>
+		<point id='1'>0.879605</point>
+		<point id='2'>0.992888</point>
+		<point id='3'>-1.38192</point>
+		<point id='4'>-0.701453</point>
+		<point id='5'>1.77441</point>
+		<point id='6'>1.49007</point>
+	</keypoint>
+	<keypoint time='0.35'>
+		<point id='0'>0.406793</point>
+		<point id='1'>0.783931</point>
+		<point id='2'>0.614748</point>
+		<point id='3'>-1.43118</point>
+		<point id='4'>-0.434578</point>
+		<point id='5'>1.90669</point>
+		<point id='6'>0.989857</point>
+	</keypoint>
+	<keypoint time='0.366667'>
+		<point id='0'>0.270226</point>
+		<point id='1'>0.688258</point>
+		<point id='2'>0.236607</point>
+		<point id='3'>-1.48044</point>
+		<point id='4'>-0.167702</point>
+		<point id='5'>2.03897</point>
+		<point id='6'>0.489644</point>
+	</keypoint>
+	<keypoint time='0.383333'>
+		<point id='0'>0.18814</point>
+		<point id='1'>0.630752</point>
+		<point id='2'>0.00932053</point>
+		<point id='3'>-1.51005</point>
+		<point id='4'>-0.0072933</point>
+		<point id='5'>2.11847</point>
+		<point id='6'>0.188984</point>
+	</keypoint>
+	<keypoint time='0.4'>
+		<point id='0'>0.171433</point>
+		<point id='1'>0.619047</point>
+		<point id='2'>-0.0369413</point>
+		<point id='3'>-1.51607</point>
+		<point id='4'>0.0253564</point>
+		<point id='5'>2.13465</point>
+		<point id='6'>0.127787</point>
+	</keypoint>
+	<keypoint time='0.416667'>
+		<point id='0'>0.18814</point>
+		<point id='1'>0.630752</point>
+		<point id='2'>0.00932053</point>
+		<point id='3'>-1.51005</point>
+		<point id='4'>-0.0072933</point>
+		<point id='5'>2.11847</point>
+		<point id='6'>0.188984</point>
+	</keypoint>
+	<keypoint time='0.433333'>
+		<point id='0'>0.270226</point>
+		<point id='1'>0.688258</point>
+		<point id='2'>0.236607</point>
+		<point id='3'>-1.48044</point>
+		<point id='4'>-0.167702</point>
+		<point id='5'>2.03897</point>
+		<point id='6'>0.489644</point>
+	</keypoint>
+	<keypoint time='0.45'>
+		<point id='0'>0.406793</point>
+		<point id='1'>0.783931</point>
+		<point id='2'>0.614748</point>
+		<point id='3'>-1.43118</point>
+		<point id='4'>-0.434578</point>
+		<point id='5'>1.90669</point>
+		<point id='6'>0.989857</point>
+	</keypoint>
+	<keypoint time='0.466667'>
+		<point id='0'>0.543359</point>
+		<point id='1'>0.879605</point>
+		<point id='2'>0.992888</point>
+		<point id='3'>-1.38192</point>
+		<point id='4'>-0.701453</point>
+		<point id='5'>1.77441</point>
+		<point id='6'>1.49007</point>
+	</keypoint>
+	<keypoint time='0.483333'>
+		<point id='0'>0.625445</point>
+		<point id='1'>0.93711</point>
+		<point id='2'>1.22017</point>
+		<point id='3'>-1.35231</point>
+		<point id='4'>-0.861862</point>
+		<point id='5'>1.69491</point>
+		<point id='6'>1.79073</point>
+	</keypoint>
+	<keypoint time='0.5'>
+		<point id='0'>0.642152</point>
+		<point id='1'>0.948815
