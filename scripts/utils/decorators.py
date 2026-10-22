@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░█▀▄░█▀▀░█▀▀░█▀█░█▀▄░█▀█░▀█▀░█▀█░█▀▄░█▀▀
-░█░█░█▀▀░█░░░█░█░█▀▄░█▀█░░█░░█░█░█▀▄░▀▀█
-░▀▀░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░▀░░▀░░▀▀▀░▀░▀░▀▀▀
+░DECORATORS░
+░DECORATORS░
+░DECORATORS░
+
+decorators.py - Source file
 """
 
 import time

@@ -1,17 +1,10 @@
-// C++ port of "Thesis - Different Methods" (PFL & SSM & escape branch only).
-// Uses your RobotModel (Pinocchio) and SSMPFL() as given.
-//
-// Build (adapt to your CMake): link against Eigen3 + pinocchio.
-//
-// Differences vs MATLAB worth knowing:
-//   * Jacobian ordering: Pinocchio is [linear; angular], MATLAB's
-//     geometricJacobian is [angular; linear]. So "vf(4:6,:)" -> head<3>() here.
-//   * COLLcheck_franka was not provided -> CollisionFree() below is a
-//     placeholder (link-origin segments vs. a point with clearance). Replace
-//     with your real check if you have one.
-//   * Qpj / Qpt are new arguments of your C++ SSMPFL that the MATLAB call did
-//     not have -> set them to whatever your MATLAB SSMPFL_franka used.
-//   * Plots are replaced by a CSV dump (paths.csv) you can plot with anything.
+/*
+░MAIN░
+░MAIN░
+░MAIN░
+
+main.cpp
+*/
 
 #include <atomic>
 #include <chrono>

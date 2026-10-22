@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
- 
-"""
-░█░█░█▀█░█░░░█▄█░█▀█░█▀█░░░█▀▀░▀█▀░█░░░▀█▀░█▀▀░█▀▄
-░█▀▄░█▀█░█░░░█░█░█▀█░█░█░░░█▀▀░░█░░█░░░░█░░█▀▀░█▀▄
-░▀░▀░▀░▀░▀▀▀░▀░▀░▀░▀░▀▀▀░░░▀░░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀
 
-Merges two or more noisy arrays into a single optimal estimate
-using a 6-D Kalman filter with multi-sensor sequential updates.
+"""
+░KALMAN_FILTER░
+░KALMAN_FILTER░
+░KALMAN_FILTER░
+
+kalman_filter.py - Source file
 """
 
 import numpy as np

@@ -1,3 +1,11 @@
+/*
+░UTILS░
+░UTILS░
+░UTILS░
+
+utils.hpp
+*/
+
 #pragma once
 #include <Eigen/Core>
 #include <array>

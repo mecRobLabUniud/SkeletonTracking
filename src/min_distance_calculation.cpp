@@ -1,3 +1,11 @@
+/*
+░MIN_DISTANCE_CALCULATION░
+░MIN_DISTANCE_CALCULATION░
+░MIN_DISTANCE_CALCULATION░
+
+min_distance_calculation.cpp
+*/
+
 #include "min_distance_calculation.hpp"
 
 DistanceResult segm_to_segm_distance(

@@ -1,18 +1,9 @@
 /*
-░█▀▄░█▀█░▀█▀░█▀█░░░▀█▀░█▀▄░█▀█░█▀█░█▀▀░█▄█░▀█▀░▀█▀░▀█▀░█▀▀░█▀▄
-░█░█░█▀█░░█░░█▀█░░░░█░░█▀▄░█▀█░█░█░▀▀█░█░█░░█░░░█░░░█░░█▀▀░█▀▄
-░▀▀░░▀░▀░░▀░░▀░▀░░░░▀░░▀░▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░▀▀▀▀▀░▀░▀
+░TRAJECTORY_LOADER░
+░TRAJECTORY_LOADER░
+░TRAJECTORY_LOADER░
 
-Loading of the recorded robot trajectories stored under src/trajectories.
-
-Each trajectory set lives in its own directory (src/trajectories/test<N>/) and
-holds:
-  - t_ref.csv   the cumulative time at which each waypoint is reached
-  - p_ref.csv   the Cartesian waypoints (x, y, z)
-  - q_ref.csv   the joint waypoints (q1 ... q7)
-
-Only one of p_ref.csv / q_ref.csv is present in a given set, so the format of
-the waypoints is detected from the files that are actually there.
+trajectory_loader.cpp
 */
 
 #include "trajectory_loader.hpp"

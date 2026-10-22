@@ -1,4 +1,11 @@
-// calc_stop_duration.hpp
+/*
+░CALC_STOP_DURATION░
+░CALC_STOP_DURATION░
+░CALC_STOP_DURATION░
+
+calc_stop_duration.h
+*/
+
 #pragma once
 #include <casadi/casadi.hpp>
 #include <pinocchio/multibody/model.hpp>

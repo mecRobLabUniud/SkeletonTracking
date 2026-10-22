@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░█▀▀░▀█▀░█░░░▀█▀░█▀▀░█▀▄░█▀▀
-░█▀▀░░█░░█░░░░█░░█▀▀░█▀▄░▀▀█
-░▀░░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀
+░FILTERS░
+░FILTERS░
+░FILTERS░
 
-Script for filtering and smoothing 3D keypoints of human skeletons, using One Euro Filter 
-for temporal smoothing and occlusion handling.
-Includes a robust depth reading function that computes the median depth in a neighborhood 
-to handle noise and missing data from the RealSense camera.
+filters.py - Source file
 """
 
 import time

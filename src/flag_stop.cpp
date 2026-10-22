@@ -1,3 +1,11 @@
+/*
+░FLAG_STOP░
+░FLAG_STOP░
+░FLAG_STOP░
+
+flag_stop.cpp
+*/
+
 #include "flag_stop.h"
 #include "geometry.h"
 #include <pinocchio/algorithm/kinematics.hpp>

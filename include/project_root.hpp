@@ -1,3 +1,11 @@
+/*
+░PROJECT_ROOT░
+░PROJECT_ROOT░
+░PROJECT_ROOT░
+
+project_root.hpp
+*/
+
 #pragma once
 
 /*

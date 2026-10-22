@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
- 
-"""
-░█▀▀░█░█░█▀▀░█░░░█▀▀░▀█▀░█▀█░█▀█░░░▀█▀░█▀▄░█▀█░█▀▀░█░█░█▀▀░█▀▄
-░▀▀█░█▀▄░█▀▀░█░░░█▀▀░░█░░█░█░█░█░░░░█░░█▀▄░█▀█░█░░░█▀▄░█▀▀░█▀▄
-░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░░░▀░░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 
-Script for real-time skeleton tracking using RealSense D435 and YOLOv8-Pose, 
-with data streaming via ZeroMQ for use in a robot control loop (e.g. admittance control). 
-It includes robust depth reading, temporal smoothing of keypoints, and simplified 
-capsule representation of limbs for collision avoidance.
+"""
+░SKELETON_TRACKER░
+░SKELETON_TRACKER░
+░SKELETON_TRACKER░
+
+skeleton_tracker.py - Source file
 """
 
 import cv2

@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░█░█░█▀▀░█▀▄░░░▀█▀░█▀█░▀█▀░█▀▀░█▀▄░█▀▀░█▀█░█▀▀░█▀▀
-░█▄█░█▀▀░█▀▄░░░░█░░█░█░░█░░█▀▀░█▀▄░█▀▀░█▀█░█░░░█▀▀
-░▀░▀░▀▀▀░▀▀░░░░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░▀░░░▀░▀░▀▀▀░▀▀▀
+░WEB_INTERFACE░
+░WEB_INTERFACE░
+░WEB_INTERFACE░
 
-User interface for the rendering of the 3D reconstruction
-of the skeleton, according to the new keypoint strcture.
-Incoming data has custom configuration:
-0 - head                11 - left hip
-1 - left shoulder       12 - right hip
-2 - right shoulder      13 - left knee
-3 - left elbow          14 - right knee
-4 - right elbow         15 - left ankle
-5 - left wrist          16 - right ankle
-6 - right wrist         17 - left heel               
-7 - left hand           18 - right heel         
-8 - right hand          19 - left foot
-9 - upper torso         20 - right foot
-10 - lower torso    
+web_interface.py - Source file
 """
 
 import webbrowser

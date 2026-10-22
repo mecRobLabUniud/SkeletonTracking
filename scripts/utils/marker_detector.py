@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░█▄█░█▀█░█▀▄░█░█░█▀▀░█▀▄░░░█▀▄░█▀▀░▀█▀░█▀▀░█▀▀░▀█▀░█▀█░█▀▄
-░█░█░█▀█░█▀▄░█▀▄░█▀▀░█▀▄░░░█░█░█▀▀░░█░░█▀▀░█░░░░█░░█░█░█▀▄
-░▀░▀░▀░▀░▀░▀░▀░▀░▀▀▀░▀░▀░░░▀▀░░▀▀▀░░▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀
+░MARKER_DETECTOR░
+░MARKER_DETECTOR░
+░MARKER_DETECTOR░
+
+marker_detector.py - Source file
 """
 
 import numpy as np

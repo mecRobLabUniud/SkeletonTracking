@@ -1,3 +1,11 @@
+/*
+░IK_SOLVER░
+░IK_SOLVER░
+░IK_SOLVER░
+
+ik_solver.cpp
+*/
+
 #include "ik_solver.h"
 
 // --- helper: project a (possibly slightly non-orthonormal, due to floating

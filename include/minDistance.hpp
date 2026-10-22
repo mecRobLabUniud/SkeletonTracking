@@ -1,3 +1,11 @@
+/*
+░MINDISTANCE░
+░MINDISTANCE░
+░MINDISTANCE░
+
+minDistance.hpp
+*/
+
 #pragma once
 #include <Eigen/Dense>
 #include <algorithm>

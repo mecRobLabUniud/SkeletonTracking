@@ -1,3 +1,11 @@
+/*
+░MIN_DISTANCE_CALCULATION░
+░MIN_DISTANCE_CALCULATION░
+░MIN_DISTANCE_CALCULATION░
+
+min_distance_calculation.hpp
+*/
+
 #pragma once
 #include <Eigen/Core>
 #include <array>

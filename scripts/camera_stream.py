@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░█▀▀░█▀█░█▄█░█▀▀░█▀▄░█▀█░░░█▀▀░▀█▀░█▀▄░█▀▀░█▀█░█▄█
-░█░░░█▀█░█░█░█▀▀░█▀▄░█▀█░░░▀▀█░░█░░█▀▄░█▀▀░█▀█░█░█
-░▀▀▀░▀░▀░▀░▀░▀▀▀░▀░▀░▀░▀░░░▀▀▀░░▀░░▀░▀░▀▀▀░▀░▀░▀░▀
+░CAMERA_STREAM░
+░CAMERA_STREAM░
+░CAMERA_STREAM░
 
-Script for real-time skeleton tracking using RealSense D435 and YOLOv8-Pose, 
-with data streaming via ZeroMQ for use in a robot control loop (e.g. admittance control). 
-It includes robust depth reading, temporal smoothing of keypoints, and simplified 
-capsule representation of limbs for collision avoidance. 
-The script supports multiple cameras and can save video output for debugging.
+camera_stream.py - Source file
 """
 
 import signal

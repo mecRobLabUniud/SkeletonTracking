@@ -1,3 +1,11 @@
+/*
+░FLAG_STOP░
+░FLAG_STOP░
+░FLAG_STOP░
+
+flag_stop.h
+*/
+
 #pragma once
 #include <array>
 #include <vector>

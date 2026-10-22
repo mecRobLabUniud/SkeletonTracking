@@ -1,3 +1,11 @@
+/*
+░IK_SOLVER░
+░IK_SOLVER░
+░IK_SOLVER░
+
+ik_solver.h
+*/
+
 #pragma once
 #include <Eigen/Dense>
 #include <pinocchio/multibody/model.hpp>

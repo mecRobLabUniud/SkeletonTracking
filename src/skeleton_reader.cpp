@@ -1,3 +1,11 @@
+/*
+░SKELETON_READER░
+░SKELETON_READER░
+░SKELETON_READER░
+
+skeleton_reader.cpp
+*/
+
 #include "skeleton_reader.h"
 #include "data_transmitter.hpp"
 #include "utils.hpp"

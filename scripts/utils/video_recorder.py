@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+
+"""
+░VIDEO_RECORDER░
+░VIDEO_RECORDER░
+░VIDEO_RECORDER░
+
+video_recorder.py - Source file
+"""
+
 import queue
 import cv2
 import threading

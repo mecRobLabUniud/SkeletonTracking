@@ -1,3 +1,11 @@
+/*
+░SKELETON_READER░
+░SKELETON_READER░
+░SKELETON_READER░
+
+skeleton_reader.h
+*/
+
 #pragma once
 #include <string>
 #include "shared_state.h"

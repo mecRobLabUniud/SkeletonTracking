@@ -1,3 +1,11 @@
+/*
+░MAIN_SSMPFL░
+░MAIN_SSMPFL░
+░MAIN_SSMPFL░
+
+main_SSMPFL.cpp
+*/
+
 #include <chrono>
 #include <cstdio>
 #include <thread>
@@ -95,14 +103,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     // ── Data transmitters ───────────────────────────────────────────────────
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
-    transmitters.reserve(4);
+    transmitters.reserve(3);
     // The merged skeleton is received over ZeroMQ only: the shared-memory
     // frame buffer is not needed here, and attaching to it would block until
     // data_merging.py creates the segment.
     transmitters.push_back(std::make_unique<DataTransmitter>(
         DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, /*use_shm=*/false));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
-    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 13, "DISTANCE"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
     // ── Delay for loading the web interface ─────────────────────────────────
@@ -165,13 +172,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         // Index of the sample of the nominal trajectory that is being tracked.
         // It is clamped, so that the last sample is never read out of range.
         const size_t r_idx = std::min<size_t>(static_cast<size_t>(std::max(r, 0)),
-                                               nominal_traj.q.size() - 1);
-
-        // Distance between the human and the robot at the current
-        // configuration: it drives the collision flag and it is published to
-        // the web interface.
-        const std::optional<DistanceResult> dist =
-            human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+                                               nominal_traj.q.size() - 1);      
 
         if (!collision) {
             // ── Construction of obstacle and velocity term vectors ───────────────────────
@@ -210,6 +211,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             r++;
 
             if (exitflag) {
+                const std::optional<DistanceResult> dist =
+                    human_to_robot_distance(skeleton, robot, real_traj.q[i]);
                 if (dist && dist->length <= HR_clearance) {
                     collision = true;
                 }
@@ -258,28 +261,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         payload.push_back(radii);
         transmitters[1]->send_data(payload);
 
-        // The distance topic carries the closest human/robot point pair
-        payload.clear();
-        if (dist) {
-            payload.push_back(nlohmann::json::array(
-                {dist->c_h.x(), dist->c_h.y(), dist->c_h.z()}));
-            payload.push_back(nlohmann::json::array(
-                {dist->c_r.x(), dist->c_r.y(), dist->c_r.z()}));
-        }
-        else {
-            payload.push_back(nlohmann::json::array());
-            payload.push_back(nlohmann::json::array());
-        }
-        payload.push_back(collision);
-        transmitters[2]->send_data(payload);
-
         // The trajectory topic carries the position of the end effector and
         // the position it is heading to, plus the collision flag
         payload.clear();
         payload.push_back(std::vector<double>(real_traj.p[i + 1].data(), real_traj.p[i + 1].data() + real_traj.p[i + 1].size()));
         payload.push_back(std::vector<double>(nominal_traj.p[r_idx].data(), nominal_traj.p[r_idx].data() + nominal_traj.p[r_idx].size()));
         payload.push_back(collision);
-        transmitters[3]->send_data(payload);
+        transmitters[2]->send_data(payload);
 
         next_time += std::chrono::milliseconds(period_ms);
         std::this_thread::sleep_until(next_time);

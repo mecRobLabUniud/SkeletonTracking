@@ -1,3 +1,11 @@
+/*
+░SHARED_STATE░
+░SHARED_STATE░
+░SHARED_STATE░
+
+shared_state.h
+*/
+
 #pragma once
 #include <array>
 #include <vector>

@@ -1,3 +1,11 @@
+/*
+░ROBOT_MODEL░
+░ROBOT_MODEL░
+░ROBOT_MODEL░
+
+robot_model.cpp
+*/
+
 #include "robot_model.hpp"
 
 #include <stdexcept>

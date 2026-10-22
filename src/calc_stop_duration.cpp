@@ -1,3 +1,11 @@
+/*
+░CALC_STOP_DURATION░
+░CALC_STOP_DURATION░
+░CALC_STOP_DURATION░
+
+calc_stop_duration.cpp
+*/
+
 #include <pinocchio/autodiff/casadi.hpp>
 #include "calc_stop_duration.h"
 #include <pinocchio/algorithm/rnea.hpp>

@@ -1,3 +1,11 @@
+/*
+░CORE░
+░CORE░
+░CORE░
+
+core.cpp
+*/
+
 #include <cmath>
 #include <qpOASES.hpp>
 #include <iostream>

@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+
+"""
+░POSE_INFERENCE_MEDIAPIPE░
+░POSE_INFERENCE_MEDIAPIPE░
+░POSE_INFERENCE_MEDIAPIPE░
+
+pose_inference_mediapipe.py - Source file
+"""
+
 import cv2
 import numpy as np
 import time

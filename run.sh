@@ -1,4 +1,18 @@
 #!/bin/bash
+
+# ░RUN░
+# ░RUN░
+# ░RUN░
+#
+# run.sh
+#
+
+▒RUN_SH▒▒▒
+░RUN_SH██░
+ 
+ # Script: run.sh
+ #
+
 #
 # Usage:
 #   ./run.sh --track [--gui] [--robot --traj N] [--core CORE]

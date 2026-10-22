@@ -1,3 +1,11 @@
+/*
+░TRAJECTORY_PUBLISHER░
+░TRAJECTORY_PUBLISHER░
+░TRAJECTORY_PUBLISHER░
+
+trajectory_publisher.hpp
+*/
+
 #pragma once
 
 /*

@@ -1,20 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░█▀▄░█▀█░▀█▀░█▀█░░░█▄█░█▀▀░█▀▄░█▀▀░▀█▀░█▀█░█▀▀
-░█░█░█▀█░░█░░█▀█░░░█░█░█▀▀░█▀▄░█░█░░█░░█░█░█░█
-░▀▀░░▀░▀░░▀░░▀░▀░░░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀
-Merging and re-shaping the skeleton.
-Incoming data has mediapipe configuration:
-0 - nose                9 - mouth (left)        18 - right pinky      27 - left ankle                     
-1 - left eye (inner)    10 - mouth (right)      19 - left index       28 - right ankle            
-2 - left eye            11 - left shoulder      20 - right index      29 - left heel      
-3 - left eye (outer)    12 - right shoulder     21 - left thumb       30 - right heel            
-4 - right eye (inner)   13 - left elbow         22 - right thumb      31 - left foot index         
-5 - right eye           14 - right elbow        23 - left hip         32 - right foot index  
-6 - right eye (outer)   15 - left wrist          24 - right hip               
-7 - left ear            16 - right wrist        25 - left knee          
-8 - right ear           17 - left pinky         26 - right knee     
+░DATA_MERGING░
+░DATA_MERGING░
+░DATA_MERGING░
+
+data_merging.py - Source file
 """
 
 import sys

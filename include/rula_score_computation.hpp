@@ -1,3 +1,11 @@
+/*
+░RULA_SCORE_COMPUTATION░
+░RULA_SCORE_COMPUTATION░
+░RULA_SCORE_COMPUTATION░
+
+rula_score_computation.hpp
+*/
+
 #pragma once
 #include <Eigen/Core>
 #include <cmath>

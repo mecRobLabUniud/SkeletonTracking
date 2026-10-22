@@ -1,3 +1,11 @@
+/*
+░CORE░
+░CORE░
+░CORE░
+
+core.hpp
+*/
+
 #pragma once
 
 #include <Eigen/Dense>

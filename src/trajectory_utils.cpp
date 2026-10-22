@@ -1,3 +1,11 @@
+/*
+░TRAJECTORY_UTILS░
+░TRAJECTORY_UTILS░
+░TRAJECTORY_UTILS░
+
+trajectory_utils.cpp
+*/
+
 #include <algorithm>
 #include <cmath>
 #include <filesystem>

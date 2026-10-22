@@ -1,3 +1,11 @@
+/*
+░TRAJECTORY_LOADER░
+░TRAJECTORY_LOADER░
+░TRAJECTORY_LOADER░
+
+trajectory_loader.hpp
+*/
+
 #pragma once
 
 #include <Eigen/Dense>
