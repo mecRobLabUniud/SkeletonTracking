@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░KALMAN_FILTER░
-░KALMAN_FILTER░
-░KALMAN_FILTER░
+░█░█░█▀█░█░░░█▄█░█▀█░█▀█░░░░░█▀▀░▀█▀░█░░░▀█▀░█▀▀░█▀▄
+░█▀▄░█▀█░█░░░█░█░█▀█░█░█░░░░░█▀▀░░█░░█░░░░█░░█▀▀░█▀▄
+░▀░▀░▀░▀░▀▀▀░▀░▀░▀░▀░▀░▀░▀▀▀░▀░░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀
 
-kalman_filter.py - Source file
+kalman_filter.py - Constant-velocity 6D Kalman filter fusing the multi-camera measurements of each marker.
 """
 
 import numpy as np

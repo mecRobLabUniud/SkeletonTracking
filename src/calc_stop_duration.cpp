@@ -1,9 +1,9 @@
 /*
-░CALC_STOP_DURATION░
-░CALC_STOP_DURATION░
-░CALC_STOP_DURATION░
+░█▀▀░█▀█░█░░░█▀▀░░░░░█▀▀░▀█▀░█▀█░█▀█░░░░░█▀▄░█░█░█▀▄░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█░░░█▀█░█░░░█░░░░░░░▀▀█░░█░░█░█░█▀▀░░░░░█░█░█░█░█▀▄░█▀█░░█░░░█░░█░█░█░█
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░░░▀▀▀░▀▀░░▀▀▀░▀░▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-calc_stop_duration.cpp
+calc_stop_duration.cpp - CasADi/IPOPT NLP that computes the minimum feasible braking time of the Panda under joint, velocity, acceleration, jerk and torque limits.
 */
 
 #include <pinocchio/autodiff/casadi.hpp>

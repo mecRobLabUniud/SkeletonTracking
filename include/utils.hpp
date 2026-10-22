@@ -1,9 +1,9 @@
 /*
-░UTILS░
-░UTILS░
-░UTILS░
+░█░█░▀█▀░▀█▀░█░░░█▀▀
+░█░█░░█░░░█░░█░░░▀▀█
+░▀▀▀░░▀░░▀▀▀░▀▀▀░▀▀▀
 
-utils.hpp
+utils.hpp - Small JSON helpers that convert the received keypoints into Eigen vectors (null becomes NaN).
 */
 
 #pragma once

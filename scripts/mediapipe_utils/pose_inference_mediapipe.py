@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░POSE_INFERENCE_MEDIAPIPE░
-░POSE_INFERENCE_MEDIAPIPE░
-░POSE_INFERENCE_MEDIAPIPE░
+░█▀█░█▀█░█▀▀░█▀▀░░░░░▀█▀░█▀█░█▀▀░█▀▀░█▀▄░█▀▀░█▀█░█▀▀░█▀▀░░░░░█▄█░█▀▀░█▀▄░▀█▀░█▀█░█▀█░▀█▀░█▀█░█▀▀
+░█▀▀░█░█░▀▀█░█▀▀░░░░░░█░░█░█░█▀▀░█▀▀░█▀▄░█▀▀░█░█░█░░░█▀▀░░░░░█░█░█▀▀░█░█░░█░░█▀█░█▀▀░░█░░█▀▀░█▀▀
+░▀░░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░▀░▀░▀░░░▀▀▀░▀░░░▀▀▀
 
-pose_inference_mediapipe.py - Source file
+pose_inference_mediapipe.py - MediaPipe Tasks PoseLandmarker wrapper running the pose inference on the camera frames.
 """
 
 import cv2

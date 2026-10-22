@@ -1,9 +1,9 @@
 /*
-░ROBOT_CAPSULES░
-░ROBOT_CAPSULES░
-░ROBOT_CAPSULES░
+░█▀▄░█▀█░█▀▄░█▀█░▀█▀░░░░░█▀▀░█▀█░█▀█░█▀▀░█░█░█░░░█▀▀░█▀▀
+░█▀▄░█░█░█▀▄░█░█░░█░░░░░░█░░░█▀█░█▀▀░▀▀█░█░█░█░░░█▀▀░▀▀█
+░▀░▀░▀▀▀░▀▀░░▀▀▀░░▀░░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀
 
-robot_capsules.hpp
+robot_capsules.hpp - Header-only helper returning the Panda capsule endpoints used to draw the robot in the web interface.
 */
 
 #pragma once

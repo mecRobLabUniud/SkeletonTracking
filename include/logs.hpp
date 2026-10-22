@@ -1,3 +1,11 @@
+/*
+░█░░░█▀█░█▀▀░█▀▀
+░█░░░█░█░█░█░▀▀█
+░▀▀▀░▀▀▀░▀▀▀░▀▀▀
+
+logs.hpp - Header-only experiment metrics and MotionSuite-style XML logger used to record the runs.
+*/
+
 #pragma once
 
 #include <iostream>

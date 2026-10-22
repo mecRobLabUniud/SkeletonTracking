@@ -1,9 +1,9 @@
 /*
-░MAIN_SSMPFLESCAPE░
-░MAIN_SSMPFLESCAPE░
-░MAIN_SSMPFLESCAPE░
+░█▄█░█▀█░▀█▀░█▀█░░░░░█▀▀░█▀▀░█▄█░█▀█░█▀▀░█░░░█▀▀░█▀▀░█▀▀░█▀█░█▀█░█▀▀
+░█░█░█▀█░░█░░█░█░░░░░▀▀█░▀▀█░█░█░█▀▀░█▀▀░█░░░█▀▀░▀▀█░█░░░█▀█░█▀▀░█▀▀
+░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░░░▀░░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀
 
-main_SSMPFLescape.cpp
+main_SSMPFLescape.cpp - SSM+PFL with escape main: solves the QP at each step to re-plan the robot motion away from the human.
 */
 
 #include <chrono>

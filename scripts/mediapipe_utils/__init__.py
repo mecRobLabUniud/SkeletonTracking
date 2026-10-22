@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 """
-░__INIT__░
-░__INIT__░
-░__INIT__░
+░░░░░░░░░▀█▀░█▀█░▀█▀░▀█▀░░░░░░░░
+░░░░░░░░░░█░░█░█░░█░░░█░░░░░░░░░
+░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░░▀░░▀▀▀░▀▀▀
 
-__init__.py - Source file
+__init__.py - Package marker of the mediapipe_utils subpackage.
 """
 

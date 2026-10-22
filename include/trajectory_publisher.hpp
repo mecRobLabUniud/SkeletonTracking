@@ -1,9 +1,9 @@
 /*
-░TRAJECTORY_PUBLISHER░
-░TRAJECTORY_PUBLISHER░
-░TRAJECTORY_PUBLISHER░
+░▀█▀░█▀▄░█▀█░▀▀█░█▀▀░█▀▀░▀█▀░█▀█░█▀▄░█░█░░░░░█▀█░█░█░█▀▄░█░░░▀█▀░█▀▀░█░█░█▀▀░█▀▄
+░░█░░█▀▄░█▀█░░░█░█▀▀░█░░░░█░░█░█░█▀▄░░█░░░░░░█▀▀░█░█░█▀▄░█░░░░█░░▀▀█░█▀█░█▀▀░█▀▄
+░░▀░░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░▀░░▀▀▀░▀░░░▀▀▀░▀▀░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 
-trajectory_publisher.hpp
+trajectory_publisher.hpp - Publishes the robot capsules, joint positions and closest points to the web interface (stand-in for the libfranka handle).
 */
 
 #pragma once

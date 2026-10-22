@@ -1,9 +1,9 @@
 /*
-░TRAJECTORY_LOADER░
-░TRAJECTORY_LOADER░
-░TRAJECTORY_LOADER░
+░▀█▀░█▀▄░█▀█░▀▀█░█▀▀░█▀▀░▀█▀░█▀█░█▀▄░█░█░░░░░█░░░█▀█░█▀█░█▀▄░█▀▀░█▀▄
+░░█░░█▀▄░█▀█░░░█░█▀▀░█░░░░█░░█░█░█▀▄░░█░░░░░░█░░░█░█░█▀█░█░█░█▀▀░█▀▄
+░░▀░░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀░▀
 
-trajectory_loader.hpp
+trajectory_loader.hpp - Declaration of the CSV trajectory loader and of the TrajectoryData structure.
 */
 
 #pragma once

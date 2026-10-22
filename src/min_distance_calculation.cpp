@@ -1,9 +1,9 @@
 /*
-░MIN_DISTANCE_CALCULATION░
-░MIN_DISTANCE_CALCULATION░
-░MIN_DISTANCE_CALCULATION░
+░█▄█░▀█▀░█▀█░░░░░█▀▄░▀█▀░█▀▀░▀█▀░█▀█░█▀█░█▀▀░█▀▀░░░░░█▀▀░█▀█░█░░░█▀▀░█░█░█░░░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█░█░░█░░█░█░░░░░█░█░░█░░▀▀█░░█░░█▀█░█░█░█░░░█▀▀░░░░░█░░░█▀█░█░░░█░░░█░█░█░░░█▀█░░█░░░█░░█░█░█░█
+░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀░▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-min_distance_calculation.cpp
+min_distance_calculation.cpp - Minimum-distance routines between the human skeleton segments and the robot link segments.
 */
 
 #include "min_distance_calculation.hpp"

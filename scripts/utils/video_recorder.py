@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░VIDEO_RECORDER░
-░VIDEO_RECORDER░
-░VIDEO_RECORDER░
+░█░█░▀█▀░█▀▄░█▀▀░█▀█░░░░░█▀▄░█▀▀░█▀▀░█▀█░█▀▄░█▀▄░█▀▀░█▀▄
+░▀▄▀░░█░░█░█░█▀▀░█░█░░░░░█▀▄░█▀▀░█░░░█░█░█▀▄░█░█░█▀▀░█▀▄
+░░▀░░▀▀▀░▀▀░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀░▀
 
-video_recorder.py - Source file
+video_recorder.py - Thread-safe OpenCV video writer recording the camera stream to an .avi file.
 """
 
 import queue

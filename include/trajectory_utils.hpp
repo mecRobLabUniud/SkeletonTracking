@@ -1,9 +1,9 @@
 /*
-░TRAJECTORY_UTILS░
-░TRAJECTORY_UTILS░
-░TRAJECTORY_UTILS░
+░▀█▀░█▀▄░█▀█░▀▀█░█▀▀░█▀▀░▀█▀░█▀█░█▀▄░█░█░░░░░█░█░▀█▀░▀█▀░█░░░█▀▀
+░░█░░█▀▄░█▀█░░░█░█▀▀░█░░░░█░░█░█░█▀▄░░█░░░░░░█░█░░█░░░█░░█░░░▀▀█
+░░▀░░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀▀▀░▀▀▀
 
-trajectory_utils.hpp
+trajectory_utils.hpp - Declaration of the quintic trajectory generator and of the point-to-point trajectory loader.
 */
 
 #pragma once

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░CALIBRATION░
-░CALIBRATION░
-░CALIBRATION░
+░█▀▀░█▀█░█░░░▀█▀░█▀▄░█▀▄░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█░░░█▀█░█░░░░█░░█▀▄░█▀▄░█▀█░░█░░░█░░█░█░█░█
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀░░▀░▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-calibration.py - Source file
+calibration.py - Multi-camera ArUco calibration: estimates the camera-to-world pose of every RealSense and stores it under data/calibration.
 """
 
 import numpy as np

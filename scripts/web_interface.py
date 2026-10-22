@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░WEB_INTERFACE░
-░WEB_INTERFACE░
-░WEB_INTERFACE░
+░█░█░█▀▀░█▀▄░░░░░▀█▀░█▀█░▀█▀░█▀▀░█▀▄░█▀▀░█▀█░█▀▀░█▀▀
+░█▄█░█▀▀░█▀▄░░░░░░█░░█░█░░█░░█▀▀░█▀▄░█▀▀░█▀█░█░░░█▀▀
+░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░▀░░░▀░▀░▀▀▀░▀▀▀
 
-web_interface.py - Source file
+web_interface.py - Flask/SocketIO dashboard that live-plots the merged skeleton, the robot state and the camera frames.
 """
 
 import webbrowser

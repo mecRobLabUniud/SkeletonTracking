@@ -1,9 +1,9 @@
 /*
-░PROJECT_ROOT░
-░PROJECT_ROOT░
-░PROJECT_ROOT░
+░█▀█░█▀▄░█▀█░▀▀█░█▀▀░█▀▀░▀█▀░░░░░█▀▄░█▀█░█▀█░▀█▀
+░█▀▀░█▀▄░█░█░░░█░█▀▀░█░░░░█░░░░░░█▀▄░█░█░█░█░░█░
+░▀░░░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀░▀▀▀░░▀░
 
-project_root.hpp
+project_root.hpp - Locates the repository root at runtime (CLI argument, working directory or executable path).
 */
 
 #pragma once

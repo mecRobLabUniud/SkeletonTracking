@@ -1,9 +1,9 @@
 /*
-░IK_SOLVER░
-░IK_SOLVER░
-░IK_SOLVER░
+░▀█▀░█░█░░░░░█▀▀░█▀█░█░░░█░█░█▀▀░█▀▄
+░░█░░█▀▄░░░░░▀▀█░█░█░█░░░▀▄▀░█▀▀░█▀▄
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀
 
-ik_solver.h
+ik_solver.h - Declaration of the Pinocchio-based Levenberg-Marquardt inverse kinematics solver.
 */
 
 #pragma once

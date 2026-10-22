@@ -1,9 +1,9 @@
 /*
-░MAIN░
-░MAIN░
-░MAIN░
+░█▄█░█▀█░▀█▀░█▀█
+░█░█░█▀█░░█░░█░█
+░▀░▀░▀░▀░▀▀▀░▀░▀
 
-main.cpp
+main.cpp - Legacy SSM+PFL entry point (not built by CMake): 60 Hz loop replaying a trajectory, checking the PFL constraints and publishing robot and trajectory data.
 */
 
 #include <atomic>

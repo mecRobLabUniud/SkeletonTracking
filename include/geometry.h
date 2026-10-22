@@ -1,9 +1,9 @@
 /*
-░GEOMETRY░
-░GEOMETRY░
-░GEOMETRY░
+░█▀▀░█▀▀░█▀█░█▄█░█▀▀░▀█▀░█▀▄░█░█
+░█░█░█▀▀░█░█░█░█░█▀▀░░█░░█▀▄░░█░
+░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░░▀░░▀░▀░░▀░
 
-geometry.h
+geometry.h - Segment distance and integration helpers shared by the collision and stop-checking code.
 */
 
 #pragma once

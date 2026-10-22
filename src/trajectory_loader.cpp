@@ -1,9 +1,9 @@
 /*
-░TRAJECTORY_LOADER░
-░TRAJECTORY_LOADER░
-░TRAJECTORY_LOADER░
+░▀█▀░█▀▄░█▀█░▀▀█░█▀▀░█▀▀░▀█▀░█▀█░█▀▄░█░█░░░░░█░░░█▀█░█▀█░█▀▄░█▀▀░█▀▄
+░░█░░█▀▄░█▀█░░░█░█▀▀░█░░░░█░░█░█░█▀▄░░█░░░░░░█░░░█░█░█▀█░█░█░█▀▀░█▀▄
+░░▀░░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀░▀
 
-trajectory_loader.cpp
+trajectory_loader.cpp - CSV loader for recorded reference trajectories (Cartesian waypoints or joint configurations plus their timing).
 */
 
 #include "trajectory_loader.hpp"

@@ -1,9 +1,9 @@
 /*
-░IK_SOLVER░
-░IK_SOLVER░
-░IK_SOLVER░
+░▀█▀░█░█░░░░░█▀▀░█▀█░█░░░█░█░█▀▀░█▀▄
+░░█░░█▀▄░░░░░▀▀█░█░█░█░░░▀▄▀░█▀▀░█▀▄
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀
 
-ik_solver.cpp
+ik_solver.cpp - Levenberg-Marquardt inverse kinematics for the Panda end effector on Pinocchio, regularised in the null space toward a reference posture.
 */
 
 #include "ik_solver.h"

@@ -1,9 +1,9 @@
 /*
-░SKELETON_READER░
-░SKELETON_READER░
-░SKELETON_READER░
+░█▀▀░█░█░█▀▀░█░░░█▀▀░▀█▀░█▀█░█▀█░░░░░█▀▄░█▀▀░█▀█░█▀▄░█▀▀░█▀▄
+░▀▀█░█▀▄░█▀▀░█░░░█▀▀░░█░░█░█░█░█░░░░░█▀▄░█▀▀░█▀█░█░█░█▀▀░█▀▄
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀░▀
 
-skeleton_reader.cpp
+skeleton_reader.cpp - Background thread that subscribes to the merged multi-camera skeleton and publishes it into the shared state.
 */
 
 #include "skeleton_reader.h"

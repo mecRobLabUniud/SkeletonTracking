@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░FILTERS░
-░FILTERS░
-░FILTERS░
+░█▀▀░▀█▀░█░░░▀█▀░█▀▀░█▀▄░█▀▀
+░█▀▀░░█░░█░░░░█░░█▀▀░█▀▄░▀▀█
+░▀░░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀
 
-filters.py - Source file
+filters.py - One Euro filters smoothing the 3D keypoints and holding the last valid pose during occlusions.
 """
 
 import time

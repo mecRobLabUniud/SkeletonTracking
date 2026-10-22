@@ -1,9 +1,9 @@
 /*
-░FLAG_STOP░
-░FLAG_STOP░
-░FLAG_STOP░
+░█▀▀░█░░░█▀█░█▀▀░░░░░█▀▀░▀█▀░█▀█░█▀█
+░█▀▀░█░░░█▀█░█░█░░░░░▀▀█░░█░░█░█░█▀▀
+░▀░░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░░
 
-flag_stop.h
+flag_stop.h - Types and constants of the proximity/stop layer: capsules, safety radii, skeleton connectivity and the flagStop entry point.
 */
 
 #pragma once

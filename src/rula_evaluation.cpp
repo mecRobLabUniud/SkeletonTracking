@@ -1,9 +1,9 @@
 /*
-░RULA_EVALUATION░
-░RULA_EVALUATION░
-░RULA_EVALUATION░
+░█▀▄░█░█░█░░░█▀█░░░░░█▀▀░█░█░█▀█░█░░░█░█░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█▀▄░█░█░█░░░█▀█░░░░░█▀▀░▀▄▀░█▀█░█░░░█░█░█▀█░░█░░░█░░█░█░█░█
+░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░░▀░░▀░▀░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-rula_evaluation.cpp
+rula_evaluation.cpp - Small main that receives the merged skeleton over ZeroMQ and publishes the RULA scores of the right and left side.
 */
 
 #include <string>

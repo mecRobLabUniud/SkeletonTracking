@@ -1,9 +1,9 @@
 /*
-░CALC_STOP_DURATION░
-░CALC_STOP_DURATION░
-░CALC_STOP_DURATION░
+░█▀▀░█▀█░█░░░█▀▀░░░░░█▀▀░▀█▀░█▀█░█▀█░░░░░█▀▄░█░█░█▀▄░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█░░░█▀█░█░░░█░░░░░░░▀▀█░░█░░█░█░█▀▀░░░░░█░█░█░█░█▀▄░█▀█░░█░░░█░░█░█░█░█
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░░░▀▀▀░▀▀░░▀▀▀░▀░▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-calc_stop_duration.h
+calc_stop_duration.h - Declaration of the CasADi stop-duration optimiser (NLP solved with IPOPT) returning the minimum braking time.
 */
 
 #pragma once

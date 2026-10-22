@@ -1,9 +1,9 @@
 /*
-░CORE░
-░CORE░
-░CORE░
+░█▀▀░█▀█░█▀▄░█▀▀
+░█░░░█░█░█▀▄░█▀▀
+░▀▀▀░▀▀▀░▀░▀░▀▀▀
 
-core.hpp
+core.hpp - Public interface of the SSM+PFL layer: joint-limit tables, the QP result struct and the SSMPFL / SSMPFLescape solvers.
 */
 
 #pragma once

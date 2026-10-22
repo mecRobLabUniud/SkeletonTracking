@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# ░RUN░
-# ░RUN░
-# ░RUN░
+# ░RUN_SH                                  ░
+# ░RUN_SH                                  ░
+# ░RUN_SH                                  ░
 #
-# run.sh
+# run.sh - Source file for the SkeletonTracking system.
 #
 
 ▒RUN_SH▒▒▒

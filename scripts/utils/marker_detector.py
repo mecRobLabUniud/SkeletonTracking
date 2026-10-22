@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░MARKER_DETECTOR░
-░MARKER_DETECTOR░
-░MARKER_DETECTOR░
+░█▄█░█▀█░█▀▄░█░█░█▀▀░█▀▄░░░░░█▀▄░█▀▀░▀█▀░█▀▀░█▀▀░▀█▀░█▀█░█▀▄
+░█░█░█▀█░█▀▄░█▀▄░█▀▀░█▀▄░░░░░█░█░█▀▀░░█░░█▀▀░█░░░░█░░█░█░█▀▄
+░▀░▀░▀░▀░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░░▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀
 
-marker_detector.py - Source file
+marker_detector.py - Detects the ArUco marker in the colour frame and estimates the camera-to-world pose used for the calibration.
 """
 
 import numpy as np

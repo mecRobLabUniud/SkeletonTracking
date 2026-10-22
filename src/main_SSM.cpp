@@ -1,9 +1,9 @@
 /*
-░MAIN_SSM░
-░MAIN_SSM░
-░MAIN_SSM░
+░█▄█░█▀█░▀█▀░█▀█░░░░░█▀▀░█▀▀░█▄█
+░█░█░█▀█░░█░░█░█░░░░░▀▀█░▀▀█░█░█
+░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀
 
-main_SSM.cpp
+main_SSM.cpp - Main executable: replays a recorded trajectory on the Panda while monitoring the human skeleton, computing the stop duration and stopping on collision.
 */
 
 #include <iostream>

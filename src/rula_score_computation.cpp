@@ -1,9 +1,9 @@
 /*
-░RULA_SCORE_COMPUTATION░
-░RULA_SCORE_COMPUTATION░
-░RULA_SCORE_COMPUTATION░
+░█▀▄░█░█░█░░░█▀█░░░░░█▀▀░█▀▀░█▀█░█▀▄░█▀▀░░░░░█▀▀░█▀█░█▄█░█▀█░█░█░▀█▀░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█▀▄░█░█░█░░░█▀█░░░░░▀▀█░█░░░█░█░█▀▄░█▀▀░░░░░█░░░█░█░█░█░█▀▀░█░█░░█░░█▀█░░█░░░█░░█░█░█░█
+░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀░░▀░░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-rula_score_computation.cpp
+rula_score_computation.cpp - Full RULA (Rapid Upper Limb Assessment) scoring engine for a 21-keypoint skeleton.
 */
 
 #include <algorithm>

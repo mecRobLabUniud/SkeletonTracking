@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░CAMERA_STREAM░
-░CAMERA_STREAM░
-░CAMERA_STREAM░
+░█▀▀░█▀█░█▄█░█▀▀░█▀▄░█▀█░░░░░█▀▀░▀█▀░█▀▄░█▀▀░█▀█░█▄█
+░█░░░█▀█░█░█░█▀▀░█▀▄░█▀█░░░░░▀▀█░░█░░█▀▄░█▀▀░█▀█░█░█
+░▀▀▀░▀░▀░▀░▀░▀▀▀░▀░▀░▀░▀░▀▀▀░▀▀▀░░▀░░▀░▀░▀▀▀░▀░▀░▀░▀
 
-camera_stream.py - Source file
+camera_stream.py - Streaming client: tracks the skeleton on every RealSense, applies the calibration and publishes the frames and skeletons to the other processes.
 """
 
 import signal

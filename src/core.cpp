@@ -1,9 +1,9 @@
 /*
-░CORE░
-░CORE░
-░CORE░
+░█▀▀░█▀█░█▀▄░█▀▀
+░█░░░█░█░█▀▄░█▀▀
+░▀▀▀░▀▀▀░▀░▀░▀▀▀
 
-core.cpp
+core.cpp - Core of the SSM+PFL layer: joint-limit and potential-field obstacle constraints for the Panda, with the QP step solved by qpOASES.
 */
 
 #include <cmath>

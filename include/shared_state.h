@@ -1,9 +1,9 @@
 /*
-░SHARED_STATE░
-░SHARED_STATE░
-░SHARED_STATE░
+░█▀▀░█░█░█▀█░█▀▄░█▀▀░█▀▄░░░░░█▀▀░▀█▀░█▀█░▀█▀░█▀▀
+░▀▀█░█▀█░█▀█░█▀▄░█▀▀░█░█░░░░░▀▀█░░█░░█▀█░░█░░█▀▀
+░▀▀▀░▀░▀░▀░▀░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀░▀░░▀░░▀▀▀
 
-shared_state.h
+shared_state.h - Cross-thread shared state: robot state, skeleton, stop flags, log ring buffer and log sample structure.
 */
 
 #pragma once

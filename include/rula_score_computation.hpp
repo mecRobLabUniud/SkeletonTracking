@@ -1,9 +1,9 @@
 /*
-░RULA_SCORE_COMPUTATION░
-░RULA_SCORE_COMPUTATION░
-░RULA_SCORE_COMPUTATION░
+░█▀▄░█░█░█░░░█▀█░░░░░█▀▀░█▀▀░█▀█░█▀▄░█▀▀░░░░░█▀▀░█▀█░█▄█░█▀█░█░█░▀█▀░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█▀▄░█░█░█░░░█▀█░░░░░▀▀█░█░░░█░█░█▀▄░█▀▀░░░░░█░░░█░█░█░█░█▀▀░█░█░░█░░█▀█░░█░░░█░░█░█░█░█
+░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░░░▀▀▀░░▀░░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-rula_score_computation.hpp
+rula_score_computation.hpp - Declaration of the RULA scoring engine: keypoint indices, posture scorers and the computeRULA entry point.
 */
 
 #pragma once

@@ -1,9 +1,9 @@
 /*
-░MIN_DISTANCE_CALCULATION░
-░MIN_DISTANCE_CALCULATION░
-░MIN_DISTANCE_CALCULATION░
+░█▄█░▀█▀░█▀█░░░░░█▀▄░▀█▀░█▀▀░▀█▀░█▀█░█▀█░█▀▀░█▀▀░░░░░█▀▀░█▀█░█░░░█▀▀░█░█░█░░░█▀█░▀█▀░▀█▀░█▀█░█▀█
+░█░█░░█░░█░█░░░░░█░█░░█░░▀▀█░░█░░█▀█░█░█░█░░░█▀▀░░░░░█░░░█▀█░█░░░█░░░█░█░█░░░█▀█░░█░░░█░░█░█░█░█
+░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀░▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀░▀
 
-min_distance_calculation.hpp
+min_distance_calculation.hpp - Declaration of the human-to-robot minimum distance routines and of the merged-skeleton bone list.
 */
 
 #pragma once

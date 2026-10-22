@@ -1,9 +1,9 @@
 /*
-░TRAJECTORY_UTILS░
-░TRAJECTORY_UTILS░
-░TRAJECTORY_UTILS░
+░▀█▀░█▀▄░█▀█░▀▀█░█▀▀░█▀▀░▀█▀░█▀█░█▀▄░█░█░░░░░█░█░▀█▀░▀█▀░█░░░█▀▀
+░░█░░█▀▄░█▀█░░░█░█▀▀░█░░░░█░░█░█░█▀▄░░█░░░░░░█░█░░█░░░█░░█░░░▀▀█
+░░▀░░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░▀▀▀░▀▀▀
 
-trajectory_utils.cpp
+trajectory_utils.cpp - Quintic trajectory generation and point-to-point trajectory assembly with IK on the recorded waypoints.
 */
 
 #include <algorithm>

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░DATA_TRANSMITTER░
-░DATA_TRANSMITTER░
-░DATA_TRANSMITTER░
+░█▀▄░█▀█░▀█▀░█▀█░░░░░▀█▀░█▀▄░█▀█░█▀█░█▀▀░█▄█░▀█▀░▀█▀░▀█▀░█▀▀░█▀▄
+░█░█░█▀█░░█░░█▀█░░░░░░█░░█▀▄░█▀█░█░█░▀▀█░█░█░░█░░░█░░░█░░█▀▀░█▀▄
+░▀▀░░▀░▀░░▀░░▀░▀░▀▀▀░░▀░░▀░▀░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░░▀░░░▀░░▀▀▀░▀░▀
 
-data_transmitter.py - Source file
+data_transmitter.py - Python side of the IPC layer: ZeroMQ pub/sub topics plus a shared-memory image buffer.
 """
 
 import cv2

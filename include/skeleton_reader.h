@@ -1,9 +1,9 @@
 /*
-░SKELETON_READER░
-░SKELETON_READER░
-░SKELETON_READER░
+░█▀▀░█░█░█▀▀░█░░░█▀▀░▀█▀░█▀█░█▀█░░░░░█▀▄░█▀▀░█▀█░█▀▄░█▀▀░█▀▄
+░▀▀█░█▀▄░█▀▀░█░░░█▀▀░░█░░█░█░█░█░░░░░█▀▄░█▀▀░█▀█░█░█░█▀▀░█▀▄
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀░▀
 
-skeleton_reader.h
+skeleton_reader.h - Declaration of the background subscriber that keeps the shared skeleton up to date.
 */
 
 #pragma once

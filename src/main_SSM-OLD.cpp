@@ -1,9 +1,9 @@
 /*
-░MAIN_SSM░
-░MAIN_SSM░
-░MAIN_SSM░
+░█▄█░█▀█░▀█▀░█▀█░░░░░█▀▀░█▀▀░█▄█░░░░░█▀█░█░░░█▀▄
+░█░█░█▀█░░█░░█░█░░░░░▀▀█░▀▀█░█░█░▄▄▄░█░█░█░░░█░█
+░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░░░░░▀▀▀░▀▀▀░▀▀░
 
-main_SSM.cpp
+main_SSM-OLD.cpp - Archived revision of main_SSM.cpp kept for reference; it works directly on the raw Pinocchio model/data instead of the RobotModel wrapper.
 */
 
 #include <iostream>

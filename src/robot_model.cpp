@@ -1,9 +1,9 @@
 /*
-░ROBOT_MODEL░
-░ROBOT_MODEL░
-░ROBOT_MODEL░
+░█▀▄░█▀█░█▀▄░█▀█░▀█▀░░░░░█▄█░█▀█░█▀▄░█▀▀░█░░
+░█▀▄░█░█░█▀▄░█░█░░█░░░░░░█░█░█░█░█░█░█▀▀░█░░
+░▀░▀░▀▀▀░▀▀░░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀
 
-robot_model.cpp
+robot_model.cpp - Thin Pinocchio wrapper for the Panda: forward kinematics, frame Jacobians and a damped least-squares inverse kinematics.
 */
 
 #include "robot_model.hpp"

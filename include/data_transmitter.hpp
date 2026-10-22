@@ -1,9 +1,9 @@
 /*
-░DATA_TRANSMITTER░
-░DATA_TRANSMITTER░
-░DATA_TRANSMITTER░
+░█▀▄░█▀█░▀█▀░█▀█░░░░░▀█▀░█▀▄░█▀█░█▀█░█▀▀░█▄█░▀█▀░▀█▀░▀█▀░█▀▀░█▀▄
+░█░█░█▀█░░█░░█▀█░░░░░░█░░█▀▄░█▀█░█░█░▀▀█░█░█░░█░░░█░░░█░░█▀▀░█▀▄
+░▀▀░░▀░▀░░▀░░▀░▀░▀▀▀░░▀░░▀░▀░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░░▀░░░▀░░▀▀▀░▀░▀
 
-data_transmitter.hpp
+data_transmitter.hpp - ZeroMQ + POSIX shared-memory transport used to exchange skeleton frames, images and RULA scores between processes.
 */
 
 #pragma once

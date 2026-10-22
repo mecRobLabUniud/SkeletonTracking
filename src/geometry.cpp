@@ -1,9 +1,9 @@
 /*
-░GEOMETRY░
-░GEOMETRY░
-░GEOMETRY░
+░█▀▀░█▀▀░█▀█░█▄█░█▀▀░▀█▀░█▀▄░█░█
+░█░█░█▀▀░█░█░█░█░█▀▀░░█░░█▀▄░░█░
+░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░░▀░░▀░▀░░▀░
 
-geometry.cpp
+geometry.cpp - Geometric helpers (clamp, trapezoidal integration, segment-to-segment and skeleton distances) used by the safety checks.
 */
 
 #include "geometry.h"

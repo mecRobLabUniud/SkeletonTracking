@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░DECORATORS░
-░DECORATORS░
-░DECORATORS░
+░█▀▄░█▀▀░█▀▀░█▀█░█▀▄░█▀█░▀█▀░█▀█░█▀▄░█▀▀
+░█░█░█▀▀░█░░░█░█░█▀▄░█▀█░░█░░█░█░█▀▄░▀▀█
+░▀▀░░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░▀░░▀░░▀▀▀░▀░▀░▀▀▀
 
-decorators.py - Source file
+decorators.py - Small decorators: the transmitter mode guard and the rate limiter used by the 60 Hz loops.
 """
 
 import time

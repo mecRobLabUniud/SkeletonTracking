@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░DATA_RECORDING░
-░DATA_RECORDING░
-░DATA_RECORDING░
+░█▀▄░█▀█░▀█▀░█▀█░░░░░█▀▄░█▀▀░█▀▀░█▀█░█▀▄░█▀▄░▀█▀░█▀█░█▀▀
+░█░█░█▀█░░█░░█▀█░░░░░█▀▄░█▀▀░█░░░█░█░█▀▄░█░█░░█░░█░█░█░█
+░▀▀░░▀░▀░░▀░░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀░▀░▀▀▀
 
-data_recording.py - Source file
+data_recording.py - Records the skeleton stream and the camera video on disk so that they can be replayed during tests.
 """
 
 import sys

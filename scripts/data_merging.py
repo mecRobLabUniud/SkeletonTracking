@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░DATA_MERGING░
-░DATA_MERGING░
-░DATA_MERGING░
+░█▀▄░█▀█░▀█▀░█▀█░░░░░█▄█░█▀▀░█▀▄░█▀▀░▀█▀░█▀█░█▀▀
+░█░█░█▀█░░█░░█▀█░░░░░█░█░█▀▀░█▀▄░█░█░░█░░█░█░█░█
+░▀▀░░▀░▀░░▀░░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀
 
-data_merging.py - Source file
+data_merging.py - Fuses the per-camera skeletons into one merged skeleton, filtering each marker with a 6D Kalman filter.
 """
 
 import sys

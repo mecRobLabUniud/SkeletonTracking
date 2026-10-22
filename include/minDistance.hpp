@@ -1,9 +1,9 @@
 /*
-░MINDISTANCE░
-░MINDISTANCE░
-░MINDISTANCE░
+░█▄█░▀█▀░█▀█░█▀▄░▀█▀░█▀▀░▀█▀░█▀█░█▀█░█▀▀░█▀▀
+░█░█░░█░░█░█░█░█░░█░░▀▀█░░█░░█▀█░█░█░█░░░█▀▀
+░▀░▀░▀▀▀░▀░▀░▀▀░░▀▀▀░▀▀▀░░▀░░▀░▀░▀░▀░▀▀▀░▀▀▀
 
-minDistance.hpp
+minDistance.hpp - Header-only clearance helpers (point-to-segment distance and safety-cylinder intersection) used by the PFL constraints.
 */
 
 #pragma once

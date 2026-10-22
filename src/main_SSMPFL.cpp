@@ -1,9 +1,9 @@
 /*
-░MAIN_SSMPFL░
-░MAIN_SSMPFL░
-░MAIN_SSMPFL░
+░█▄█░█▀█░▀█▀░█▀█░░░░░█▀▀░█▀▀░█▄█░█▀█░█▀▀░█░░
+░█░█░█▀█░░█░░█░█░░░░░▀▀█░▀▀█░█░█░█▀▀░█▀▀░█░░
+░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀░░░▀░░░▀▀▀
 
-main_SSMPFL.cpp
+main_SSMPFL.cpp - SSM+PFL simulation main: replays a nominal trajectory and verifies at every step that it satisfies the PFL safety constraints.
 */
 
 #include <chrono>

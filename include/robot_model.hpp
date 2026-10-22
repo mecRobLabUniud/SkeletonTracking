@@ -1,9 +1,9 @@
 /*
-░ROBOT_MODEL░
-░ROBOT_MODEL░
-░ROBOT_MODEL░
+░█▀▄░█▀█░█▀▄░█▀█░▀█▀░░░░░█▄█░█▀█░█▀▄░█▀▀░█░░
+░█▀▄░█░█░█▀▄░█░█░░█░░░░░░█░█░█░█░█░█░█▀▀░█░░
+░▀░▀░▀▀▀░▀▀░░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀
 
-robot_model.hpp
+robot_model.hpp - Declaration of the RobotModel class, the Pinocchio-backed kinematics wrapper of the Panda.
 */
 
 #pragma once

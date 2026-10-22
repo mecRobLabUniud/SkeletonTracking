@@ -1,9 +1,9 @@
 /*
-░FLAG_STOP░
-░FLAG_STOP░
-░FLAG_STOP░
+░█▀▀░█░░░█▀█░█▀▀░░░░░█▀▀░▀█▀░█▀█░█▀█
+░█▀▀░█░░░█▀█░█░█░░░░░▀▀█░░█░░█░█░█▀▀
+░▀░░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░░
 
-flag_stop.cpp
+flag_stop.cpp - Proximity layer that turns the robot capsules and the human skeleton segments into a go/stop decision while the arm brakes.
 */
 
 #include "flag_stop.h"

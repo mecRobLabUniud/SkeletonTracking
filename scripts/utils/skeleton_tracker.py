@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-░SKELETON_TRACKER░
-░SKELETON_TRACKER░
-░SKELETON_TRACKER░
+░█▀▀░█░█░█▀▀░█░░░█▀▀░▀█▀░█▀█░█▀█░░░░░▀█▀░█▀▄░█▀█░█▀▀░█░█░█▀▀░█▀▄
+░▀▀█░█▀▄░█▀▀░█░░░█▀▀░░█░░█░█░█░█░░░░░░█░░█▀▄░█▀█░█░░░█▀▄░█▀▀░█▀▄
+░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░▀▀▀░░▀░░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 
-skeleton_tracker.py - Source file
+skeleton_tracker.py - Real-time pose capture from an Intel RealSense: MediaPipe inference, depth projection and 3D smoothing.
 """
 
 import cv2
