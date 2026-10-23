@@ -40,9 +40,6 @@ const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
 const double pause_after_collision = 0.5;
 const double HR_clearance = 0.1;
-// const double Qpj = 70.0;
-// const double Qpt = 1.0;
-// const double Qv = 0.08;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,7 +187,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
 
-    
+
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
         auto t0 = std::chrono::steady_clock::now();
@@ -274,11 +271,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
-            // if (collision_counter++ > pause_after_collision * rate_hz) {
-            //     collision = false;
-            //     collision_counter = 0;
-            // }
-            collision = false;
+            if (collision_counter++ > pause_after_collision * rate_hz) {
+                collision = false;
+                collision_counter = 0;
+            }
+            // collision = false;
         }
 
         skeleton_prev = skeleton;

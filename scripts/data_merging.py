@@ -20,6 +20,7 @@ running = True
 n_devices = 0
 skel_len = 0
 kfs = None
+robot_base_offset = [-0.32, 0.0, 0.0]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -72,7 +73,9 @@ def merging(dtrs, dts):
 
     merged_skeleton = []
     for i in range(skel_len):
-        skeleton_marker = [skeleton[i] for skeleton in skeletons if not skeleton==None]
+        skeleton_marker = [[skeleton[i][0] - robot_base_offset[0], 
+                            skeleton[i][1] - robot_base_offset[1],
+                            skeleton[i][2] - robot_base_offset[2]] for skeleton in skeletons if not skeleton==None]
         confidence_marker = [confidence[i] for confidence in confidences if not confidence==None]
         merged_skeleton.append(kfs[i].step(skeleton_marker, confidence_marker).tolist())
 

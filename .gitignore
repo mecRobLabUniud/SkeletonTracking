@@ -2,3 +2,4 @@ build/
 *.pyc
 media/
 logs/
+scripts/data/
