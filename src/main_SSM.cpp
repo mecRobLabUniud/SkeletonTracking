@@ -657,6 +657,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_pose << "<pose>\n";
     std::cout << "Outfiles initiated\n";
 
+
     // thread per scheletro e collision check
     // il processo live riceve lo scheletro fuso pubblicato da data_merging.py
     // (topic "MERGED", device_id 10 -> porta 6001 + 10 = 6011)
@@ -668,7 +669,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     
     std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
 
-    //StopDurationOptimizer optimizer(model);
+
+    StopDurationOptimizer optimizer(model);
 
     auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
 

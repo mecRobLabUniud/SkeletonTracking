@@ -187,8 +187,10 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_pose << "<pose>\n";
     std::cout << "Outfiles initiated\n";
     
+
     std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
 
+    
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
         auto t0 = std::chrono::steady_clock::now();
