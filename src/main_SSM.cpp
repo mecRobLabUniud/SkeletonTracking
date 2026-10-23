@@ -568,6 +568,8 @@ void executeTrajectory (
             // robot resumes after MAX_STOP_WAIT_S instead of waiting forever.
             auto pause_start = std::chrono::steady_clock::now();
             while (true) {
+                publisher.publishSample(robot.getModel(), robot.getData(), q_meas);
+
                 double wait_elapsed = std::chrono::duration<double>(
                     std::chrono::steady_clock::now() - pause_start).count();
                 if (wait_elapsed >= MAX_STOP_WAIT_S) {
@@ -578,10 +580,10 @@ void executeTrajectory (
                 if (shared_rh_distance.load() >= 0.5) break;
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            double pause_duration = std::chrono::duration<double>(
-                std::chrono::steady_clock::now() - pause_start).count();
-            g_idle_time += pause_duration;  // whole pause counts as idle, no debounce needed
-            g_t_log     += pause_duration;  // T-TIME must include the pause, not just loop time
+            // double pause_duration = std::chrono::duration<double>(
+            //     std::chrono::steady_clock::now() - pause_start).count();
+            // g_idle_time += pause_duration;  // whole pause counts as idle, no debounce needed
+            // g_t_log     += pause_duration;  // T-TIME must include the pause, not just loop time
 
             // Reset stop flag for retry
             stop_flag.store(false);
@@ -596,6 +598,10 @@ void executeTrajectory (
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Run the simulated tracking task for the given trajectory index and working
+// directory
+// ─────────────────────────────────────────────────────────────────────────────
 int execute_task (int n_traj, const std::filesystem::path& root) {
     // Caricamento del modello URDF del robot Panda utilizzando Pinocchio per calcoli cinematici avanzati
     const std::filesystem::path urdf_path = root / "src" / "urdf" / "panda.urdf";
@@ -605,19 +611,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     }
     RobotModel robot(urdf_path.string());
 
-    // ── Nominal trajectory ───────────────────────────────────────────────────
-    // The set under src/trajectories/test<N>/ holds the waypoints (p_ref.csv,
-    // Cartesian, or q_ref.csv, joint space) and the cumulative time at which
-    // each of them is reached (t_ref.csv). The whole motion is assembled here,
-    // already sampled at the control rate: the playback just replays these
-    // samples.
+    // ── Nominal trajectory construction ──────────────────────────────────────
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
-
-    // Number of samples reserved for each segment of the nominal trajectory
-    // (a reserve hint for the loader: the real length of a segment follows
-    // from its duration and from the control rate).
-    constexpr int NOMINAL_SAMPLES = 4000;
 
     Trajectory nominal_traj;
     try {
@@ -633,166 +629,63 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         return 1;
     }
 
-    // ── Configurazione di partenza ─────────────────────────────────────────
-    // The nominal trajectory starts at the first recorded waypoint, so the
-    // robot is moved there before the playback begins.
-    const Eigen::VectorXd q_task_start = nominal_traj.q.front();
 
-    // movimento del robot
-    std::cout << "This will move the robot to the initial joint configuration!\n";
+    TrajectoryPublisher publisher;
+
+    // ── Logging ──────────────────────────────────────────────────────────────────
+    const std::filesystem::path logs_dir = root / "logs" / "SSM";
+    std::string pathname = logs_dir.string() + "/";
+    resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(logs_dir, ec);
+        if (ec) {
+            std::cerr << "executeTask: WARNING could not create '" << logs_dir
+                    << "': " << ec.message() << "\n";
+        }
+    }
+    std::ofstream outfile_q(pathname + "q_robot.xml");
+    std::ofstream outfile_dist(pathname + "dist_segment.xml");
+    std::ofstream outfile_dq(pathname + "dq_robot.xml");
+    std::ofstream outfile_tau(pathname + "tau_robot.xml");
+    std::ofstream outfile_pose(pathname + "pose_robot.xml");
+
+    outfile_q << "<q>\n";
+    outfile_dist << "<distance>\n";
+    outfile_dq << "<dq>\n";
+    outfile_tau << "<tau>\n";
+    outfile_pose << "<pose>\n";
+    std::cout << "Outfiles initiated\n";
+
+    // thread per scheletro e collision check
+    // il processo live riceve lo scheletro fuso pubblicato da data_merging.py
+    // (topic "MERGED", device_id 10 -> porta 6001 + 10 = 6011)
+    std::thread skeleton_thread(receiveSkeletonMerged, "localhost", 10, "MERGED",
+                                pathname + "skeleton_received.txt");
+
+    std::thread collision_thread(collisionCheckerThread,
+    std::ref(robot), std::ref(outfile_dist), std::ref(publisher));
+    
+    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
+
+    //StopDurationOptimizer optimizer(model);
+
+    auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
+
+    // esegui la traiettoria nominale
     try {
-        // The trajectory publisher replaces the libfranka robot handle: the
-        // samples that used to be streamed to the robot at 1 kHz are now
-        // published to web_interface.py via DataTransmitter.
-        TrajectoryPublisher publisher;
-
-        std::array<double, 7> q_start;
-        {
-            // The simulated robot starts from the home configuration, which is
-            // also what the collision checker sees before the first control tick
-            std::lock_guard<std::mutex> lock(robot_state_mutex);
-            for (int j = 0; j < 7; ++j) {
-                shared_robot_state.q[j] = Q_HOME[j];
-                q_start[j] = Q_HOME[j];
-            }
-        }
-
-        // Duration of the move to the initial joint configuration: it scales
-        // with the distance to travel and is capped, so that a configuration
-        // that is already the starting one does not delay the task.
-        const Eigen::VectorXd q_start_eig =
-            Eigen::Map<const Eigen::Matrix<double, 7, 1>>(q_start.data());
-        const double max_joint_dist = (q_task_start - q_start_eig).cwiseAbs().maxCoeff();
-        const double move_duration = std::clamp(20.0 * max_joint_dist, 0.5, 5.0);
-
-        pinocchio::Data& move_data = robot.getData();
-        auto next_tick = std::chrono::steady_clock::now();
-
-        // Simulated playback of the move to the initial joint configuration:
-        // the same smoothstep interpolation as before, at the old 1 kHz rate
-        for (int tick = 0; ; ++tick) {
-            // period 0 on the first cycle, then the fixed 1 kHz step
-            const double time = tick * TRAJ_STEP;
-            if (time > move_duration) break;
-
-            // Smooth step interpolation (zero velocity at start and end)
-            double s = time / move_duration;
-            s = std::min(s, 1.0);
-            double alpha = s * s * (3.0 - 2.0 * s);  // smoothstep
-
-            Eigen::VectorXd q_cmd(7);
-            for (int j = 0; j < 7; ++j)
-                q_cmd[j] = q_start[j] + alpha * (q_task_start(j) - q_start[j]);
-
-            // stream the commanded configuration to web_interface.py
-            robot.ComputeFK(q_cmd);
-            publisher.publishSample(robot.getModel(), robot.getData(), q_cmd);
-
-            // update the shared state the collision checker reads
-            {
-                std::lock_guard<std::mutex> lock(robot_state_mutex);
-                for (int j = 0; j < 7; ++j) {
-                    shared_robot_state.q[j] = q_cmd(j);
-                    shared_robot_state.q_p[j] = 0.0;
-                    shared_robot_state.q_pp[j] = 0.0;
-                }
-            }
-
-            next_tick += std::chrono::milliseconds(1);
-            std::this_thread::sleep_until(next_tick);
-        }
-
-        std::cout << "Finished moving to initial joint configuration\n";
-        std::cout << "WARNING: Collision thresholds are set to high values.\n";
-        std::cout << "Make sure you have the user stop at hand!\n";
-        std::cout << "Starting the joint control task\n";
-
-        
-        
-
-
-        // apri file per logging
-        const std::filesystem::path logs_dir = root / "logs" / "SSM";
-        std::string pathname = logs_dir.string() + "/";
-        resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
-        {
-            std::error_code ec;
-            std::filesystem::create_directories(logs_dir, ec);
-            if (ec) {
-                std::cerr << "executeTask: WARNING could not create '" << logs_dir
-                        << "': " << ec.message() << "\n";
-            }
-        }
-        std::ofstream outfile_q(pathname + "q_robot.xml");
-        std::ofstream outfile_dist(pathname + "dist_segment.xml");
-        std::ofstream outfile_dq(pathname + "dq_robot.xml");
-        std::ofstream outfile_tau(pathname + "tau_robot.xml");
-        std::ofstream outfile_pose(pathname + "pose_robot.xml");
-
-        outfile_q << "<q>\n";
-        outfile_dist << "<distance>\n";
-        outfile_dq << "<dq>\n";
-        outfile_tau << "<tau>\n";
-        outfile_pose << "<pose>\n";
-        std::cout << "Outfiles initiated\n";
-
-        // thread per scheletro e collision check
-        // il processo live riceve lo scheletro fuso pubblicato da data_merging.py
-        // (topic "MERGED", device_id 10 -> porta 6001 + 10 = 6011)
-        std::thread skeleton_thread(receiveSkeletonMerged, "localhost", 10, "MERGED",
-                                    pathname + "skeleton_received.txt");
-
-        std::thread collision_thread(collisionCheckerThread,
-        std::ref(robot), std::ref(outfile_dist), std::ref(publisher));
-        
-        std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
-
-        //StopDurationOptimizer optimizer(model);
-
-        auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
-
-        // esegui la traiettoria nominale
-        try {
-            executeTrajectory(nominal_traj, publisher, robot);
-        } catch (...) {
-            // A playback fault propagated up from executeTrajectory. Still need to
-            // stop the skeleton/collision threads and close the log files
-            // properly before this task ends otherwise a fault leaks
-            // threads and leaves truncated/unflushed log files behind, on top
-            // of the actual error.
-            std::cerr << "executeTask: aborting due to playback fault, cleaning up\n";
-            trajectory_done.store(true);
-            skeleton_thread.join();
-            collision_thread.join();
-            logger_thread.join();
-            outfile_q << "</q>\n";
-            outfile_dist << "</distance>\n";
-            outfile_dq << "</dq>\n";
-            outfile_tau << "</tau>\n";
-            outfile_pose << "</pose>\n";
-            outfile_q.close();
-            outfile_dist.close();
-            outfile_dq.close();
-            outfile_tau.close();
-            outfile_pose.close();
-            flushIdleStreak();
-            writeMetricsFile(pathname);  // still save whatever metrics were gathered before the fault
-            throw;  // let the caller (main) know the task did not complete
-
-        }
-
-        double real_elapsed = std::chrono::duration<double>(
-            std::chrono::steady_clock::now() - task_start).count();
-        const double nominal_duration = nominal_traj.t.empty() ? 0.0 : nominal_traj.t.back();
-        std::cout << "Nominal trajectory duration: " << nominal_duration
-                << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
-
+        executeTrajectory(nominal_traj, publisher, robot);
+    } catch (...) {
+        // A playback fault propagated up from executeTrajectory. Still need to
+        // stop the skeleton/collision threads and close the log files
+        // properly before this task ends otherwise a fault leaks
+        // threads and leaves truncated/unflushed log files behind, on top
+        // of the actual error.
+        std::cerr << "executeTask: aborting due to playback fault, cleaning up\n";
         trajectory_done.store(true);
-
         skeleton_thread.join();
         collision_thread.join();
         logger_thread.join();
-
         outfile_q << "</q>\n";
         outfile_dist << "</distance>\n";
         outfile_dq << "</dq>\n";
@@ -803,20 +696,41 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         outfile_dq.close();
         outfile_tau.close();
         outfile_pose.close();
-
         flushIdleStreak();
-        writeMetricsFile(pathname);
+        writeMetricsFile(pathname);  // still save whatever metrics were gathered before the fault
+        throw;  // let the caller (main) know the task did not complete
 
-        std::cout << "Trajectory completed, " << nominal_traj.t.back()
-                << " seconds have passed, shutting down example\n";
-
-    } catch (const std::exception& ex) {
-        // Anything unexpected still exits cleanly with a clear message
-        // rather than letting it terminate the process unhandled.
-        std::cerr << "Unexpected error: " << ex.what() << "\n";
-        trajectory_done.store(true);
-        return -1;
     }
+
+    double real_elapsed = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - task_start).count();
+    const double nominal_duration = nominal_traj.t.empty() ? 0.0 : nominal_traj.t.back();
+    std::cout << "Nominal trajectory duration: " << nominal_duration
+            << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
+
+    trajectory_done.store(true);
+
+    skeleton_thread.join();
+    collision_thread.join();
+    logger_thread.join();
+
+    outfile_q << "</q>\n";
+    outfile_dist << "</distance>\n";
+    outfile_dq << "</dq>\n";
+    outfile_tau << "</tau>\n";
+    outfile_pose << "</pose>\n";
+    outfile_q.close();
+    outfile_dist.close();
+    outfile_dq.close();
+    outfile_tau.close();
+    outfile_pose.close();
+
+    flushIdleStreak();
+    writeMetricsFile(pathname);
+
+    std::cout << "Trajectory completed, " << nominal_traj.t.back()
+            << " seconds have passed, shutting down example\n";
+
 
     // The task completed normally: return an explicit success code. Falling off
     // the end of a non-void function is undefined behaviour and, with the

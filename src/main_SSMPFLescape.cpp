@@ -257,8 +257,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             log_queue.push(s);
 
 
-            auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-            std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
+            // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+            // std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
 
             r++;
 
