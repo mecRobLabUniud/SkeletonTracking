@@ -40,9 +40,6 @@ const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
 const double pause_after_collision = 0.5;
 const double HR_clearance = 0.1;
-// const double Qpj = 70.0;
-// const double Qpt = 1.0;
-// const double Qv = 0.08;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,10 +109,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── Delay for loading the web interface ─────────────────────────────────
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
-    // The trajectory is read from src/trajectories/test<N>/: the waypoints can
-    // be given in Cartesian coordinates (p_ref.csv) or in joint coordinates
-    // (q_ref.csv), and the cumulative times (t_ref.csv) give the duration of
-    // every segment.
+    // ── Nominal trajectory construction ──────────────────────────────────────
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
@@ -165,7 +159,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
 
 
-    // apri file per logging
+    // ── Logging ──────────────────────────────────────────────────────────────────
     const std::filesystem::path logs_dir = root / "logs" / "SSMPFL";
     std::string pathname = logs_dir.string() + "/";
     resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
@@ -190,11 +184,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_pose << "<pose>\n";
     std::cout << "Outfiles initiated\n";
     
+
     std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
-
-
-
-
 
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
@@ -255,8 +246,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
 
 
-            auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-            std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
+            // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
+            // std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
 
             r++;
 
@@ -279,11 +270,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
-            // if (collision_counter++ > pause_after_collision * rate_hz) {
-            //     collision = false;
-            //     collision_counter = 0;
-            // }
-            collision = false;
+            if (collision_counter++ > pause_after_collision * rate_hz) {
+                collision = false;
+                collision_counter = 0;
+            }
+            // collision = false;
         }
 
         skeleton_prev = skeleton;

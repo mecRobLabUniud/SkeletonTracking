@@ -3,37 +3,33 @@
 ░█░█░█▀█░░█░░█░█░░░░░▀▀█░▀▀█░█░█
 ░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀
 
-main_SSM.cpp - Main executable: replays a recorded trajectory on the Panda while monitoring the human skeleton, computing the stop duration and stopping on collision.
+main_SSM.cpp - SSM simulation main: replays a nominal trajectory and stops while the human is closer than the safety distance at every step.
 */
 
+#include <chrono>
+#include <cstdio>
+#include <thread>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
-#include <thread>
-#include <chrono>
-#include <cmath>
-#include <atomic>
-#include <mutex>
-#include <algorithm>
 #include <array>
 #include <charconv>
+#include <cmath>
+#include <algorithm>
 #include <filesystem>
-
+#include <memory>
 #include <Eigen/Dense>
-#include <pinocchio/algorithm/rnea.hpp>
 
-#include "ik_solver.h"
-#include "flag_stop.h"
-#include "shared_state.h"
-#include "calc_stop_duration.h"
-#include "skeleton_reader.h"
-#include "data_transmitter.hpp"
-#include "trajectory_loader.hpp"       // loadTrajectorySet (src/trajectories)
-#include "trajectory_publisher.hpp"   // PlaybackState, limitTorqueRate, TrajectoryPublisher
-#include "robot_model.hpp"           // RobotModel wrapper around pinocchio
 #include "trajectory_utils.hpp"
+#include "data_transmitter.hpp"
+#include "utils.hpp"
+#include "robot_model.hpp"
+#include "project_root.hpp"
+#include "robot_capsules.hpp"
 #include "logs.hpp"
+#include "flag_stop.h"
+#include "calc_stop_duration.h"
 
 // ── Parameters ──────────────────────────────────────────────────────────────
 const double rate_hz = 60.0;
@@ -43,20 +39,13 @@ constexpr double ROBOT_ACTIVE_VEL_THRESH   = 0.05;  // rad/s (joint velocity nor
 constexpr double IDLE_DEBOUNCE_SEC         = 0.2;   // s -- a low-velocity streak shorter
                                                      // than this is treated as a normal
                                                      // waypoint-to-waypoint zero-crossing,
-                                                     // not real idle time. Tune to be longer
-                                                     // than the deceleration/acceleration
-                                                     // blend time around your waypoints.
-// Grace period before a missing/stale skeleton stream forces a safety stop
-// (s): absorbs the startup latency of the vision pipeline, so the robot does
-// not trip the safety layer before the first frames arrive.
-constexpr double STALE_STOP_GRACE_S        = 1.0;
-// Maximum time (s) the robot stays stopped waiting for the obstacle to clear
-// before it resumes the trajectory anyway.
-constexpr double MAX_STOP_WAIT_S            = 10.0;
+                                                     // not real idle time.
 
-// Call once after the whole task (all waypoints/segments) has finished, to
-// commit a still-open idle streak (e.g. the robot's final resting period)
-// that hasn't yet been flushed by a subsequent "velocity above threshold" cycle.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Commit a still-open idle streak once the robot starts moving again, or after
+// the whole task has finished.
+// ─────────────────────────────────────────────────────────────────────────────
 static void flushIdleStreak() {
     if (g_idle_streak_duration >= IDLE_DEBOUNCE_SEC) {
         g_idle_time += g_idle_streak_duration;
@@ -64,6 +53,9 @@ static void flushIdleStreak() {
     g_idle_streak_duration = 0.0;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Write the task metrics (T-TIME / R-IDLE / C-ACT-WS / R-STOPS) to disk
+// ─────────────────────────────────────────────────────────────────────────────
 static void writeMetricsFile(const std::string& pathname) {
     double t_time    = g_t_log;
     double idle_time = g_idle_time;
@@ -88,514 +80,66 @@ static void writeMetricsFile(const std::string& pathname) {
     std::cout << "Saved to " << pathname << "metrics.txt\n";
 }
 
-// start configuration
 
-inline constexpr std::array<double, 7> Q_HOME = {
-    -0.3180,
-    0.4110,
-    -0.2590,
-    -1.5090,
-    0.1200,
-    1.9870,
-    0.2620
-};
-
-void collisionCheckerThread(RobotModel& robot, std::ofstream& outfile_dist,
-                             TrajectoryPublisher& publisher) {
-    StopDurationOptimizer optimizer(robot);  // builds solver once here
-    // Ensure FK/data are up to date for downstream consumers
-    Eigen::VectorXd q_home_init(7);
-    for (int j = 0; j < 7; ++j) q_home_init(j) = Q_HOME[j];
-    robot.ComputeFK(q_home_init);
-
-    auto t_i = std::chrono::steady_clock::now();  // task start, for logging
-    auto last_metrics_t = t_i;                    // for C-ACT-WS dt integration
-    auto last_tick_t    = t_i;                    // for the stale-data timer
-
-    // Last computed closest-point pair / stop decision, kept so the last known
-    // values keep being published to web_interface.py even on ticks where the
-    // skeleton is empty (NaN -> JSON null -> None on the Python side)
-    Eigen::Vector3d last_C_h = Eigen::Vector3d::Constant(NAN);
-    Eigen::Vector3d last_C_r = Eigen::Vector3d::Constant(NAN);
-    bool last_collision = false;
-
-    // How long the skeleton data has been missing or stale
-    double stale_elapsed = 0.0;
-
-    while (!trajectory_done.load()) {
-        auto now = std::chrono::steady_clock::now();
-        double dt_loop = std::chrono::duration<double>(now - last_tick_t).count();
-        last_tick_t = now;
-
-        // Read current robot state
-        std::array<double, 7> q_arr, qp_arr, qpp_arr;
-        {
-            std::lock_guard<std::mutex> lock(robot_state_mutex);
-            q_arr   = shared_robot_state.q;
-            qp_arr  = shared_robot_state.q_p;
-            qpp_arr = shared_robot_state.q_pp;
-        }
-
-        // Convert to Eigen
-        Eigen::VectorXd q   = Eigen::Map<Eigen::VectorXd>(q_arr.data(),   7);
-        Eigen::VectorXd q_p = Eigen::Map<Eigen::VectorXd>(qp_arr.data(),  7);
-        Eigen::VectorXd q_pp= Eigen::Map<Eigen::VectorXd>(qpp_arr.data(), 7);
-
-        // Run optimization
-        double stop_duration = optimizer.solve(q, q_p, q_pp);
-        shared_stop_duration.store(stop_duration);
-
-        // Read skeleton
-        Skeleton skeleton;
-        {
-            std::lock_guard<std::mutex> lock(skeleton_mutex);
-            skeleton = shared_skeleton;
-        }
-
-        // ---- C-ACT-WS: concurrent robot+human activity inside the workspace ----
-        {
-            auto now_metrics = std::chrono::steady_clock::now();
-            double dt_conc = std::chrono::duration<double>(now_metrics - last_metrics_t).count();
-            last_metrics_t = now_metrics;
-
-            // Robot: always considered inside its own workspace; "active" = moving
-            bool robot_active = q_p.norm() > ROBOT_ACTIVE_VEL_THRESH;
-
-            // Human: active whenever any tracked point is inside the workspace
-            // (presence is enough -- the human need not be moving)
-            bool human_in_ws = false;
-            for (const auto& pt : skeleton) {
-                if (std::isnan(pt[0]) || std::isnan(pt[1]) || std::isnan(pt[2])) continue;
-                double dist_from_base = std::sqrt(pt[0]*pt[0] + pt[1]*pt[1] + pt[2]*pt[2]);
-                if (dist_from_base < WORKSPACE_RADIUS) {
-                    //std::cout << "human is inside robot ws\n";
-                    human_in_ws = true;
-                    break;
-                }
-            }
-
-            if (robot_active && human_in_ws) {
-                //std::cout << "concurrent activity detected: " << dt_conc << "s\n";
-                g_concurrent_ws_time += dt_conc;
-            }
-        }
-/*
-        std::cout << "Skeleton points (" << skeleton.size() << " total):\n";
-        for (size_t i = 0; i < skeleton.size(); ++i) {
-            const auto& pt = skeleton[i];
-            std::cout << "  [" << i << "] -> ";
-            if (std::isnan(pt[0]) && std::isnan(pt[1]) && std::isnan(pt[2])) {
-                std::cout << "NaN, NaN, NaN\n";
-            } else {
-                std::cout << "x: " << pt[0] << ", y: " << pt[1] << ", z: " << pt[2] << "\n";
-            }
-        }
-*/
-        std::array<double, 4> radii;
-        // Stop decision 
-        if (!skeleton.empty() && !skeleton_stale.load()) {
-            stale_elapsed = 0.0;
-
-            DistanceResult closest;
-            closest.distance = NAN;
-            closest.C_h = Eigen::Vector3d::Constant(NAN);
-            closest.C_r = Eigen::Vector3d::Constant(NAN);
-
-            robot.ComputeFK(q);
-            bool should_stop = flagStop(stop_duration, q, q_p, q_pp,
-                                        skeleton, robot.getModel(), robot.getData(), radii, &closest);
-            stop_flag.store(should_stop);
-            shared_rh_distance.store(closest.distance);
-
-            last_C_h       = closest.C_h;
-            last_C_r       = closest.C_r;
-            last_collision = should_stop;
-
-            //  Log the closest robot/human points, mirroring dist_segment.xml 
-            double t_exe = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_i).count();
- 
-            outfile_dist << "\t<keypoint time='" << t_exe << "'>\n";
-            outfile_dist << "\t\t<stop_duration>" << stop_duration << "</stop_duration>\n";
-            outfile_dist << "\t\t<radii>" << radii[0] << ", " << radii[1] << ", " << radii[2] << ", " << radii[3] << "</radii>\n";
-            
-            outfile_dist << "\t\t<position>\n";
-            for (int j = 0; j < 7; ++j)
-                outfile_dist << "\t\t\t<point id='" << j << "'>" << q[j] << "</point>\n";
-            
-            outfile_dist << "\t\t</position>\n\t\t<speed>\n";
-            for (int j = 0; j < 7; ++j)
-                outfile_dist << "\t\t\t<point id='" << j << "'>" << q_p[j] << "</point>\n";
-            outfile_dist << "\t\t</speed>\n\t</keypoint>\n";
-
-        } else {
-            // The skeleton stream is missing or has gone stale: after a short
-            // grace period (to absorb the startup latency of the vision
-            // pipeline) force a stop instead of moving without human-position
-            // data. The last known closest-point pair keeps being published.
-            stale_elapsed += dt_loop;
-            if (stale_elapsed > STALE_STOP_GRACE_S) {
-                stop_flag.store(true);
-            }
-        }
-
-        // Stream the closest-point pair / stop decision to web_interface.py
-        publisher.publishClosestPoints(last_C_h, last_C_r, last_collision);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// Receive the merged skeleton published by data_merging.py
+//
+// The receive blocks until a message arrives; an empty vector is returned
+// only if the message carries no skeleton at all.
+// ─────────────────────────────────────────────────────────────────────────────
+static std::vector<Eigen::Vector3d> receiveSkeleton(DataTransmitter& tx) {
+    const std::vector<nlohmann::json> data = tx.receive_data();
+    if (data.empty()) return {};
+    return json_to_keypoints(data[0]);
 }
 
-void executeTrajectory (
-    const Eigen::VectorXd&  q_start,
-    const Eigen::VectorXd&  q_end,
-    double                  t_traj,
-    TrajectoryPublisher&    publisher,
-    RobotModel&             robot) {
-    
-    const double TOLL_NO_STOP = 0.05; 
-    double t_traj_new = std::round(t_traj / TRAJ_STEP) * TRAJ_STEP;
-    bool flag_continue = true;
-
-    // A segment with no duration carries no motion: skip it instead of
-    // building a degenerate polynomial (which would divide by zero).
-    if (t_traj_new <= 0.0) {
-        std::cout << "executeTrajectory: segment duration is not positive, skipped\n";
-        return;
+// ─────────────────────────────────────────────────────────────────────────────
+// Convert the received keypoints into the Skeleton type used by flagStop
+// ─────────────────────────────────────────────────────────────────────────────
+static Skeleton toSkeleton(const std::vector<Eigen::Vector3d>& keypoints) {
+    Skeleton out;
+    out.reserve(keypoints.size());
+    for (const auto& p : keypoints) {
+        out.push_back({p.x(), p.y(), p.z()});
     }
+    return out;
+}
 
-    const pinocchio::FrameIndex EE_ID = robot.getModel().getFrameId("panda_link8");
-    pinocchio::Data& data = robot.getData();
-
-    Eigen::VectorXd q_c = q_start;
-
-    Eigen::VectorXd q_p_lim = Eigen::VectorXd::Constant(7, 0.05);
-    Eigen::VectorXd q_pp_lim = Eigen::VectorXd::Constant(7, 0.05);
-
-    // Set gains for the joint impedance control.
-    // Stiffness
-    const std::array<double, 7> k_gains = {{600.0, 600.0, 600.0, 600.0, 250.0, 150.0, 50.0}};
-    // Damping
-    const std::array<double, 7> d_gains = {{50.0, 50.0, 50.0, 50.0, 20.0, 20.0, 7.0}};
-
-    enum State {RUNNING, STOPPING};     // logica a stati del movimento
-    State current_state = RUNNING;
-
-    while (flag_continue) {
-        int num_points = static_cast<int>(t_traj / TRAJ_STEP) + 1;
-
-        Eigen::MatrixXd Q(num_points, 7);
-        Eigen::MatrixXd Q_p(num_points, 7);
-        Eigen::MatrixXd Q_pp(num_points, 7);
-
-        for (int j = 0; j < 7; j++) {
-            // compute trajectory and limits
-
-            Eigen::MatrixXd traj = trajPoly5Numeric(q_c(j), 0.0, 0.0,
-                                                    q_end(j), 0.0, 0.0,
-                                                    t_traj_new, num_points);
-            Q.col(j)    = traj.col(0);
-            Q_p.col(j)  = traj.col(1);
-            Q_pp.col(j) = traj.col(2);
-
-            double max_vel = Q_p.col(j).cwiseAbs().maxCoeff();
-            double max_acc = Q_pp.col(j).cwiseAbs().maxCoeff();
-            if (max_vel > 0.0) q_p_lim(j)  = max_vel;
-            if (max_acc > 0.0) q_pp_lim(j) = max_acc;
-        }
- 
-        bool stop_flag_local = false;
-        double stop_duration = 0.4;
-        Eigen::VectorXd q_c_local  = q_c;   // segment start, kept for the retry duration
-        Eigen::VectorXd q_meas     = q_c;
-
-        double t = 0.0;  // accumulated playback time
-        // g_t_log (global) accumulates regardless of RUNNING/STOPPING, for sampling and T-TIME
-
-        // braking variables
-        double t_brake = 0.0;
-        int stop_num_points = 0;
-        
-        Eigen::VectorXd q_0_brake = Eigen::VectorXd::Zero(7);
-        Eigen::VectorXd v_0_brake = Eigen::VectorXd::Zero(7);
-        Eigen::VectorXd a_0_brake = Eigen::VectorXd::Zero(7);
-        Eigen::MatrixXd Q_stop, Q_p_stop, Q_pp_stop;
-
-        // Simulated plant state, replaces franka::RobotState: starts from the
-        // currently commanded configuration and, with no robot attached,
-        // tracks the commanded trajectory exactly (one tick of delay).
-        PlaybackState state;
-        for (int j = 0; j < 7; ++j) {
-            state.q[j] = q_c(j);
-        }
-
-        // execute trajectory: the same state machine as before, stepped at the
-        // old 1 kHz control rate, with every commanded sample published to
-        // web_interface.py through the trajectory publisher instead of being
-        // streamed to libfranka (control needs to just impose the trajectory,
-        // be it normal or stopping).
-        bool motion_finished = false;
-        double t_publish = TRAJ_PUBLISH_PERIOD;  // publish on the very first tick
-
-        try {
-            auto next_tick = std::chrono::steady_clock::now();
-
-            for (int tick = 0; !motion_finished; ++tick) {
-                // libfranka called the control callback with period 0 on the
-                // first cycle, then with the fixed 1 kHz period: mirror that
-                const double period_s = (tick == 0) ? 0.0 : TRAJ_STEP;
-
-                // Update shared robot state for collision checker 
-                {
-                    std::lock_guard<std::mutex> lock(robot_state_mutex);
-                    for (int j = 0; j < 7; ++j) {
-                        shared_robot_state.q[j]   = state.q[j];
-                        shared_robot_state.q_p[j] = state.dq[j];
-                        // finite difference for q_pp
-                        shared_robot_state.q_pp[j] = state.ddq_d[j];
-                    }
-                }
-
-                // Read measured state
-                Eigen::Map<const Eigen::Matrix<double, 7, 1>> q_m(state.q.data());
-                Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq_m(state.dq.data());
-
-                q_meas = q_m;
-
-                // ---- T-TIME / R-IDLE bookkeeping (no locking: this thread is the
-                // sole writer of g_t_log/g_idle_time while the playback loop runs) ----
-                {
-                    double dt_step = period_s;
-                    g_t_log += dt_step;
-                }
-
-                // stop condition check
-                // stop event tolerance check
-                Eigen::Index max_idx;
-                double max_diff = (q_end - q_meas).cwiseAbs().maxCoeff(&max_idx);
-                bool do_stop = max_diff > TOLL_NO_STOP;
-                //std::cout << "max distance: " << max_diff << " at index " << max_idx << "\n";
-
-                if (current_state == RUNNING && stop_flag.load() && do_stop) {
-                    g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-                    stop_flag_local = stop_flag.load();
-                    
-                    stop_duration = shared_stop_duration.load();
-                    
-                    q_0_brake = q_m;
-                    v_0_brake = dq_m;
-                    a_0_brake = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(state.ddq_d.data());
-
-                    stop_num_points = static_cast<int>(stop_duration / TRAJ_STEP) + 1;
-                    // compute poly5 for stopping
-                    Q_stop.resize(stop_num_points, 7);
-                    Q_p_stop.resize(stop_num_points, 7);
-                    Q_pp_stop.resize(stop_num_points, 7);
-                    for (int j = 0; j < 7; ++j) {
-                        Eigen::MatrixXd tj = trajPoly5Numeric(
-                            q_0_brake(j), v_0_brake(j), a_0_brake(j),
-                            q_0_brake(j), 0.0, 0.0,
-                            stop_duration, stop_num_points);
-                        Q_stop.col(j) = tj.col(0);
-                        Q_p_stop.col(j) = tj.col(1);
-                        Q_pp_stop.col(j) = tj.col(2);
-                    }
-
-                    t_brake = 0.0;
-                    current_state = STOPPING;
-                }
-
-                // Desired position & velocity placeholders
-                Eigen::Matrix<double, 7, 1> q_d;
-                Eigen::Matrix<double, 7, 1> dq_d;
-                Eigen::Matrix<double, 7, 1> ddq_d;
-                Eigen::Matrix<double, 7, 1> tau_d = Eigen::Matrix<double, 7, 1>::Zero();
-
-                // compute target values
-                if (current_state == STOPPING) {
-                    t_brake += period_s;
-                    if (t_brake >= stop_duration) {
-                        {
-                            std::lock_guard<std::mutex> lock(robot_state_mutex);
-                            std::fill(shared_robot_state.q_p.begin(), shared_robot_state.q_p.end(), 0.0);
-                            std::fill(shared_robot_state.q_pp.begin(), shared_robot_state.q_pp.end(), 0.0);
-                        }
-                        // motion finished (the old code ended the motion here
-                        // with zero torques)
-                        motion_finished = true;
-                    } else {
-                        int stop_idx = static_cast<int>(t_brake / TRAJ_STEP);
-                        stop_idx = std::min(stop_idx, stop_num_points - 1);
-
-                        q_d = Q_stop.row(stop_idx).transpose();
-                        dq_d = Q_p_stop.row(stop_idx).transpose();
-                        ddq_d = Q_pp_stop.row(stop_idx).transpose();
-                    }
-                } 
-                else if (current_state == RUNNING) {
-                    // Normal execution
-                    t += period_s;
-                    //  Get current trajectory index 
-                    int idx = static_cast<int>(t / TRAJ_STEP);
-                    idx = std::min(idx, num_points - 1);
-
-                    //  Check if trajectory is complete 
-                    if (t >= t_traj_new) {
-                        motion_finished = true;
-                    } else {
-                        q_d = Q.row(idx).transpose();
-                        dq_d = Q_p.row(idx).transpose();
-                        ddq_d = Q_pp.row(idx).transpose();
-                    }
-                }
-
-                if (!motion_finished) {
-                    // Fetch dynamic properties from the Pinocchio model
-                    // (replaces franka::Model: only the Coriolis term is used,
-                    // as feed-forward of the joint impedance law)
-                    Eigen::VectorXd q_v   = Eigen::Map<const Eigen::VectorXd>(state.q.data(),   7);
-                    Eigen::VectorXd dq_v  = Eigen::Map<const Eigen::VectorXd>(state.dq.data(),  7);
-                    pinocchio::computeCoriolisMatrix(robot.getModel(), data, q_v, dq_v);
-                    Eigen::VectorXd coriolis = data.C * dq_v;
-
-                    // compute torques
-                    Eigen::Matrix<double, 7, 1> tau_fb;
-                    Eigen::Matrix<double, 7, 1> tau_ff = /*mass * ddq_d +*/ coriolis;
-
-                    // PD controller
-                    for (size_t i = 0; i < 7; ++i) {
-                        tau_fb(i) = k_gains[i]*(q_d(i)-q_m(i)) + 
-                                    d_gains[i]*(dq_d(i)-dq_m(i));
-                    }
-
-                    tau_d = tau_ff + tau_fb;
-                }
-
-                std::array<double, 7> tau_cmd;
-                Eigen::VectorXd::Map(&tau_cmd[0], 7) = tau_d;
-                std::array<double, 7> tau_d_rate_limited = limitTorqueRate(tau_cmd, state.tau_J_d);
-
-                if (!motion_finished) {
-                    // End-effector position from Pinocchio FK (replaces
-                    // state.O_T_EE from libfranka)
-                    pinocchio::forwardKinematics(robot.getModel(), data, q_meas);
-                    pinocchio::updateFramePlacements(robot.getModel(), data);
-                    const Eigen::Vector3d ee_pos =
-                        data.oMf[EE_ID].translation();
-
-                    LogSample s;
-                    s.t = g_t_log;
-                    for (int j = 0; j < 7; ++j) {
-                        s.q[j]          = state.q[j];
-                        s.dq[j]         = state.dq[j];
-                        s.tau_cmd[j]    = tau_d_rate_limited[j];
-                        s.tau_meas[j]   = state.tau_J[j];
-                    }
-                    s.ee_pos = {ee_pos.x(), ee_pos.y(), ee_pos.z()};
-                    log_queue.push(s);
-
-                    // Update the simulated plant: with no robot attached the
-                    // "measured" state follows the commanded trajectory
-                    for (int j = 0; j < 7; ++j) {
-                        state.q[j]      = q_d(j);
-                        state.dq[j]     = dq_d(j);
-                        state.ddq_d[j]  = ddq_d(j);
-                    }
-                    state.tau_J_d = tau_d_rate_limited;
-                    state.tau_J   = tau_d_rate_limited;
-                }
-
-                // Publish the commanded trajectory sample to web_interface.py
-                // (this replaces streaming the sample to the real robot)
-                t_publish += period_s;
-                if (t_publish >= TRAJ_PUBLISH_PERIOD) {
-                    robot.ComputeFK(q_meas);
-                    publisher.publishSample(robot.getModel(), robot.getData(), q_meas);
-                    t_publish = 0.0;
-                }
-
-                if (motion_finished) break;
-
-                // Pace the playback at the old 1 kHz control rate
-                next_tick += std::chrono::milliseconds(1);
-                std::this_thread::sleep_until(next_tick);
-            }
-        } catch (const std::exception& e) {
-                std::cerr << "executeTrajectory: playback fault during main motion: " << e.what() << "\n";
-                throw;
-        }
-
-        if (stop_flag_local) {
-            std::cout << "\t Traiettoria di stop completata\n";
-
-            //  Recalculate duration for retry 
-            Eigen::VectorXd vect_t_vel(7), vect_t_acc(7);
-            for (int j = 0; j < 7; ++j) {
-                vect_t_vel(j) = 15.0 * std::abs(q_end(j) - q_c_local(j))
-                              / (8.0 * q_p_lim(j));
-                vect_t_acc(j) = std::sqrt(10.0 * std::abs(q_end(j) - q_c_local(j))
-                              / (std::sqrt(3.0) * q_pp_lim(j)));
-            }
-
-            double t_vel    = vect_t_vel.maxCoeff();
-            double t_acc    = vect_t_acc.maxCoeff();
-            double added_time = std::max({t_vel, t_acc, 0.5});
-
-            t_traj_new = std::round(added_time / TRAJ_STEP) * TRAJ_STEP;
-            q_c = q_meas;  // restart from where we stopped
-
-            // wait for obstacle to move -- this is real idle time: the robot is
-            // fully stopped, so no real-time deadline applies here and we can
-            // just measure wall-clock duration directly.
-            // (Same-thread access to g_idle_time/g_t_log, so still no locking needed.)
-            // The wait is bounded: if the human never leaves the workspace (or
-            // the skeleton stream is dead, so the distance stays NaN) the
-            // robot resumes after MAX_STOP_WAIT_S instead of waiting forever.
-            auto pause_start = std::chrono::steady_clock::now();
-            while (true) {
-                double wait_elapsed = std::chrono::duration<double>(
-                    std::chrono::steady_clock::now() - pause_start).count();
-                if (wait_elapsed >= MAX_STOP_WAIT_S) {
-                    std::cerr << "executeTrajectory: obstacle still blocking after "
-                              << MAX_STOP_WAIT_S << "s, resuming anyway\n";
-                    break;
-                }
-                if (shared_rh_distance.load() >= 0.5) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-            double pause_duration = std::chrono::duration<double>(
-                std::chrono::steady_clock::now() - pause_start).count();
-            g_idle_time += pause_duration;  // whole pause counts as idle, no debounce needed
-            g_t_log     += pause_duration;  // T-TIME must include the pause, not just loop time
-
-            // Reset stop flag for retry
-            stop_flag.store(false);
-            current_state = RUNNING;
-        } else
-        {
-            //  Robot reached target 
-            flag_continue = false;
-            std::cout << "Fine del movimento alla configurazione finale\n";
-        }
+// ─────────────────────────────────────────────────────────────────────────────
+// True when at least one valid skeleton point lies inside the robot workspace
+// ─────────────────────────────────────────────────────────────────────────────
+static bool humanInWorkspace(const std::vector<Eigen::Vector3d>& skeleton) {
+    for (const auto& p : skeleton) {
+        if (p.hasNaN()) continue;
+        if (p.norm() < WORKSPACE_RADIUS) return true;
     }
+    return false;
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Run the simulated tracking task for the given trajectory index and working
+// directory
+// ─────────────────────────────────────────────────────────────────────────────
 int execute_task (int n_traj, const std::filesystem::path& root) {
-    // Caricamento del modello URDF del robot Panda utilizzando Pinocchio per calcoli cinematici avanzati
-    const std::filesystem::path urdf_path = root / "src" / "urdf" / "panda.urdf";
-    if (!std::filesystem::exists(urdf_path)) {
-        std::cerr << "URDF not found: " << urdf_path << "\n";
-        return 1;
+    const std::filesystem::path urdf = root / "src" / "urdf" / "panda.urdf";
+    if (!std::filesystem::exists(urdf)) {
+        throw std::runtime_error("URDF not found: " + urdf.string());
     }
-    RobotModel robot(urdf_path.string());
+    RobotModel robot(urdf.string());
+
+    // ── Data transmitters ───────────────────────────────────────────────────
+    std::vector<std::unique_ptr<DataTransmitter>> transmitters;
+    transmitters.reserve(3);
+    transmitters.push_back(std::make_unique<DataTransmitter>(
+        DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
     // ── Delay for loading the web interface ─────────────────────────────────
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
-    // The trajectory is read from src/trajectories/test<N>/: the waypoints can
-    // be given in Cartesian coordinates (p_ref.csv) or in joint coordinates
-    // (q_ref.csv), and the cumulative times (t_ref.csv) give the duration of
-    // every segment.
+    // ── Nominal trajectory construction ──────────────────────────────────────
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
@@ -613,210 +157,217 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         return 1;
     }
 
-    auto q_traj = nominal_traj.q;
-    auto t_traj = nominal_traj.t;
+    // ── SSM simulation ───────────────────────────────────────────────────────
+    Trajectory real_traj;
+    real_traj.q.push_back(nominal_traj.q[0]);
+    real_traj.qd.push_back(nominal_traj.qd[0]);
+    real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
+    real_traj.p.push_back(nominal_traj.p[0]);
+    real_traj.pd.push_back(nominal_traj.pd[0]);
 
-    try{
-        TrajectoryPublisher publisher;
+    bool stopped = false;
+    bool was_stopped = false;
+    int r = 1;
 
-        // apri file per logging
-        const std::filesystem::path logs_dir = root / "logs";
-        std::string pathname = logs_dir.string() + "/";
-        resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
-        {
-            std::error_code ec;
-            std::filesystem::create_directories(logs_dir, ec);
-            if (ec) {
-                std::cerr << "executeTask: WARNING could not create '" << logs_dir
-                        << "': " << ec.message() << "\n";
-            }
+    // The first frame is awaited here, so that the safety layer has human data
+    // from the very first step. The first frame may take a while to arrive (the
+    // vision pipeline has to start up), the following ones only have to keep
+    // the stream alive.
+    transmitters[0]->set_receive_timeout(10000);
+    std::vector<Eigen::Vector3d> skeleton = receiveSkeleton(*transmitters[0]);
+    if (skeleton.empty()) {
+        throw std::runtime_error(
+            "No merged skeleton received: is scripts/data_merging.py running?");
+    }
+    transmitters[0]->set_receive_timeout(1000);
+
+    const int period_ms = static_cast<int>(dt*1000.0);
+    auto next_time = std::chrono::steady_clock::now();
+
+    // ── Logging ──────────────────────────────────────────────────────────────────
+    const std::filesystem::path logs_dir = root / "logs" / "SSM";
+    std::string pathname = logs_dir.string() + "/";
+    resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(logs_dir, ec);
+        if (ec) {
+            std::cerr << "executeTask: WARNING could not create '" << logs_dir
+                    << "': " << ec.message() << "\n";
         }
-        std::ofstream outfile_q(pathname + "q_robot.xml");
-        std::ofstream outfile_dist(pathname + "dist_segment.xml");
-        std::ofstream outfile_dq(pathname + "dq_robot.xml");
-        std::ofstream outfile_tau(pathname + "tau_robot.xml");
-        std::ofstream outfile_pose(pathname + "pose_robot.xml");
+    }
+    std::ofstream outfile_q(pathname + "q_robot.xml");
+    std::ofstream outfile_dist(pathname + "dist_segment.xml");
+    std::ofstream outfile_dq(pathname + "dq_robot.xml");
+    std::ofstream outfile_tau(pathname + "tau_robot.xml");
+    std::ofstream outfile_pose(pathname + "pose_robot.xml");
 
-        outfile_q << "<q>\n";
-        outfile_dist << "<distance>\n";
-        outfile_dq << "<dq>\n";
-        outfile_tau << "<tau>\n";
-        outfile_pose << "<pose>\n";
-        std::cout << "Outfiles initiated\n";
+    outfile_q << "<q>\n";
+    outfile_dist << "<distance>\n";
+    outfile_dq << "<dq>\n";
+    outfile_tau << "<tau>\n";
+    outfile_pose << "<pose>\n";
+    std::cout << "Outfiles initiated\n";
 
-        // thread per scheletro e collision check
-        // il processo live riceve lo scheletro fuso pubblicato da data_merging.py
-        // (topic "MERGED", device_id 10 -> porta 6001 + 10 = 6011)
-        std::thread skeleton_thread(receiveSkeletonMerged, "localhost", 10, "MERGED",
-                                    pathname + "skeleton_received.txt");
+    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
 
-        std::thread collision_thread(collisionCheckerThread,
-        std::ref(robot), std::ref(outfile_dist), std::ref(publisher));
-        
-        std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
+    // Built once: the optimiser compiles its NLP in the constructor and is then
+    // only evaluated at every step.
+    StopDurationOptimizer optimizer(robot);
 
-        //StopDurationOptimizer optimizer(model);
-
-        double t_traj_prev = 0.0;
-        Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
-
-        // The recorded trajectories reach their first waypoint at t = 0, i.e. the
-        // robot starts the task *at* that waypoint and the playback begins with
-        // the second one. When instead the first waypoint is reached after a
-        // positive time, the robot starts from the home configuration and the
-        // first segment moves it to that waypoint.
-        size_t first_segment = 0;
-        if (!t_traj.empty() && !q_traj.empty() && t_traj.front() <= 0.0) {
-            q_traj_prev         = q_traj.front();
-            t_traj_prev  = t_traj.front();
-            first_segment       = 1;
+    const int n_steps = static_cast<int>(nominal_traj.t.size());
+    for (int i = 0; i <= n_steps-1; ++i) {
+        const std::vector<Eigen::Vector3d> skeleton_new = receiveSkeleton(*transmitters[0]);
+        if (!skeleton_new.empty()) {
+            skeleton = skeleton_new;
         }
 
-        auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
+        // Index of the sample of the nominal trajectory that is being tracked.
+        // It is clamped, so that the last sample is never read out of range.
+        const size_t r_idx = std::min<size_t>(static_cast<size_t>(std::max(r, 0)),
+                                               nominal_traj.q.size() - 1);
 
-        // esegui la traiettoria secondo i tempi in t_traj
-        try {
-            const int period_ms = static_cast<int>(dt*1000.0);
-            auto next_time = std::chrono::steady_clock::now();
+        const Eigen::VectorXd& q_ref   = nominal_traj.q[r_idx];
+        const Eigen::VectorXd& qd_ref  = nominal_traj.qd[r_idx];
+        const Eigen::VectorXd& qdd_ref = nominal_traj.qdd[r_idx];
 
-            for (size_t i = first_segment; i < q_traj.size(); i++) {
-                double segment_duration = t_traj[i] - t_traj_prev;
-                if (segment_duration > 0.0) {
-                    executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
-                                    publisher, robot);
-
-                    t_traj_prev = t_traj[i];
-                    q_traj_prev = q_traj[i];
-
-                    next_time += std::chrono::milliseconds(period_ms);
-                    std::this_thread::sleep_until(next_time);
-                }
-            }
-        } catch (...) {
-            // A playback fault propagated up from executeTrajectory. Still need to
-            // stop the skeleton/collision threads and close the log files
-            // properly before this task ends otherwise a fault leaks
-            // threads and leaves truncated/unflushed log files behind, on top
-            // of the actual error.
-            std::cerr << "executeTask: aborting due to playback fault, cleaning up\n";
-            trajectory_done.store(true);
-            skeleton_thread.join();
-            collision_thread.join();
-            logger_thread.join();
-            outfile_q << "</q>\n";
-            outfile_dist << "</distance>\n";
-            outfile_dq << "</dq>\n";
-            outfile_tau << "</tau>\n";
-            outfile_pose << "</pose>\n";
-            outfile_q.close();
-            outfile_dist.close();
-            outfile_dq.close();
-            outfile_tau.close();
-            outfile_pose.close();
+        // ── C-ACT-WS / R-IDLE bookkeeping ────────────────────────────────────
+        const bool robot_active = qd_ref.norm() > ROBOT_ACTIVE_VEL_THRESH;
+        if (robot_active && humanInWorkspace(skeleton)) {
+            g_concurrent_ws_time += dt;
+        }
+        if (robot_active) {
             flushIdleStreak();
-            writeMetricsFile(pathname);  // still save whatever metrics were gathered before the fault
-            throw;  // let the caller (main) know the task did not complete
-
+        } else {
+            g_idle_streak_duration += dt;
         }
 
-        double real_elapsed = std::chrono::duration<double>(
-            std::chrono::steady_clock::now() - task_start).count();
-        const double nominal_duration = t_traj.empty() ? 0.0 : t_traj.back();
-        std::cout << "Nominal trajectory duration: " << nominal_duration
-                << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
+        // ── Core SSM computation ─────────────────────────────────────────────
+        std::array<double, 4> radii{};
+        DistanceResult closest;
+        closest.distance = NAN;
+        closest.C_h = Eigen::Vector3d::Constant(NAN);
+        closest.C_r = Eigen::Vector3d::Constant(NAN);
 
-        trajectory_done.store(true);
+        const double stop_duration = optimizer.solve(q_ref, qd_ref, qdd_ref);
+        robot.ComputeFK(q_ref);
+        stopped = flagStop(stop_duration, q_ref, qd_ref, qdd_ref, toSkeleton(skeleton),
+                           robot.getModel(), robot.getData(), radii, &closest);
 
-        skeleton_thread.join();
-        collision_thread.join();
-        logger_thread.join();
+        if (stopped && !was_stopped) {
+            g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
+        }
+        was_stopped = stopped;
 
-        outfile_q << "</q>\n";
-        outfile_dist << "</distance>\n";
-        outfile_dq << "</dq>\n";
-        outfile_tau << "</tau>\n";
-        outfile_pose << "</pose>\n";
-        outfile_q.close();
-        outfile_dist.close();
-        outfile_dq.close();
-        outfile_tau.close();
-        outfile_pose.close();
+        if (!stopped) {
+            real_traj.q.push_back(q_ref);
+            real_traj.qd.push_back(qd_ref);
+            real_traj.qdd.push_back(qdd_ref);
+            real_traj.p.push_back(nominal_traj.p[r_idx]);
+            real_traj.pd.push_back(nominal_traj.pd[r_idx]);
 
-        flushIdleStreak();
-        writeMetricsFile(pathname);
+            r++;
+        }
+        else {
+            // ── Pause while the human is inside the safety distance ──────────
+            real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
+            real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
+            const int prev = i > 0 ? i - 1 : i;
+            real_traj.q.push_back(real_traj.q[prev]);
+            real_traj.p.push_back(real_traj.p[prev]);
+            real_traj.pd.push_back(Eigen::Vector3d::Zero());
+        }
 
+        LogSample s;
+        s.t = g_t_log;
+        for (int j = 0; j < 7; ++j) {
+            s.q[j]          = real_traj.q[i][j];
+            s.dq[j]         = real_traj.qd[i][j];
+            // s.tau_cmd[j]    = tau_d_rate_limited[j];
+            // s.tau_meas[j]   = state.tau_J[j];
+        }
+        s.ee_pos = {real_traj.p[i][0], real_traj.p[i][1], real_traj.p[i][2]};
+        log_queue.push(s);
 
+        // ── Distance / stop-duration log ─────────────────────────────────────
+        outfile_dist << "\t<keypoint time='" << g_t_log << "'>\n";
+        outfile_dist << "\t\t<stop_duration>" << stop_duration << "</stop_duration>\n";
+        outfile_dist << "\t\t<radii>" << radii[0] << ", " << radii[1] << ", "
+                     << radii[2] << ", " << radii[3] << "</radii>\n";
 
+        outfile_dist << "\t\t<position>\n";
+        for (int j = 0; j < 7; ++j)
+            outfile_dist << "\t\t\t<point id='" << j << "'>" << q_ref[j] << "</point>\n";
 
+        outfile_dist << "\t\t</position>\n\t\t<speed>\n";
+        for (int j = 0; j < 7; ++j)
+            outfile_dist << "\t\t\t<point id='" << j << "'>" << qd_ref[j] << "</point>\n";
+        outfile_dist << "\t\t</speed>\n\t</keypoint>\n";
 
+        g_t_log += dt;
 
-        std::cout << "Trajectory completed, " << t_traj.back()
-                << " seconds have passed, shutting down example\n";
+        // ── Publish robot state, obstacle distance and trajectory ───────
+        // The robot capsules and the joint positions are published to the web
+        // interface, which draws the robot mesh and the safety capsules.
+        const Eigen::VectorXd& q_now = real_traj.q[i + 1];
+        const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
 
-    } catch (const std::exception& ex) {
-        // Anything unexpected still exits cleanly with a clear message
-        // rather than letting it terminate the process unhandled.
-        std::cerr << "Unexpected error: " << ex.what() << "\n";
-        trajectory_done.store(true);
-        return -1;
+        nlohmann::json points = nlohmann::json::array();
+        for (const auto& p : caps) {
+            points.push_back(nlohmann::json::array({p[0], p[1], p[2]}));
+        }
+        nlohmann::json radii_json = nlohmann::json::array();
+        for (const double radius : ROBOT_CAPSULE_RADII) {
+            radii_json.push_back(radius);
+        }
+        nlohmann::json q_json = nlohmann::json::array();
+        for (int j = 0; j < q_now.size(); ++j) q_json.push_back(q_now(j));
+
+        std::vector<nlohmann::json> payload;
+        payload.push_back(points);
+        payload.push_back(q_json);
+        payload.push_back(radii_json);
+        transmitters[1]->send_data(payload);
+
+        // The trajectory topic carries the position of the end effector and
+        // the position it is heading to, plus the stop flag
+        payload.clear();
+        payload.push_back(std::vector<double>(real_traj.p[i + 1].data(), real_traj.p[i + 1].data() + real_traj.p[i + 1].size()));
+        payload.push_back(std::vector<double>(nominal_traj.p[r_idx].data(), nominal_traj.p[r_idx].data() + nominal_traj.p[r_idx].size()));
+        payload.push_back(stopped);
+        transmitters[2]->send_data(payload);
+
+        next_time += std::chrono::milliseconds(period_ms);
+        std::this_thread::sleep_until(next_time);
     }
 
+    trajectory_done.store(true);
+    logger_thread.join();
 
+    outfile_q << "</q>\n";
+    outfile_dist << "</distance>\n";
+    outfile_dq << "</dq>\n";
+    outfile_tau << "</tau>\n";
+    outfile_pose << "</pose>\n";
+    outfile_q.close();
+    outfile_dist.close();
+    outfile_dq.close();
+    outfile_tau.close();
+    outfile_pose.close();
 
+    flushIdleStreak();
+    writeMetricsFile(pathname);
 
-    
+    return 0;
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Locate the project root, i.e. the directory holding src/urdf/,
-// src/trajectories/ and logs/.
-//
-// The root is looked up in this order:
-//   1) the path given on the command line (run.sh passes the repository root)
-//   2) the current working directory
-//   3) the parent of the executable's directory (build/ -> project root)
-//
-// so that the demo can be launched either from the build directory or from the
-// project root, with no path depending on the current working directory.
+// Entry point: parse the trajectory index and working directory, then run the
+// task
 // ─────────────────────────────────────────────────────────────────────────────
-static std::filesystem::path findProjectRoot(const std::string& explicit_root = "") {
-    namespace fs = std::filesystem;
-    std::error_code ec;
-
-    const auto is_root = [](const fs::path& p) {
-        std::error_code ec2;
-        return fs::exists(p / "src" / "urdf" / "panda.urdf", ec2);
-    };
-
-    // 1) the path given on the command line
-    if (!explicit_root.empty()) {
-        fs::path p = fs::path(explicit_root);
-        if (p.is_relative()) p = fs::absolute(p, ec);
-        if (!ec && is_root(p)) return p;
-    }
-
-    // 2) the current working directory
-    fs::path cwd = fs::current_path(ec);
-    if (!ec && is_root(cwd)) return cwd;
-
-    // 3) the parent of the executable's directory (build/ -> project root)
-    fs::path exe = fs::read_symlink("/proc/self/exe", ec);
-    if (!ec) {
-        fs::path root = exe.parent_path().parent_path();
-        if (is_root(root)) return root;
-
-        root = exe.parent_path();
-        if (is_root(root)) return root;
-    }
-
-    return cwd;  // fallback: the files below will simply fail to open
-}
-
-
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
     // ── Command line: <trajectory index> [repository root] ──────────────────
-    // The trajectory index selects the set under src/trajectories (test<N>/),
-    // the repository root is the directory holding src/ and scripts/.
     int n_traj = -1;
     std::string root_arg;
     if (argc > 1) {

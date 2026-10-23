@@ -1,25 +1,5 @@
 #!/bin/bash
 
-# ░RUN_SH                                  ░
-# ░RUN_SH                                  ░
-# ░RUN_SH                                  ░
-#
-# run.sh - Source file for the SkeletonTracking system.
-#
-
-▒RUN_SH▒▒▒
-░RUN_SH██░
- 
- # Script: run.sh
- #
-
-#
-# Usage:
-#   ./run.sh --track [--gui] [--robot --traj N] [--core CORE]
-#   ./run.sh --record
-#   ./run.sh --stream [--test N] [--gui] [--robot --traj N] [--core CORE]
-#   ./run.sh --calibrate
-
 set -euo pipefail
 
 dir="$(dirname "$0")"
