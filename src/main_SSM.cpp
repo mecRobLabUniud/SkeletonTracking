@@ -22,43 +22,22 @@ main_SSM.cpp - Main executable: replays a recorded trajectory on the Panda while
 
 #include <Eigen/Dense>
 #include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/frames.hpp>
 
-#include "ik_solver.h"
 #include "flag_stop.h"
 #include "shared_state.h"
 #include "calc_stop_duration.h"
 #include "skeleton_reader.h"
 #include "data_transmitter.hpp"
-#include "trajectory_loader.hpp"       // loadTrajectorySet (src/trajectories)
+#include "trajectory_utils.hpp"       // Trajectory, load_p2p_trajectory
 #include "trajectory_publisher.hpp"   // PlaybackState, limitTorqueRate, TrajectoryPublisher
 #include "robot_model.hpp"           // RobotModel wrapper around pinocchio
 #include "logs.hpp"
 
-// ============================================================
-//  Task metrics: T-TIME, R-IDLE, C-ACT-WS, R-STOPS
-// ============================================================
-//
-// Definitions used (tune freely):
-//   - Robot workspace: the robot is always considered inside its own
-//     workspace (fixed base, reach < 0.85 m), so no distance check
-//     is applied to the robot.
-//   - Robot "active": joint-velocity norm > ROBOT_ACTIVE_VEL_THRESH.
-//   - Human "active": at least one tracked skeleton point is within
-//     WORKSPACE_RADIUS of the base. The human does not need to be
-//     moving to count as active.
-//   - C-ACT-WS: fraction of T-TIME where the robot is active AND a
-//     human point is inside the workspace, simultaneously.
-//
-// Thread-safety note: g_t_log / g_idle_time are written only by the
-// thread running the 1 kHz playback loop and read only after that
-// loop returns, so no synchronization is needed for them -- and none
-// is used, since a mutex inside the playback loop risks blowing the
-// 1 ms step. Likewise g_concurrent_ws_time is written only by
-// collisionCheckerThread and read only after collision_thread.join(),
-// which itself establishes the necessary happens-before ordering.
-// g_stop_count uses a plain lock-free atomic (a single fetch_add is
-// negligible even at 1 kHz).
-//
+// ── Parameters ──────────────────────────────────────────────────────────────
+const double rate_hz = 60.0;
+const double dt = 1.0 / rate_hz;
 constexpr double WORKSPACE_RADIUS          = 0.9;  // meters, from robot base
 constexpr double ROBOT_ACTIVE_VEL_THRESH   = 0.05;  // rad/s (joint velocity norm)
 constexpr double IDLE_DEBOUNCE_SEC         = 0.2;   // s -- a low-velocity streak shorter
@@ -266,31 +245,51 @@ void collisionCheckerThread(RobotModel& robot, std::ofstream& outfile_dist,
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Play the nominal trajectory.
+//
+// The nominal trajectory is already sampled at the control rate: every sample
+// holds the joint configuration, the velocity and the acceleration to be
+// commanded, so the playback is a plain replay of those samples.
+//
+// The safety layer is unchanged: when the collision checker asks for a stop the
+// robot brakes to a full stop, waits for the obstacle to clear and then
+// resumes the nominal trajectory from the sample that was being played.
+// ─────────────────────────────────────────────────────────────────────────────
 void executeTrajectory (
-    const Eigen::VectorXd&  q_start,
-    const Eigen::VectorXd&  q_end,
-    double                  traj_duration,
-    TrajectoryPublisher&    publisher,
-    RobotModel&             robot) {
-    
-    const double TOLL_NO_STOP = 0.05; 
-    double traj_duration_new = std::round(traj_duration / TRAJ_STEP) * TRAJ_STEP;
+    const Trajectory&     nominal_traj,
+    TrajectoryPublisher&  publisher,
+    RobotModel&           robot) {
+
+    const double TOLL_NO_STOP = 0.05;
     bool flag_continue = true;
 
-    // A segment with no duration carries no motion: skip it instead of
+    const size_t n_samples = nominal_traj.q.size();
+
+    // A trajectory with no motion carries nothing to play: skip it instead of
     // building a degenerate polynomial (which would divide by zero).
-    if (traj_duration_new <= 0.0) {
-        std::cout << "executeTrajectory: segment duration is not positive, skipped\n";
+    if (n_samples < 2) {
+        std::cout << "executeTrajectory: the nominal trajectory is too short, skipped\n";
         return;
     }
 
     const pinocchio::FrameIndex EE_ID = robot.getModel().getFrameId("panda_link8");
     pinocchio::Data& data = robot.getData();
 
-    Eigen::VectorXd q_c = q_start;
+    // The last sample of the nominal trajectory is the final configuration of
+    // the task: the safety stop stays armed until the robot reaches it.
+    const Eigen::VectorXd q_end = nominal_traj.q.back();
 
-    Eigen::VectorXd q_p_lim = Eigen::VectorXd::Constant(7, 0.05);
-    Eigen::VectorXd q_pp_lim = Eigen::VectorXd::Constant(7, 0.05);
+    // Index of the first sample of the nominal trajectory that is played: it is
+    // moved forward when the playback resumes after a safety stop.
+    size_t idx_start = 0;
+    // Index of the sample that was being played when the safety stop was
+    // triggered: the playback resumes from it.
+    size_t idx_stop = 0;
+
+    // Configuration the motion starts from: the first sample of the nominal
+    // trajectory, or the measured one when the playback resumes after a stop.
+    Eigen::VectorXd q_c = nominal_traj.q.front();
 
     // Set gains for the joint impedance control.
     // Stiffness
@@ -302,31 +301,31 @@ void executeTrajectory (
     State current_state = RUNNING;
 
     while (flag_continue) {
-        int num_points = static_cast<int>(traj_duration / TRAJ_STEP) + 1;
+        // The samples of the nominal trajectory that are still to be played.
+        // They are already sampled at the control rate, so they are replayed as
+        // they are and the playback lasts exactly as long as the recorded
+        // motion.
+        const int num_points = static_cast<int>(n_samples - idx_start);
+        const double traj_duration_new =
+            (nominal_traj.t.back() - nominal_traj.t[idx_start]) + TRAJ_STEP;
 
         Eigen::MatrixXd Q(num_points, 7);
         Eigen::MatrixXd Q_p(num_points, 7);
         Eigen::MatrixXd Q_pp(num_points, 7);
 
-        for (int j = 0; j < 7; j++) {
-            // compute trajectory and limits
-
-            Eigen::MatrixXd traj = trajPoly5Numeric(q_c(j), 0.0, 0.0,
-                                                    q_end(j), 0.0, 0.0,
-                                                    traj_duration_new, num_points);
-            Q.col(j)    = traj.col(0);
-            Q_p.col(j)  = traj.col(1);
-            Q_pp.col(j) = traj.col(2);
-
-            double max_vel = Q_p.col(j).cwiseAbs().maxCoeff();
-            double max_acc = Q_pp.col(j).cwiseAbs().maxCoeff();
-            if (max_vel > 0.0) q_p_lim(j)  = max_vel;
-            if (max_acc > 0.0) q_pp_lim(j) = max_acc;
+        for (int k = 0; k < num_points; ++k) {
+            const Eigen::VectorXd& q_k   = nominal_traj.q[idx_start + k];
+            const Eigen::VectorXd& qd_k  = nominal_traj.qd[idx_start + k];
+            const Eigen::VectorXd& qdd_k = nominal_traj.qdd[idx_start + k];
+            for (int j = 0; j < 7; ++j) {
+                Q(k, j)    = q_k(j);
+                Q_p(k, j)  = qd_k(j);
+                Q_pp(k, j) = qdd_k(j);
+            }
         }
  
         bool stop_flag_local = false;
         double stop_duration = 0.4;
-        Eigen::VectorXd q_c_local  = q_c;   // segment start, kept for the retry duration
         Eigen::VectorXd q_meas     = q_c;
 
         double t = 0.0;  // accumulated playback time
@@ -401,7 +400,12 @@ void executeTrajectory (
                     stop_flag_local = stop_flag.load();
                     
                     stop_duration = shared_stop_duration.load();
-                    
+
+                    // Index of the nominal sample that is being played: the
+                    // playback resumes from it once the obstacle has cleared.
+                    idx_stop = idx_start + static_cast<size_t>(
+                        std::min(static_cast<int>(t / TRAJ_STEP), num_points - 1));
+
                     q_0_brake = q_m;
                     v_0_brake = dq_m;
                     a_0_brake = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(state.ddq_d.data());
@@ -548,21 +552,12 @@ void executeTrajectory (
         if (stop_flag_local) {
             std::cout << "\t Traiettoria di stop completata\n";
 
-            //  Recalculate duration for retry 
-            Eigen::VectorXd vect_t_vel(7), vect_t_acc(7);
-            for (int j = 0; j < 7; ++j) {
-                vect_t_vel(j) = 15.0 * std::abs(q_end(j) - q_c_local(j))
-                              / (8.0 * q_p_lim(j));
-                vect_t_acc(j) = std::sqrt(10.0 * std::abs(q_end(j) - q_c_local(j))
-                              / (std::sqrt(3.0) * q_pp_lim(j)));
-            }
-
-            double t_vel    = vect_t_vel.maxCoeff();
-            double t_acc    = vect_t_acc.maxCoeff();
-            double added_time = std::max({t_vel, t_acc, 0.5});
-
-            traj_duration_new = std::round(added_time / TRAJ_STEP) * TRAJ_STEP;
-            q_c = q_meas;  // restart from where we stopped
+            // The robot braked to a full stop where the safety stop was
+            // triggered: the nominal trajectory is resumed from the sample that
+            // was being played, so that the motion continues with the very same
+            // shape and timing as the recorded one.
+            q_c = q_meas;          // restart from where we stopped
+            idx_start = idx_stop;  // and from the sample that was being played
 
             // wait for obstacle to move -- this is real idle time: the robot is
             // fully stopped, so no real-time deadline applies here and we can
@@ -610,65 +605,38 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     }
     RobotModel robot(urdf_path.string());
 
-    // ── Traiettoria del robot, letta da src/trajectories/test<N>/ ───────────
-    // The set holds the waypoints (p_ref.csv, Cartesian, or q_ref.csv, joint
-    // space) and the cumulative time at which each of them is reached
-    // (t_ref.csv).
+    // ── Nominal trajectory ───────────────────────────────────────────────────
+    // The set under src/trajectories/test<N>/ holds the waypoints (p_ref.csv,
+    // Cartesian, or q_ref.csv, joint space) and the cumulative time at which
+    // each of them is reached (t_ref.csv). The whole motion is assembled here,
+    // already sampled at the control rate: the playback just replays these
+    // samples.
     const std::filesystem::path traj_dir =
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
-    TrajectoryData traj;
+    // Number of samples reserved for each segment of the nominal trajectory
+    // (a reserve hint for the loader: the real length of a segment follows
+    // from its duration and from the control rate).
+    constexpr int NOMINAL_SAMPLES = 4000;
+
+    Trajectory nominal_traj;
     try {
-        traj = loadTrajectorySet(traj_dir);
+        nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
     } catch (const std::exception& e) {
-        std::cerr << "Cannot load the trajectory from " << traj_dir << ": "
+        std::cerr << "Cannot load the nominal trajectory from " << traj_dir << ": "
                   << e.what() << "\n";
         return 1;
     }
 
-    const std::vector<double>& t_traj = traj.t;
-
-    // configurazione iniziale
-    Eigen::VectorXd q0 = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
-
-    // Le waypoint: se sono espresse nello spazio 3D vengono risolte in
-    // configurazioni di giunti con la IK, se sono già in spazio giunti
-    // vengono usate direttamente.
-    std::vector<Eigen::VectorXd> q_traj;
-    if (traj.isJointSpace()) {
-        q_traj = traj.q;
-        std::cout << "Loaded " << q_traj.size()
-                  << " joint-space waypoints from " << traj_dir << "\n";
-    } else {
-        const pinocchio::FrameIndex EE_ID = robot.getModel().getFrameId("panda_link8");
-        pinocchio::Data& data_ik = robot.getData();
-        q_traj.reserve(traj.p.size());
-        for (size_t i = 0; i < traj.p.size(); ++i) {
-            pinocchio::SE3 target = buildTarget(traj.p[i]);
-
-            IKResult result = ikine_LM(robot.getModel(), data_ik, target, EE_ID, q0);
-            q_traj.push_back(result.q);
-            q0 = result.q;  // the next waypoint starts from the previous solution
-        }
-        std::cout << "Loaded " << q_traj.size()
-                  << " Cartesian waypoints from " << traj_dir
-                  << " and solved the IK for each of them\n";
-    }
-
-    if (q_traj.empty() || t_traj.empty()) {
-        std::cerr << "The trajectory in " << traj_dir << " is empty\n";
+    if (nominal_traj.q.size() < 2 || nominal_traj.t.empty()) {
+        std::cerr << "The nominal trajectory in " << traj_dir << " is empty\n";
         return 1;
     }
 
     // ── Configurazione di partenza ─────────────────────────────────────────
-    // The recorded trajectories reach their first waypoint at t = 0, so the
-    // task starts from that waypoint; otherwise the robot starts from the
-    // home configuration and the first segment moves it to the first
-    // waypoint (see executeTask).
-    const bool starts_at_first_waypoint = (t_traj.front() <= 0.0);
-    const Eigen::VectorXd q_task_start = starts_at_first_waypoint
-        ? q_traj.front()
-        : Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
+    // The nominal trajectory starts at the first recorded waypoint, so the
+    // robot is moved there before the playback begins.
+    const Eigen::VectorXd q_task_start = nominal_traj.q.front();
 
     // movimento del robot
     std::cout << "This will move the robot to the initial joint configuration!\n";
@@ -744,7 +712,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
 
         // apri file per logging
-        const std::filesystem::path logs_dir = root / "logs";
+        const std::filesystem::path logs_dir = root / "logs" / "SSM";
         std::string pathname = logs_dir.string() + "/";
         resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
         {
@@ -781,35 +749,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         //StopDurationOptimizer optimizer(model);
 
-        double traj_duration_prev = 0.0;
-        Eigen::VectorXd q_traj_prev = Eigen::Map<const Eigen::Matrix<double, 7, 1>>(Q_HOME.data());
-
-        // The recorded trajectories reach their first waypoint at t = 0, i.e. the
-        // robot starts the task *at* that waypoint and the playback begins with
-        // the second one. When instead the first waypoint is reached after a
-        // positive time, the robot starts from the home configuration and the
-        // first segment moves it to that waypoint.
-        size_t first_segment = 0;
-        if (!t_traj.empty() && !q_traj.empty() && t_traj.front() <= 0.0) {
-            q_traj_prev         = q_traj.front();
-            traj_duration_prev  = t_traj.front();
-            first_segment       = 1;
-        }
-
         auto task_start = std::chrono::steady_clock::now();  // real wall-clock, diagnostic only
 
-        // esegui la traiettoria secondo i tempi in traj_duration
+        // esegui la traiettoria nominale
         try {
-            for (size_t i = first_segment; i < q_traj.size(); i++) {
-                double segment_duration = t_traj[i] - traj_duration_prev;
-                if (segment_duration > 0.0) {
-                    executeTrajectory(q_traj_prev, q_traj[i], segment_duration,
-                                    publisher, robot);
-
-                    traj_duration_prev = t_traj[i];
-                    q_traj_prev = q_traj[i];
-                }
-            }
+            executeTrajectory(nominal_traj, publisher, robot);
         } catch (...) {
             // A playback fault propagated up from executeTrajectory. Still need to
             // stop the skeleton/collision threads and close the log files
@@ -839,7 +783,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         double real_elapsed = std::chrono::duration<double>(
             std::chrono::steady_clock::now() - task_start).count();
-        const double nominal_duration = t_traj.empty() ? 0.0 : t_traj.back();
+        const double nominal_duration = nominal_traj.t.empty() ? 0.0 : nominal_traj.t.back();
         std::cout << "Nominal trajectory duration: " << nominal_duration
                 << "s, real wall-clock elapsed: " << real_elapsed << "s\n";
 
@@ -863,12 +807,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         flushIdleStreak();
         writeMetricsFile(pathname);
 
-
-
-
-
-
-        std::cout << "Trajectory completed, " << t_traj.back()
+        std::cout << "Trajectory completed, " << nominal_traj.t.back()
                 << " seconds have passed, shutting down example\n";
 
     } catch (const std::exception& ex) {
@@ -879,10 +818,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         return -1;
     }
 
-
-
-
-    
+    // The task completed normally: return an explicit success code. Falling off
+    // the end of a non-void function is undefined behaviour and, with the
+    // optimisations enabled here, it made the process jump back into the
+    // already-destroyed publisher scope once the run was over.
+    return 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
