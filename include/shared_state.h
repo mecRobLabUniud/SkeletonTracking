@@ -13,6 +13,8 @@ shared_state.h - Cross-thread shared state: robot state, skeleton, stop flags, l
 #include <atomic>
 #include <cmath>
 
+#include "min_distance_calculation.hpp"
+
 //  Skeleton type 
 // 15 joints or more, each a 3D point
 using Skeleton = std::vector<std::array<double, 3>>;
@@ -45,8 +47,9 @@ inline std::atomic<bool> skeleton_stale{false};
 // logging utility
 struct LogSample {
     double t;
-    std::array<double, 7> q, dq, tau_cmd, tau_meas;
-    std::array<double, 3> ee_pos;
+    std::array<double, 7> q, qd, qdd;
+    std::array<double, 3> p, pd;
+    DistanceResult distance;
 };
 
 template <size_t N>

@@ -63,6 +63,7 @@ add_executable(main_SSM
     src/geometry.cpp
     src/skeleton_reader.cpp
     src/robot_model.cpp
+    src/min_distance_calculation.cpp
 )
 
 target_link_options(main_SSM PRIVATE

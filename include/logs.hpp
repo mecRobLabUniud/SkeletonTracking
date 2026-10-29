@@ -33,54 +33,75 @@ static void resetMetrics() {
     g_idle_streak_duration = 0.0;
 }
 
-void writeSample(std::ofstream& outfile_q,
-                  std::ofstream& outfile_dq,
-                  std::ofstream& outfile_tau,
-                  std::ofstream& outfile_pose,
-                  const LogSample& s) {
+std::array<std::string, 3> axis = {{"x", "y", "z"}};
+
+void writeSample(std::ofstream& outfile_q, 
+                std::ofstream& outfile_qd, 
+                std::ofstream& outfile_qdd,
+                std::ofstream& outfile_p, 
+                std::ofstream& outfile_pd, 
+                const LogSample& s) {
 
     // joint positions
     outfile_q << "\t<keypoint time='" << s.t << "'>\n";
     for (int j = 0; j < 7; ++j)
-        outfile_q << "\t\t<point id='" << j << "'>" << s.q[j] << "</point>\n";
+        outfile_q << "\t\t<joint id='" << j << "'>" << s.q[j] << "</joint>\n";
     outfile_q << "\t</keypoint>\n";
 
     // joint velocities
-    outfile_dq << "\t<keypoint time='" << s.t << "'>\n";
+    outfile_qd << "\t<keypoint time='" << s.t << "'>\n";
     for (int j = 0; j < 7; ++j)
-        outfile_dq << "\t\t<point id='" << j << "'>" << s.dq[j] << "</point>\n";
-    outfile_dq << "\t</keypoint>\n";
+        outfile_qd << "\t\t<joint id='" << j << "'>" << s.qd[j] << "</joint>\n";
+    outfile_qd << "\t</keypoint>\n";
 
-    // commanded + measured torque
-    outfile_tau << "\t<keypoint time='" << s.t << "'>\n";
-    outfile_tau << "\t\t<tau_cmd>\n";
+    // joint accelerations
+    outfile_qdd << "\t<keypoint time='" << s.t << "'>\n";
     for (int j = 0; j < 7; ++j)
-        outfile_tau << "\t\t\t<point id='" << j << "'>" << s.tau_cmd[j] << "</point>\n";
-    outfile_tau << "\t\t</tau_cmd>\n\t\t<tau_measured>\n";
-    for (int j = 0; j < 7; ++j)
-        outfile_tau << "\t\t\t<point id='" << j << "'>" << s.tau_meas[j] << "</point>\n";
-    outfile_tau << "\t\t</tau_measured>\n\t</keypoint>\n";
+        outfile_qdd << "\t\t<joint id='" << j << "'>" << s.qdd[j] << "</joint>\n";
+    outfile_qdd << "\t</keypoint>\n";
 
-    // 3D position
-    outfile_pose << "\t<keypoint time='" << s.t << "'>\n";
-    outfile_pose << "\t\t<ee_position>\n";
-    outfile_pose << "\t\t\t<x>" << s.ee_pos[0] << "</x>\n";
-    outfile_pose << "\t\t\t<y>" << s.ee_pos[1] << "</y>\n";
-    outfile_pose << "\t\t\t<z>" << s.ee_pos[2] << "</z>\n";
-    outfile_pose << "\t\t</ee_position>\n\t</keypoint>\n";
+    // cartesian positions
+    outfile_p << "\t<keypoint time='" << s.t << "'>\n";
+    for (int j = 0; j < 3; ++j)
+        outfile_p << "\t\t<point id='" << axis[j] << "'>" << s.p[j] << "</point>\n";
+    outfile_p << "\t</keypoint>\n";
+
+    // cartesian velocities
+    outfile_pd << "\t<keypoint time='" << s.t << "'>\n";
+    for (int j = 0; j < 3; ++j)
+        outfile_pd << "\t\t<point id='" << axis[j] << "'>" << s.pd[j] << "</point>\n";
+    outfile_pd << "\t</keypoint>\n";
+
+
+
+    // // ── Distance / stop-duration log ─────────────────────────────────────
+    //     outfile_dist << "\t<keypoint time='" << g_t_log << "'>\n";
+    //     outfile_dist << "\t\t<stop_duration>" << stop_duration << "</stop_duration>\n";
+    //     outfile_dist << "\t\t<radii>" << radii[0] << ", " << radii[1] << ", "
+    //                  << radii[2] << ", " << radii[3] << "</radii>\n";
+// 
+    //     outfile_dist << "\t\t<position>\n";
+    //     for (int j = 0; j < 7; ++j)
+    //         outfile_dist << "\t\t\t<point id='" << j << "'>" << q_ref[j] << "</point>\n";
+// 
+    //     outfile_dist << "\t\t</position>\n\t\t<speed>\n";
+    //     for (int j = 0; j < 7; ++j)
+    //         outfile_dist << "\t\t\t<point id='" << j << "'>" << qd_ref[j] << "</point>\n";
+    //     outfile_dist << "\t\t</speed>\n\t</keypoint>\n";
 }
 
 
-void loggerThread(std::ofstream& outfile_q, std::ofstream& outfile_dq, std::ofstream& outfile_tau, std::ofstream& outfile_pose) {
+void loggerThread(std::ofstream& outfile_q, std::ofstream& outfile_qd, std::ofstream& outfile_qdd,
+                std::ofstream& outfile_p, std::ofstream& outfile_pd) {
     LogSample s;
     while (true) {
         bool drained_any = false;
         while (log_queue.pop(s)) {
-            writeSample(outfile_q, outfile_dq, outfile_tau, outfile_pose, s);
+            writeSample(outfile_q, outfile_qd, outfile_qdd, outfile_p, outfile_pd, s);
             drained_any = true;
         }
         if (trajectory_done.load() && !drained_any) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    while (log_queue.pop(s)) writeSample(outfile_q, outfile_dq, outfile_tau, outfile_pose, s); // final drain
+    while (log_queue.pop(s)) writeSample(outfile_q, outfile_qd, outfile_qdd, outfile_p, outfile_pd, s);
 }

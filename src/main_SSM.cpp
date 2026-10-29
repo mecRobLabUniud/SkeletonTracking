@@ -192,20 +192,24 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                     << "': " << ec.message() << "\n";
         }
     }
-    std::ofstream outfile_q(pathname + "q_robot.xml");
-    std::ofstream outfile_dist(pathname + "dist_segment.xml");
-    std::ofstream outfile_dq(pathname + "dq_robot.xml");
-    std::ofstream outfile_tau(pathname + "tau_robot.xml");
-    std::ofstream outfile_pose(pathname + "pose_robot.xml");
+    
+    std::ofstream outfile_dist(pathname + "distance.xml");
+    std::ofstream outfile_q(pathname + "q.xml");
+    std::ofstream outfile_qd(pathname + "qd.xml");
+    std::ofstream outfile_qdd(pathname + "qdd.xml");
+    std::ofstream outfile_p(pathname + "p.xml");
+    std::ofstream outfile_pd(pathname + "pd.xml");
 
-    outfile_q << "<q>\n";
     outfile_dist << "<distance>\n";
-    outfile_dq << "<dq>\n";
-    outfile_tau << "<tau>\n";
-    outfile_pose << "<pose>\n";
+    outfile_q << "<q>\n";
+    outfile_qd << "<qd>\n";
+    outfile_qdd << "<qdd>\n";
+    outfile_p << "<p>\n";
+    outfile_pd << "<pd>\n";
     std::cout << "Outfiles initiated\n";
 
-    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
+    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_qd), std::ref(outfile_qdd),
+                                std::ref(outfile_p), std::ref(outfile_pd));
 
     // Built once: the optimiser compiles its NLP in the constructor and is then
     // only evaluated at every step.
@@ -256,7 +260,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
         }
         collision_prev = collision;
-        
+
         // ── Real trajectory update ──────────────────────────────────────
         if (!collision) {
             real_traj.q.push_back(q_ref);
@@ -279,28 +283,17 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         LogSample s;
         s.t = g_t_log;
         for (int j = 0; j < 7; ++j) {
-            s.q[j]          = real_traj.q[i][j];
-            s.dq[j]         = real_traj.qd[i][j];
-            // s.tau_cmd[j]    = tau_d_rate_limited[j];
-            // s.tau_meas[j]   = state.tau_J[j];
+            s.q[j] = real_traj.q[i][j];
+            s.qd[j] = real_traj.qd[i][j];
+            s.qdd[j] = real_traj.qdd[i][j];
         }
-        s.ee_pos = {real_traj.p[i][0], real_traj.p[i][1], real_traj.p[i][2]};
+        for (int j = 0; j < 3; ++j) {
+            s.p[j] = real_traj.p[i][j];
+            s.pd[j] = real_traj.pd[i][j];
+        }
         log_queue.push(s);
 
-        // ── Distance / stop-duration log ─────────────────────────────────────
-        outfile_dist << "\t<keypoint time='" << g_t_log << "'>\n";
-        outfile_dist << "\t\t<stop_duration>" << stop_duration << "</stop_duration>\n";
-        outfile_dist << "\t\t<radii>" << radii[0] << ", " << radii[1] << ", "
-                     << radii[2] << ", " << radii[3] << "</radii>\n";
-
-        outfile_dist << "\t\t<position>\n";
-        for (int j = 0; j < 7; ++j)
-            outfile_dist << "\t\t\t<point id='" << j << "'>" << q_ref[j] << "</point>\n";
-
-        outfile_dist << "\t\t</position>\n\t\t<speed>\n";
-        for (int j = 0; j < 7; ++j)
-            outfile_dist << "\t\t\t<point id='" << j << "'>" << qd_ref[j] << "</point>\n";
-        outfile_dist << "\t\t</speed>\n\t</keypoint>\n";
+        
 
         g_t_log += dt;
 
@@ -340,16 +333,18 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     trajectory_done.store(true);
     logger_thread.join();
 
-    outfile_q << "</q>\n";
     outfile_dist << "</distance>\n";
-    outfile_dq << "</dq>\n";
-    outfile_tau << "</tau>\n";
-    outfile_pose << "</pose>\n";
-    outfile_q.close();
+    outfile_q << "</q>\n";
+    outfile_qd << "</qd>\n";
+    outfile_qdd << "</qdd>\n";
+    outfile_p << "</p>\n";
+    outfile_pd << "</pd>\n";
     outfile_dist.close();
-    outfile_dq.close();
-    outfile_tau.close();
-    outfile_pose.close();
+    outfile_q.close();
+    outfile_qd.close();
+    outfile_qdd.close();
+    outfile_p.close();
+    outfile_pd.close();
 
     flushIdleStreak();
     writeMetricsFile(pathname);
