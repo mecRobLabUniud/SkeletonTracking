@@ -59,7 +59,7 @@ add_executable(main_SSM
     src/trajectory_loader.cpp
     src/trajectory_utils.cpp
     src/calc_stop_duration.cpp
-    src/core.cpp
+    src/SSM_core.cpp
     src/geometry.cpp
     src/skeleton_reader.cpp
     src/robot_model.cpp
@@ -96,7 +96,7 @@ add_executable(main_SSMPFL
     src/trajectory_utils.cpp
     src/trajectory_loader.cpp
     src/robot_model.cpp
-	src/core.cpp
+	src/SSMPFL_core.cpp
     src/geometry.cpp
     src/min_distance_calculation.cpp
 )
@@ -118,7 +118,7 @@ add_executable(main_SSMPFLescape
     src/trajectory_utils.cpp
     src/trajectory_loader.cpp
     src/robot_model.cpp
-	src/core.cpp
+	src/SSMPFLescape_core.cpp
     src/geometry.cpp
     src/min_distance_calculation.cpp
 )

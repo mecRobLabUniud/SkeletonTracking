@@ -102,7 +102,19 @@ std::array<double, 4> capsuleCalculation(
 // Kinematic and dynamic joint limits for the Franka Panda arm
 // ─────────────────────────────────────────────────────────────────────────────
 struct KinematicsLimits {
-    KinematicsLimits();
+    KinematicsLimits() {
+        q_limits.resize(2, 7);
+        q_limits << -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,
+                     2.8973,  1.7628,  2.8973, -0.0698,  2.8973,  3.7525,  2.8973;
+
+        qd_limits.resize(2, 7);
+        qd_limits << -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100,
+                      2.1750,  2.1750,  2.1750,  2.1750,  2.6100,  2.6100,  2.6100;
+
+        qdd_limits.resize(2, 7);
+        qdd_limits << -15, -7.5, -10, -12.5, -15, -20, -20,
+                       15,   7.5,  10,  12.5,  15,  20,  20;
+    }
 
     Eigen::MatrixXd q_limits;
     Eigen::MatrixXd qd_limits;
