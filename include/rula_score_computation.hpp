@@ -11,6 +11,8 @@ rula_score_computation.hpp - Declaration of the RULA scoring engine: keypoint in
 #include <cmath>
 #include <vector>
 
+#include "skeleton.hpp"
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal 3D vector with the geometric operations used by the RULA scorer
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,8 +53,6 @@ enum KP {
     L_HEEL=17,      R_HEEL=18,
     L_FOOT=19,      R_FOOT=20
 };
-
-using Skeleton = std::vector<Eigen::Vector3d>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Convert an Eigen 3D point to a Vec3
