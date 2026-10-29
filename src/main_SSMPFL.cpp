@@ -232,10 +232,10 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         bool exitflag = SSMPFL(robot, dt, stopping_time, nominal_traj.q[r_idx], nominal_traj.qd[r_idx],
                                     nominal_traj.qdd[r_idx], ro_vec, vo_vec, delta_vec);
 
+        std::optional<DistanceResult> closest;
         if (exitflag) {
-            const std::optional<DistanceResult> dist =
-                human_to_robot_distance(skeleton, robot, real_traj.q[i]);
-            if (dist && dist->length <= HR_clearance[dist->ind_h]) {
+            closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+            if (closest && closest->length <= HR_clearance[closest->ind_h]) {
                 collision = true;
             }
             else collision = false;
@@ -279,6 +279,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             s.p[j] = real_traj.p[i][j];
             s.pd[j] = real_traj.pd[i][j];
         }
+        s.distance = *closest;
         log_queue.push(s);
 
         skeleton_prev = skeleton;

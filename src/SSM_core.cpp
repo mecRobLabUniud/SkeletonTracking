@@ -270,10 +270,10 @@ bool SSM(double T_stop,
     radii[0] = r_sw_r[0]; radii[1] = r_sw_r[1]; radii[2] = r_sw_r[2]; radii[3] = r_sw_r[3];
 
     // Stop condition: distance < human_radius + robot_radius
-    bool should_stop = min_dist < R_SW_H[ind_h] + r_sw_r[ind_r];
+    bool exitflag = min_dist < R_SW_H[ind_h] + r_sw_r[ind_r];
 
     /*std::cout << "Min distance: " << min_dist
               << " threshold: " << R_SW_H[ind_h] + r_sw_r[ind_r] << "\n";*/
 
-    return should_stop;
+    return exitflag;
 }

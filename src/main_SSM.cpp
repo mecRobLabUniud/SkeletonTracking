@@ -280,6 +280,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             s.p[j] = real_traj.p[i][j];
             s.pd[j] = real_traj.pd[i][j];
         }
+        s.distance = closest;
         log_queue.push(s);
 
         

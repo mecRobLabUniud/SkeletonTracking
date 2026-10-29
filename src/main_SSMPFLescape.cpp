@@ -239,10 +239,10 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                                 nominal_traj.p[r_idx], nominal_traj.pd[r_idx], nominal_traj.q[r_idx],
                                 ro_vec, vo_vec, delta_vec);
 
-        if (res.exitflag) {
-            const std::optional<DistanceResult> dist =
-                human_to_robot_distance(skeleton, robot, real_traj.q[i]);
-            if (dist && dist->length <= HR_clearance[dist->ind_h]) {
+        std::optional<DistanceResult> closest;
+        if (exitflag) {
+            closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+            if (closest && closest->length <= HR_clearance[closest->ind_h]) {
                 collision = true;
             }
             else collision = false;
