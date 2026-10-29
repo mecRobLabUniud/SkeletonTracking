@@ -13,9 +13,6 @@ core.cpp - Core of the SSM+PFL layer: joint-limit and potential-field obstacle c
 #include "core.hpp"
 #include "minDistance.hpp"
 #include "geometry.h"
-#include <pinocchio/algorithm/kinematics.hpp>
-#include <pinocchio/algorithm/frames.hpp>
-#include <pinocchio/algorithm/jacobian.hpp>
 #include <iostream>
 #include <algorithm>
 #include <limits>
@@ -86,28 +83,27 @@ Eigen::MatrixXd trajPoly5Numeric(
 
 // ── computeRobotCapsules ──────────────────────────────────────────────
 std::array<Capsule, 4> computeRobotCapsules(
-    const pinocchio::Model& model,
-    pinocchio::Data&        data,
-    const Eigen::VectorXd&  q) {
-    pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
+    const RobotModel&      robot,
+    const Eigen::VectorXd& q) {
+    // One forward-kinematics pass, then read all frame poses from the cache
+    robot.ComputeFK(q);
 
     // Mirrors compute_robot_capsules in Python
     // Capsule 1: link0 → link1
-    Eigen::Vector3d A1 = data.oMf[model.getFrameId("panda_link1")].translation();
+    Eigen::Vector3d A1 = robot.GetJointPose("panda_link1").translation();
     Eigen::Vector3d B1 = Eigen::Vector3d::Zero();  // base origin
 
     // Capsule 2: link2 → link3
-    Eigen::Vector3d A2 = data.oMf[model.getFrameId("panda_link3")].translation();
-    Eigen::Vector3d B2 = data.oMf[model.getFrameId("panda_link2")].translation();
+    Eigen::Vector3d A2 = robot.GetJointPose("panda_link3").translation();
+    Eigen::Vector3d B2 = robot.GetJointPose("panda_link2").translation();
 
     // Capsule 3: link4 → link5
-    Eigen::Vector3d A3 = data.oMf[model.getFrameId("panda_link5")].translation();
-    Eigen::Vector3d B3 = data.oMf[model.getFrameId("panda_link4")].translation();
+    Eigen::Vector3d A3 = robot.GetJointPose("panda_link5").translation();
+    Eigen::Vector3d B3 = robot.GetJointPose("panda_link4").translation();
 
     // Capsule 4: link6 → link7
-    Eigen::Vector3d A4 = data.oMf[model.getFrameId("panda_link7")].translation();
-    Eigen::Vector3d B4 = data.oMf[model.getFrameId("panda_link6")].translation();
+    Eigen::Vector3d A4 = robot.GetJointPose("panda_link7").translation();
+    Eigen::Vector3d B4 = robot.GetJointPose("panda_link6").translation();
 
     return {Capsule{A1, B1, RV[0]}, Capsule{A2, B2, RV[1]},
             Capsule{A3, B3, RV[2]}, Capsule{A4, B4, RV[3]}};
@@ -116,13 +112,12 @@ std::array<Capsule, 4> computeRobotCapsules(
 
 // ── computeMaxVelCapsule ──────────────────────────────────────────────
 std::array<double, 4> computeMaxVelCapsule(
-    const pinocchio::Model&       model,
-    pinocchio::Data&              data,
-    const Eigen::VectorXd&        q,
-    const Eigen::VectorXd&        q_p,
+    const RobotModel&            robot,
+    const Eigen::VectorXd&       q,
+    const Eigen::VectorXd&       q_p,
     const std::array<Capsule, 4>& capsules,
-    const Eigen::Vector3d&        C_h,
-    const Eigen::Vector3d&        C_r) {
+    const Eigen::Vector3d&       C_h,
+    const Eigen::Vector3d&       C_r) {
     // Direction vector from robot to human contact point
     Eigen::Vector3d C      = C_h - C_r;
     double          C_norm = C.norm();
@@ -141,11 +136,7 @@ std::array<double, 4> computeMaxVelCapsule(
         Eigen::Vector3d B = capsules[i].B;
 
         // Get Jacobian at endpoint A
-        Eigen::Matrix<double, 6, Eigen::Dynamic> J(6, model.nq);
-        J.setZero();
-        pinocchio::computeFrameJacobian(model, data, q,
-            model.getFrameId(frame_A[i]),
-            pinocchio::LOCAL_WORLD_ALIGNED, J);
+        const Eigen::MatrixXd J = robot.ComputeJacobian(frame_A[i], q);
 
         Eigen::Vector3d A_p     = J.topRows(3) * q_p;     // linear velocity of A
         Eigen::Vector3d omega   = J.bottomRows(3) * q_p;  // angular velocity
@@ -177,8 +168,7 @@ std::array<double, 4> capsuleCalculation(
     const Eigen::VectorXd&  q_pp,
     const Eigen::Vector3d&  C_h,
     const Eigen::Vector3d&  C_r,
-    const pinocchio::Model& model,
-    pinocchio::Data&        data) {
+    const RobotModel&       robot) {
     // Human safety distance during stop
     double Sh = MAX_HUMAN_SPEED * (T_REACTION + T_stop);
 
@@ -207,8 +197,8 @@ std::array<double, 4> capsuleCalculation(
         Eigen::VectorXd q_m   = Q.row(m).transpose();
         Eigen::VectorXd qp_m  = Q_p.row(m).transpose();
 
-        auto capsules = computeRobotCapsules(model, data, q_m);
-        auto vel_max  = computeMaxVelCapsule(model, data, q_m, qp_m,
+        auto capsules = computeRobotCapsules(robot, q_m);
+        auto vel_max  = computeMaxVelCapsule(robot, q_m, qp_m,
                                               capsules, C_h, C_r);
         for (int i = 0; i < 4; ++i)
             vel_max_traj[i].push_back(vel_max[i]);
@@ -246,10 +236,9 @@ bool SSM(double T_stop,
     const Eigen::VectorXd&  q_p,
     const Eigen::VectorXd&  q_pp,
     const Skeleton&         skeleton,
-    const pinocchio::Model& model,
-    pinocchio::Data&        data,
+    const RobotModel&       robot,
     std::array<double, 4>&  radii,
-    NewDistanceResult*         out_closest) {
+    NewDistanceResult*      out_closest) {
     
     if (skeleton.empty()) return false;
 
@@ -258,7 +247,7 @@ bool SSM(double T_stop,
     radii.fill(0.0);
 
     // Compute robot capsules at current config
-    auto robot_capsules = computeRobotCapsules(model, data, q);
+    auto robot_capsules = computeRobotCapsules(robot, q);
 
     // Find minimum distance between any robot capsule and any skeleton segment
     double          min_dist = std::numeric_limits<double>::max();
@@ -300,7 +289,7 @@ bool SSM(double T_stop,
 
     // Compute robot safety radii along braking trajectory
     auto r_sw_r = capsuleCalculation(T_stop, q, q_p, q_pp,
-                                      min_C_h, min_C_r, model, data);
+                                      min_C_h, min_C_r, robot);
                                       
     //std::cout << "saving radius\n";
     

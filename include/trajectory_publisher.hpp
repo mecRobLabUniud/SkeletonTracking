@@ -30,11 +30,9 @@ web_interface.py, which subscribes to (in --robot mode):
 #include <algorithm>
 
 #include <Eigen/Dense>
-#include <pinocchio/multibody/model.hpp>
-#include <pinocchio/multibody/data.hpp>
 
 #include "data_transmitter.hpp"
-#include "flag_stop.h"  // for Capsule / computeRobotCapsules
+#include "core.hpp"  // for Capsule / computeRobotCapsules
 
 // Playback period: matches the old libfranka fixed 1kHz control period
 constexpr double TRAJ_STEP = 0.001;
@@ -108,10 +106,9 @@ public:
     // Publish one trajectory sample: robot capsule endpoints, joint positions
     // and capsule radii (robot_p / robot_q / caps_radius expected by
     // web_interface.py in --robot mode)
-    void publishSample(const pinocchio::Model& model,
-                       pinocchio::Data&        data,
-                       const Eigen::VectorXd&  q) {
-        std::array<Capsule, 4> capsules = computeRobotCapsules(model, data, q);
+    void publishSample(const RobotModel&      robot,
+                       const Eigen::VectorXd& q) {
+        std::array<Capsule, 4> capsules = computeRobotCapsules(robot, q);
 
         // The endpoints are published as (B, A) of each capsule, so that the
         // first point is the base origin: the web interface uses it to place

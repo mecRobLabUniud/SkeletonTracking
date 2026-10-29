@@ -249,9 +249,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         closest.C_r = Eigen::Vector3d::Constant(NAN);
 
         const double stop_duration = optimizer.solve(q_ref, qd_ref, qdd_ref);
-        robot.ComputeFK(q_ref);
         collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, toSkeleton(skeleton),
-                           robot.getModel(), robot.getData(), radii, &closest);
+                           robot, radii, &closest);
 
         if (collision && !collision_prev) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered

@@ -12,8 +12,6 @@ core.hpp - Public interface of the SSM+PFL layer: joint-limit tables, the QP res
 #include <array>
 #include <vector>
 #include <Eigen/Dense>
-#include <pinocchio/multibody/model.hpp>
-#include <pinocchio/multibody/data.hpp>
 #include "shared_state.h"
 
 //  Types
@@ -71,24 +69,22 @@ Eigen::MatrixXd trajPoly5Numeric(
     double duration, int num_points);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Compute the 4 robot capsule endpoints from joint config using Pinocchio FK
+// Compute the 4 robot capsule endpoints from joint config using RobotModel FK
 // ─────────────────────────────────────────────────────────────────────────────
 std::array<Capsule, 4> computeRobotCapsules(
-    const pinocchio::Model& model,
-    pinocchio::Data&        data,
-    const Eigen::VectorXd&  q);
+    const RobotModel&      robot,
+    const Eigen::VectorXd& q);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Compute max velocity of capsule endpoints toward human
 // ─────────────────────────────────────────────────────────────────────────────
 std::array<double, 4> computeMaxVelCapsule(
-    const pinocchio::Model&    model,
-    pinocchio::Data&           data,
-    const Eigen::VectorXd&     q,
-    const Eigen::VectorXd&     q_p,
+    const RobotModel&           robot,
+    const Eigen::VectorXd&      q,
+    const Eigen::VectorXd&      q_p,
     const std::array<Capsule, 4>& capsules,
-    const Eigen::Vector3d&     C_h,
-    const Eigen::Vector3d&     C_r);
+    const Eigen::Vector3d&      C_h,
+    const Eigen::Vector3d&      C_r);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Compute robot safety radii for each capsule along braking trajectory
@@ -100,8 +96,7 @@ std::array<double, 4> capsuleCalculation(
     const Eigen::VectorXd&  q_pp,
     const Eigen::Vector3d&  C_h,
     const Eigen::Vector3d&  C_r,
-    const pinocchio::Model& model,
-    pinocchio::Data&        data);
+    const RobotModel&       robot);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Kinematic and dynamic joint limits for the Franka Panda arm
@@ -136,10 +131,9 @@ bool SSM(double T_stop,
         const Eigen::VectorXd&  q_p,
         const Eigen::VectorXd&  q_pp,
         const Skeleton&         skeleton,
-        const pinocchio::Model& model,
-        pinocchio::Data&        data,
+        const RobotModel&       robot,
         std::array<double, 4>&  radii,
-        NewDistanceResult*         out_closest = nullptr);
+        NewDistanceResult*      out_closest = nullptr);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
