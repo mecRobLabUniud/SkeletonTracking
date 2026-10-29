@@ -256,7 +256,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
         }
         collision_prev = collision;
-
+        
+        // ── Real trajectory update ──────────────────────────────────────
         if (!collision) {
             real_traj.q.push_back(q_ref);
             real_traj.qd.push_back(qd_ref);
@@ -267,7 +268,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             r++;
         }
         else {
-            // ── Pause while the human is inside the safety distance ──────────
             real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
             real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
             const int prev = i > 0 ? i - 1 : i;

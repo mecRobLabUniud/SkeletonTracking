@@ -203,70 +203,54 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         const size_t r_idx = std::min<size_t>(static_cast<size_t>(std::max(r, 0)),
                                                nominal_traj.q.size() - 1);      
 
-        if (!collision) {
-            // ── Construction of obstacle and velocity term vectors ───────────────────────
-            std::vector<Eigen::Vector3d> ro_vec;
-            std::vector<Eigen::Vector3d> vo_vec;
-            std::vector<double> delta_vec;
+        
+        // ── Construction of obstacle and velocity term vectors ───────────────────────
+        std::vector<Eigen::Vector3d> ro_vec;
+        std::vector<Eigen::Vector3d> vo_vec;
+        std::vector<double> delta_vec;
 
-            // A frame can hold fewer keypoints than expected: only the ones
-            // that are present in both the current and the previous frame are
-            // used as obstacles.
-            const int n_keypoints = std::min<int>(kNumKeypoints,
-                                std::min<int>(skeleton.size(), skeleton_prev.size()));
-            for (int j = 0; j < n_keypoints; j++) {
-                if (skeleton[j].hasNaN() || skeleton_prev[j].hasNaN()) {
-                    continue;
-                }
-                ro_vec.push_back(skeleton[j]);
-                const Eigen::Vector3d v_o = (skeleton[j] - skeleton_prev[j]) / dt;
-                vo_vec.push_back(v_o);
-                delta_vec.push_back(-(-(HR_clearance[j] + v_o.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
+        // A frame can hold fewer keypoints than expected: only the ones
+        // that are present in both the current and the previous frame are
+        // used as obstacles.
+        const int n_keypoints = std::min<int>(kNumKeypoints,
+                            std::min<int>(skeleton.size(), skeleton_prev.size()));
+        for (int j = 0; j < n_keypoints; j++) {
+            if (skeleton[j].hasNaN() || skeleton_prev[j].hasNaN()) {
+                continue;
             }
+            ro_vec.push_back(skeleton[j]);
+            const Eigen::Vector3d v_o = (skeleton[j] - skeleton_prev[j]) / dt;
+            vo_vec.push_back(v_o);
+            delta_vec.push_back(-(-(HR_clearance[j] + v_o.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
+        }
 
-            // ── Core SSM and PFL computation ─────────────────────────────────────────────
-            bool exitflag = SSMPFL(robot, dt, stopping_time, nominal_traj.q[r_idx], nominal_traj.qd[r_idx],
-                                        nominal_traj.qdd[r_idx], ro_vec, vo_vec, delta_vec);
+        // ── Core SSM and PFL computation ─────────────────────────────────────────────
+        bool exitflag = SSMPFL(robot, dt, stopping_time, nominal_traj.q[r_idx], nominal_traj.qd[r_idx],
+                                    nominal_traj.qdd[r_idx], ro_vec, vo_vec, delta_vec);
 
+        if (exitflag) {
+            const std::optional<DistanceResult> dist =
+                human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+            if (dist && dist->length <= HR_clearance[dist->ind_h]) {
+                collision = true;
+            }
+            else collision = false;
+        }
+        else {
+            collision = true;
+        }
+
+        // ── Real trajectory update ──────────────────────────────────────
+        if (!collision) {
             real_traj.q.push_back(nominal_traj.q[r_idx]);
             real_traj.qd.push_back(nominal_traj.qd[r_idx]);
             real_traj.qdd.push_back(nominal_traj.qdd[r_idx]);
             real_traj.p.push_back(nominal_traj.p[r_idx]);
             real_traj.pd.push_back(nominal_traj.pd[r_idx]);
 
-
-
-            LogSample s;
-            s.t = g_t_log;
-            for (int j = 0; j < 7; ++j) {
-                s.q[j]          = real_traj.q[i][j];
-                s.dq[j]         = real_traj.qd[i][j];
-                // s.tau_cmd[j]    = tau_d_rate_limited[j];
-                // s.tau_meas[j]   = state.tau_J[j];
-            }
-            s.ee_pos = {real_traj.p[i][0], real_traj.p[i][1], real_traj.p[i][2]};
-            log_queue.push(s);
-
-
-
-            // auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0);
-            // std::cout << "SSMPFLescape elapsed time = " << elapsed.count() << "\n";
-
-            r++;
-
-            if (exitflag) {
-                const std::optional<DistanceResult> dist =
-                    human_to_robot_distance(skeleton, robot, real_traj.q[i]);
-                if (dist && dist->length <= HR_clearance[dist->ind_h]) {
-                    collision = true;
-                }
-            }
-            else {
-                collision = true;
-            }
+            r++; 
         }
         else {
-            // ── Pause while in collision ────────────────────────────────────
             real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
             real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
             const int prev = i > 0 ? i - 1 : i;
@@ -279,6 +263,17 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             }
             // collision = false;
         }
+
+        LogSample s;
+        s.t = g_t_log;
+        for (int j = 0; j < 7; ++j) {
+            s.q[j]          = real_traj.q[i][j];
+            s.dq[j]         = real_traj.qd[i][j];
+            // s.tau_cmd[j]    = tau_d_rate_limited[j];
+            // s.tau_meas[j]   = state.tau_J[j];
+        }
+        s.ee_pos = {real_traj.p[i][0], real_traj.p[i][1], real_traj.p[i][2]};
+        log_queue.push(s);
 
         skeleton_prev = skeleton;
 
