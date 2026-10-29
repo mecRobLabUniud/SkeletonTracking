@@ -28,7 +28,7 @@ main_SSM.cpp - SSM simulation main: replays a nominal trajectory and stops while
 #include "project_root.hpp"
 #include "robot_capsules.hpp"
 #include "logs.hpp"
-#include "flag_stop.h"
+#include "core.hpp"
 #include "calc_stop_duration.h"
 
 // ── Parameters ──────────────────────────────────────────────────────────────
@@ -131,8 +131,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── Data transmitters ───────────────────────────────────────────────────
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
     transmitters.reserve(3);
-    transmitters.push_back(std::make_unique<DataTransmitter>(
-        DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
@@ -165,8 +164,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     real_traj.p.push_back(nominal_traj.p[0]);
     real_traj.pd.push_back(nominal_traj.pd[0]);
 
-    bool stopped = false;
-    bool was_stopped = false;
+    bool collision = false;
+    bool collision_prev = false;
     int r = 1;
 
     // The first frame is awaited here, so that the safety layer has human data
@@ -180,9 +179,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             "No merged skeleton received: is scripts/data_merging.py running?");
     }
     transmitters[0]->set_receive_timeout(1000);
-
-    const int period_ms = static_cast<int>(dt*1000.0);
-    auto next_time = std::chrono::steady_clock::now();
 
     // ── Logging ──────────────────────────────────────────────────────────────────
     const std::filesystem::path logs_dir = root / "logs" / "SSM";
@@ -215,6 +211,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // only evaluated at every step.
     StopDurationOptimizer optimizer(robot);
 
+    // ── Starting main loop ───────────────────────────────────────────────────────
+    const int period_ms = static_cast<int>(dt*1000.0);
+    auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
         const std::vector<Eigen::Vector3d> skeleton_new = receiveSkeleton(*transmitters[0]);
@@ -244,22 +243,22 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         // ── Core SSM computation ─────────────────────────────────────────────
         std::array<double, 4> radii{};
-        DistanceResult closest;
+        NewDistanceResult closest;
         closest.distance = NAN;
         closest.C_h = Eigen::Vector3d::Constant(NAN);
         closest.C_r = Eigen::Vector3d::Constant(NAN);
 
         const double stop_duration = optimizer.solve(q_ref, qd_ref, qdd_ref);
         robot.ComputeFK(q_ref);
-        stopped = flagStop(stop_duration, q_ref, qd_ref, qdd_ref, toSkeleton(skeleton),
+        collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, toSkeleton(skeleton),
                            robot.getModel(), robot.getData(), radii, &closest);
 
-        if (stopped && !was_stopped) {
+        if (collision && !collision_prev) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
         }
-        was_stopped = stopped;
+        collision_prev = collision;
 
-        if (!stopped) {
+        if (!collision) {
             real_traj.q.push_back(q_ref);
             real_traj.qd.push_back(qd_ref);
             real_traj.qdd.push_back(qdd_ref);
@@ -307,8 +306,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         g_t_log += dt;
 
         // ── Publish robot state, obstacle distance and trajectory ───────
-        // The robot capsules and the joint positions are published to the web
-        // interface, which draws the robot mesh and the safety capsules.
         const Eigen::VectorXd& q_now = real_traj.q[i + 1];
         const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
 
@@ -334,7 +331,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         payload.clear();
         payload.push_back(std::vector<double>(real_traj.p[i + 1].data(), real_traj.p[i + 1].data() + real_traj.p[i + 1].size()));
         payload.push_back(std::vector<double>(nominal_traj.p[r_idx].data(), nominal_traj.p[r_idx].data() + nominal_traj.p[r_idx].size()));
-        payload.push_back(stopped);
+        payload.push_back(collision);
         transmitters[2]->send_data(payload);
 
         next_time += std::chrono::milliseconds(period_ms);

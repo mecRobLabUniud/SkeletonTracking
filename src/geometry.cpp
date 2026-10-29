@@ -26,7 +26,7 @@ double trapz(const Eigen::VectorXd&        dt,
     return area;
 }
 
-DistanceResult distanceToSegment(
+NewDistanceResult distanceToSegment(
     const Eigen::Vector3d& P1, const Eigen::Vector3d& Q1,
     const Eigen::Vector3d& P2, const Eigen::Vector3d& Q2) {
 
@@ -65,14 +65,14 @@ DistanceResult distanceToSegment(
     return {distance, C_h, C_r};
 }
 
-std::pair<std::optional<DistanceResult>, int> distanceToSkeleton(
+std::pair<std::optional<NewDistanceResult>, int> distanceToSkeleton(
     const Skeleton&        skeleton,
     const Eigen::Vector3d& P2,
     const Eigen::Vector3d& Q2) {
 
     int min_ind = 0;
     double min_dist = std::numeric_limits<double>::max();
-    std::optional<DistanceResult> min_result;
+    std::optional<NewDistanceResult> min_result;
     
     for (int i = 0; i < (int)SKEL_INDEX.size(); i++) {
         int ind1 = SKEL_INDEX[i][0];
@@ -92,7 +92,7 @@ std::pair<std::optional<DistanceResult>, int> distanceToSkeleton(
         //std::cout << "Entering dts, " << min_dist << "\n";
         //std::cout << "P1=" << P1 << "\n Q1=" << Q1 << "\n P2=" << P2 << "\n Q2=" << Q2 << "\n";
 
-        DistanceResult result = distanceToSegment(P1, Q1, P2, Q2);
+        NewDistanceResult result = distanceToSegment(P1, Q1, P2, Q2);
         //std::cout << "result.distance=" << result.distance << "\n\n";
 
         if (result.distance < min_dist) {

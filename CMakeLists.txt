@@ -59,7 +59,7 @@ add_executable(main_SSM
     src/trajectory_loader.cpp
     src/trajectory_utils.cpp
     src/calc_stop_duration.cpp
-    src/flag_stop.cpp
+    src/core.cpp
     src/geometry.cpp
     src/skeleton_reader.cpp
     src/robot_model.cpp
@@ -78,6 +78,7 @@ target_link_libraries(main_SSM PRIVATE
     Threads::Threads
     ${ZMQ_LIBRARIES}
     rt   # shm_open / shm_unlink used by data_transmitter.hpp
+    qpOASES
     /usr/lib/x86_64-linux-gnu/liburdfdom_model.so
     /usr/lib/x86_64-linux-gnu/liburdfdom_world.so
     /usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so
@@ -96,6 +97,7 @@ add_executable(main_SSMPFL
     src/trajectory_loader.cpp
     src/robot_model.cpp
 	src/core.cpp
+    src/geometry.cpp
     src/min_distance_calculation.cpp
 )
 target_link_libraries(main_SSMPFL PRIVATE 
@@ -117,6 +119,7 @@ add_executable(main_SSMPFLescape
     src/trajectory_loader.cpp
     src/robot_model.cpp
 	src/core.cpp
+    src/geometry.cpp
     src/min_distance_calculation.cpp
 )
 target_link_libraries(main_SSMPFLescape PRIVATE 

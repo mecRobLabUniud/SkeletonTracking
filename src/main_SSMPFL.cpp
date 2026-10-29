@@ -39,7 +39,9 @@ const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
 const double velocity_PFL = 0.4;
 const double pause_after_collision = 0.5;
-const double HR_clearance = 0.1;
+std::vector<double> rh = {{0.16, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.1, 0.1, 0.16, 0.15}};
+const double rv = 0.085;
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,8 +103,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── Data transmitters ───────────────────────────────────────────────────
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
     transmitters.reserve(3);
-    transmitters.push_back(std::make_unique<DataTransmitter>(
-        DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
+    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
@@ -153,10 +154,10 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     transmitters[0]->set_receive_timeout(1000);
     std::vector<Eigen::Vector3d> skeleton_prev = skeleton;
 
-    const int period_ms = static_cast<int>(dt*1000.0);
-    auto next_time = std::chrono::steady_clock::now();
-
-
+    // ── HR clearance calculation ─────────────────────────────────────────────────
+    std::vector<double> HR_clearance(rh.size());
+    std::transform(rh.begin(), rh.end(), HR_clearance.begin(),
+                [rv](double a) { return a + rv; });
 
 
     // ── Logging ──────────────────────────────────────────────────────────────────
@@ -184,9 +185,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_pose << "<pose>\n";
     std::cout << "Outfiles initiated\n";
     
-
     std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_dq), std::ref(outfile_tau), std::ref(outfile_pose));
 
+    // ── Starting main loop ───────────────────────────────────────────────────────
+    const int period_ms = static_cast<int>(dt*1000.0);
+    auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
         auto t0 = std::chrono::steady_clock::now();
@@ -218,7 +221,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 ro_vec.push_back(skeleton[j]);
                 const Eigen::Vector3d v_o = (skeleton[j] - skeleton_prev[j]) / dt;
                 vo_vec.push_back(v_o);
-                delta_vec.push_back(-(-(HR_clearance + v_o.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
+                delta_vec.push_back(-(-(HR_clearance[j] + v_o.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
             }
 
             // ── Core SSM and PFL computation ─────────────────────────────────────────────
@@ -254,7 +257,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             if (exitflag) {
                 const std::optional<DistanceResult> dist =
                     human_to_robot_distance(skeleton, robot, real_traj.q[i]);
-                if (dist && dist->length <= HR_clearance) {
+                if (dist && dist->length <= HR_clearance[dist->ind_h]) {
                     collision = true;
                 }
             }
@@ -282,8 +285,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         g_t_log += dt;
 
         // ── Publish robot state, obstacle distance and trajectory ───────
-        // The robot capsules and the joint positions are published to the web
-        // interface, which draws the robot mesh and the safety capsules.
         const Eigen::VectorXd& q_now = real_traj.q[i + 1];
         const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
 
