@@ -61,6 +61,7 @@ add_executable(main_SSM
     src/calc_stop_duration.cpp
     src/SSM_core.cpp
     src/geometry.cpp
+    src/min_distance_calculation.cpp
     src/skeleton_reader.cpp
     src/robot_model.cpp
     src/min_distance_calculation.cpp

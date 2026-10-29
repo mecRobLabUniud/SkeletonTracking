@@ -11,7 +11,7 @@ obstacle constraints versus the commanded joint acceleration.
 #include <vector>
 
 #include "core.hpp"
-#include "minDistance.hpp"
+#include "min_distance_calculation.hpp"
 
 // ── Joint-limit instance for this solver ────────────────────────────────────
 static const KinematicsLimits k_limits;

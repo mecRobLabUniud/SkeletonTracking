@@ -13,7 +13,7 @@ robot away from the human while satisfying joint-limit and safety constraints.
 #include <qpOASES.hpp>
 
 #include "core.hpp"
-#include "minDistance.hpp"
+#include "min_distance_calculation.hpp"
 
 // ── Joint-limit instance for this solver ────────────────────────────────────
 static const KinematicsLimits k_limits;

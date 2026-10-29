@@ -14,10 +14,7 @@ shared_state.h - Cross-thread shared state: robot state, skeleton, stop flags, l
 #include <cmath>
 
 #include "min_distance_calculation.hpp"
-
-//  Skeleton type 
-// 15 joints or more, each a 3D point
-using Skeleton = std::vector<std::array<double, 3>>;
+#include "skeleton.hpp"
 
 //  Robot state 
 // Written by control thread, read by collision checker thread
@@ -35,7 +32,7 @@ inline std::atomic<double>  shared_rh_distance{1};
 inline std::atomic<double> shared_stop_duration{0.4};
 
 inline std::mutex    skeleton_mutex;
-inline Skeleton shared_skeleton(21, std::array<double, 3>{NAN, NAN, NAN});
+inline Skeleton shared_skeleton(21, Eigen::Vector3d::Constant(NAN));
 
 //  Thread control flags 
 inline std::atomic<bool> stop_flag{false};

@@ -211,7 +211,7 @@ bool SSM(double T_stop,
     const Skeleton&         skeleton,
     const RobotModel&       robot,
     std::array<double, 4>&  radii,
-    NewDistanceResult*      out_closest) {
+    DistanceResult*         out_closest) {
     
     if (skeleton.empty()) return false;
 
@@ -234,15 +234,15 @@ bool SSM(double T_stop,
         Eigen::Vector3d Q2 = robot_capsules[i].B;
         // also radius??
 
-        auto [dist, ind_h_temp] = distanceToSkeleton(skeleton, P2, Q2);
-        //std::cout << "dist=" << dist->distance << "\n";
+        auto dist = human_to_segm_distance(skeleton, P2, Q2);
+        //std::cout << "dist=" << dist->length << "\n";
 
         if (!dist.has_value()) continue;    // skip iteration if dist is null
-        if (!found || dist->distance < min_dist) {
-            min_dist = dist->distance;
-            min_C_h  = dist->C_h;
-            min_C_r  = dist->C_r;
-            ind_h    = ind_h_temp;
+        if (!found || dist->length < min_dist) {
+            min_dist = dist->length;
+            min_C_h  = dist->c_h;
+            min_C_r  = dist->c_r;
+            ind_h    = dist->ind_h;
             ind_r    = i;
             found    = true;
         }
@@ -253,9 +253,10 @@ bool SSM(double T_stop,
         // Report the outcome even when no valid pair was found: NaN is the
         // "no data" signal downstream (the collision checker publishes it as
         // JSON null and the retry logic skips the obstacle wait).
-        out_closest->distance = found ? min_dist : NAN;
-        out_closest->C_h      = min_C_h;
-        out_closest->C_r      = min_C_r;
+        out_closest->length = found ? min_dist : NAN;
+        out_closest->c_h    = min_C_h;
+        out_closest->c_r    = min_C_r;
+        out_closest->ind_h  = found ? ind_h : -1;
     }
 
     if (!found) return false;

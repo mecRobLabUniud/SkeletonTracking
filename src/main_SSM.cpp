@@ -87,28 +87,16 @@ static void writeMetricsFile(const std::string& pathname) {
 // The receive blocks until a message arrives; an empty vector is returned
 // only if the message carries no skeleton at all.
 // ─────────────────────────────────────────────────────────────────────────────
-static std::vector<Eigen::Vector3d> receiveSkeleton(DataTransmitter& tx) {
+static Skeleton receiveSkeleton(DataTransmitter& tx) {
     const std::vector<nlohmann::json> data = tx.receive_data();
     if (data.empty()) return {};
     return json_to_keypoints(data[0]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Convert the received keypoints into the Skeleton type used by flagStop
-// ─────────────────────────────────────────────────────────────────────────────
-static Skeleton toSkeleton(const std::vector<Eigen::Vector3d>& keypoints) {
-    Skeleton out;
-    out.reserve(keypoints.size());
-    for (const auto& p : keypoints) {
-        out.push_back({p.x(), p.y(), p.z()});
-    }
-    return out;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // True when at least one valid skeleton point lies inside the robot workspace
 // ─────────────────────────────────────────────────────────────────────────────
-static bool humanInWorkspace(const std::vector<Eigen::Vector3d>& skeleton) {
+static bool humanInWorkspace(const Skeleton& skeleton) {
     for (const auto& p : skeleton) {
         if (p.hasNaN()) continue;
         if (p.norm() < WORKSPACE_RADIUS) return true;
@@ -173,7 +161,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // vision pipeline has to start up), the following ones only have to keep
     // the stream alive.
     transmitters[0]->set_receive_timeout(10000);
-    std::vector<Eigen::Vector3d> skeleton = receiveSkeleton(*transmitters[0]);
+    Skeleton skeleton = receiveSkeleton(*transmitters[0]);
     if (skeleton.empty()) {
         throw std::runtime_error(
             "No merged skeleton received: is scripts/data_merging.py running?");
@@ -220,7 +208,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.t.size());
     for (int i = 0; i <= n_steps-1; ++i) {
-        const std::vector<Eigen::Vector3d> skeleton_new = receiveSkeleton(*transmitters[0]);
+        const Skeleton skeleton_new = receiveSkeleton(*transmitters[0]);
         if (!skeleton_new.empty()) {
             skeleton = skeleton_new;
         }
@@ -247,13 +235,14 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         // ── Core SSM computation ─────────────────────────────────────────────
         std::array<double, 4> radii{};
-        NewDistanceResult closest;
-        closest.distance = NAN;
-        closest.C_h = Eigen::Vector3d::Constant(NAN);
-        closest.C_r = Eigen::Vector3d::Constant(NAN);
+        DistanceResult closest;
+        closest.length = NAN;
+        closest.c_h = Eigen::Vector3d::Constant(NAN);
+        closest.c_r = Eigen::Vector3d::Constant(NAN);
+        closest.ind_h = -1;
 
         const double stop_duration = optimizer.solve(q_ref, qd_ref, qdd_ref);
-        collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, toSkeleton(skeleton),
+        collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
                            robot, radii, &closest);
 
         if (collision && !collision_prev) {

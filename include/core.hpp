@@ -13,6 +13,7 @@ core.hpp - Public interface of the SSM+PFL layer: joint-limit tables, the QP res
 #include <vector>
 #include <Eigen/Dense>
 #include "shared_state.h"
+#include "min_distance_calculation.hpp"
 
 //  Types
 
@@ -21,13 +22,6 @@ struct Capsule {
     Eigen::Vector3d A;  // first endpoint
     Eigen::Vector3d B;  // second endpoint
     double          radius;
-};
-
-// Result of a distance query
-struct NewDistanceResult {
-    double          distance;   // NaN when no valid pair could be computed
-    Eigen::Vector3d C_h;  // closest point on human segment
-    Eigen::Vector3d C_r;  // closest point on robot capsule
 };
 
 //  Constants
@@ -46,11 +40,6 @@ const std::array<double, 4> RV         = {0.085, 0.085, 0.06, 0.065};
 //   6 right wrist      13 left knee       20 right foot
 const std::array<double, 14> R_SW_H    = {0.16, 0.06, 0.06, 0.06, 0.06, 0.1, 0.1,
                                           0.15, 0.1, 0.1, 0.08, 0.08, 0.05, 0.05};
-// Skeleton segment connectivity
-const std::vector<std::array<int,2>> SKEL_INDEX = {
-    {0, 9}, {1, 3}, {2, 4}, {3, 5}, {4, 6}, {5, 7}, {6, 8}, 
-    {9, 10}, {11, 13}, {12, 14}, {13, 15}, {14, 16}, {17, 19}, {18, 20}
-};
 
 const double T_REACTION      = 0.05;   // seconds
 const double CSI             = 0.0;    // Zd + Zr constant
@@ -145,7 +134,7 @@ bool SSM(double T_stop,
         const Skeleton&         skeleton,
         const RobotModel&       robot,
         std::array<double, 4>&  radii,
-        NewDistanceResult*      out_closest = nullptr);
+        DistanceResult*         out_closest = nullptr);
 
 
 // ─────────────────────────────────────────────────────────────────────────────

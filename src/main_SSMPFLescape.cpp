@@ -159,7 +159,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── HR clearance calculation ─────────────────────────────────────────────────
     std::vector<double> HR_clearance(rh.size());
     std::transform(rh.begin(), rh.end(), HR_clearance.begin(),
-                [rv](double a) { return a + rv; });
+                [](double a) { return a + rv; });
 
 
     // ── Logging ──────────────────────────────────────────────────────────────────

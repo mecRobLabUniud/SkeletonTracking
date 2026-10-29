@@ -25,7 +25,7 @@ skeleton_reader.cpp - Background thread that subscribes to the merged multi-came
 // silently skipping — the NaNs are the "no data" signal for their existing
 // NaN-aware distance calculations to catch.
 static Skeleton makeNaNSkeleton(size_t n) {
-    return Skeleton(n, std::array<double, 3>{NAN, NAN, NAN});
+    return Skeleton(n, Eigen::Vector3d::Constant(NAN));
 }
 
 // Converts one JSON point of the merged skeleton message (a 3-element array,
@@ -35,9 +35,11 @@ static Skeleton makeNaNSkeleton(size_t n) {
 // those to JSON null before parsing, and json_to_double (utils.hpp) maps null
 // back to a quiet NaN, which is the "no data" signal downstream code expects.
 // Returns false on structural malformation (not an array / too short).
-static bool jsonPointToArray(const nlohmann::json& p, std::array<double, 3>& out) {
+static bool jsonPointToVector(const nlohmann::json& p, Eigen::Vector3d& out) {
     if (!p.is_array() || p.size() < 3) return false;
-    out = {json_to_double(p[0]), json_to_double(p[1]), json_to_double(p[2])};
+    out = Eigen::Vector3d(json_to_double(p[0]),
+                          json_to_double(p[1]),
+                          json_to_double(p[2]));
     return true;
 }
 
@@ -104,8 +106,8 @@ void receiveSkeletonMerged(const std::string& host, int device_id, const std::st
             // NaN in the positions is the only signal acted on downstream.
             Skeleton parsed;
             for (const auto& p : arrays[0]) {
-                std::array<double, 3> pt;
-                if (!jsonPointToArray(p, pt)) {
+                Eigen::Vector3d pt;
+                if (!jsonPointToVector(p, pt)) {
                     parsed.clear();  // structural malformation: reject the frame
                     break;
                 }
@@ -118,10 +120,10 @@ void receiveSkeletonMerged(const std::string& host, int device_id, const std::st
                     for (size_t i = 0; i < parsed.size(); ++i) {
                         const auto& pt = parsed[i];
                         log_file << "  [" << i << "] -> ";
-                        if (std::isnan(pt[0]) && std::isnan(pt[1]) && std::isnan(pt[2])) {
+                        if (pt.hasNaN()) {
                             log_file << "NaN, NaN, NaN\n";
                         } else {
-                            log_file << "x: " << pt[0] << ", y: " << pt[1] << ", z: " << pt[2] << "\n";
+                            log_file << "x: " << pt.x() << ", y: " << pt.y() << ", z: " << pt.z() << "\n";
                         }
                     }
                 }
