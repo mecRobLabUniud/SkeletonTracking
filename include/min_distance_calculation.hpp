@@ -29,6 +29,7 @@ struct DistanceResult {
     Eigen::Vector3d c_h;
     Eigen::Vector3d c_r;
     int ind_h;
+    int ind_r;
 };
 
 DistanceResult segm_to_segm_distance(
@@ -40,7 +41,8 @@ DistanceResult segm_to_segm_distance(
 std::optional<DistanceResult> human_to_segm_distance(
     const Skeleton& skeleton,
     const Eigen::Vector3d& P2,
-    const Eigen::Vector3d& Q2);
+    const Eigen::Vector3d& Q2,
+    const int ind_r);
 
 std::optional<DistanceResult> human_to_robot_distance(
     const Skeleton& skeleton,

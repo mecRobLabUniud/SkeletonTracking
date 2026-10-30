@@ -134,7 +134,7 @@ bool SSM(double T_stop,
         const Skeleton&         skeleton,
         const RobotModel&       robot,
         std::array<double, 4>&  radii,
-        DistanceResult*         out_closest = nullptr);
+        const DistanceResult&   closest);
 
 
 // ─────────────────────────────────────────────────────────────────────────────

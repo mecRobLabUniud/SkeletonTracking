@@ -10,6 +10,7 @@ computation and the SSM stop decision.
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <iostream>
 
 #include "core.hpp"
 #include "geometry.h"
@@ -75,8 +76,8 @@ std::array<Capsule, 4> computeRobotCapsules(
     Eigen::Vector3d B3 = robot.GetJointPose("panda_link4").translation();
 
     // Capsule 4: link6 → link7
-    Eigen::Vector3d A4 = robot.GetJointPose("panda_link7").translation();
-    Eigen::Vector3d B4 = robot.GetJointPose("panda_link6").translation();
+    Eigen::Vector3d A4 = robot.GetJointPose("panda_link8").translation();
+    Eigen::Vector3d B4 = robot.GetJointPose("panda_link7").translation();
 
     return {Capsule{A1, B1, RV[0]}, Capsule{A2, B2, RV[1]},
             Capsule{A3, B3, RV[2]}, Capsule{A4, B4, RV[3]}};
@@ -211,7 +212,7 @@ bool SSM(double T_stop,
     const Skeleton&         skeleton,
     const RobotModel&       robot,
     std::array<double, 4>&  radii,
-    DistanceResult*         out_closest) {
+    const DistanceResult&   closest) {
     
     if (skeleton.empty()) return false;
 
@@ -222,55 +223,16 @@ bool SSM(double T_stop,
     // Compute robot capsules at current config
     auto robot_capsules = computeRobotCapsules(robot, q);
 
-    // Find minimum distance between any robot capsule and any skeleton segment
-    double          min_dist = std::numeric_limits<double>::max();
-    Eigen::Vector3d min_C_h = Eigen::Vector3d::Constant(NAN);
-    Eigen::Vector3d min_C_r = Eigen::Vector3d::Constant(NAN);
-    int             ind_h = 0, ind_r = 0;
-    bool            found = false;
-
-    for (int i = 0; i < 4; ++i) {
-        Eigen::Vector3d P2 = robot_capsules[i].A;
-        Eigen::Vector3d Q2 = robot_capsules[i].B;
-        // also radius??
-
-        auto dist = human_to_segm_distance(skeleton, P2, Q2);
-        //std::cout << "dist=" << dist->length << "\n";
-
-        if (!dist.has_value()) continue;    // skip iteration if dist is null
-        if (!found || dist->length < min_dist) {
-            min_dist = dist->length;
-            min_C_h  = dist->c_h;
-            min_C_r  = dist->c_r;
-            ind_h    = dist->ind_h;
-            ind_r    = i;
-            found    = true;
-        }
-    }
-    //std::cout << "Found: " << found << "\n";
-
-    if (out_closest) {
-        // Report the outcome even when no valid pair was found: NaN is the
-        // "no data" signal downstream (the collision checker publishes it as
-        // JSON null and the retry logic skips the obstacle wait).
-        out_closest->length = found ? min_dist : NAN;
-        out_closest->c_h    = min_C_h;
-        out_closest->c_r    = min_C_r;
-        out_closest->ind_h  = found ? ind_h : -1;
-    }
-
-    if (!found) return false;
-
     // Compute robot safety radii along braking trajectory
     auto r_sw_r = capsuleCalculation(T_stop, q, q_p, q_pp,
-                                      min_C_h, min_C_r, robot);
+                                      closest.c_h, closest.c_r, robot);
                                       
     //std::cout << "saving radius\n";
     
     radii[0] = r_sw_r[0]; radii[1] = r_sw_r[1]; radii[2] = r_sw_r[2]; radii[3] = r_sw_r[3];
 
     // Stop condition: distance < human_radius + robot_radius
-    bool exitflag = min_dist < R_SW_H[ind_h] + r_sw_r[ind_r];
+    bool exitflag = closest.length < R_SW_H[closest.ind_h] + r_sw_r[closest.ind_r];
 
     /*std::cout << "Min distance: " << min_dist
               << " threshold: " << R_SW_H[ind_h] + r_sw_r[ind_r] << "\n";*/

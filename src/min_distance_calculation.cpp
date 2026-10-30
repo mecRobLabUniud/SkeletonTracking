@@ -75,7 +75,8 @@ DistanceResult segm_to_segm_distance(
 std::optional<DistanceResult> human_to_segm_distance(
     const Skeleton& skeleton,
     const Eigen::Vector3d& p2,
-    const Eigen::Vector3d& q2) {
+    const Eigen::Vector3d& q2,
+    const int ind_r) {
     std::optional<DistanceResult> best;
 
     for (size_t i = 0; i < MP_SKELETON.size(); ++i) {
@@ -97,6 +98,7 @@ std::optional<DistanceResult> human_to_segm_distance(
 
         DistanceResult dist = segm_to_segm_distance(p1, q1, p2, q2);
         dist.ind_h = static_cast<int>(i);
+        dist.ind_r = ind_r;
 
         if (!best || dist.length < best->length) {
             best = dist;
@@ -121,10 +123,10 @@ std::optional<DistanceResult> human_to_robot_distance(
     const Eigen::Vector3d r8 = robot.GetJointPose("panda_link8", q).translation();
 
     const std::array<std::optional<DistanceResult>, 4> candidates = {
-        human_to_segm_distance(skeleton, r0, r1),
-        human_to_segm_distance(skeleton, r2, r3),
-        human_to_segm_distance(skeleton, r4, r5),
-        human_to_segm_distance(skeleton, r7, r8)
+        human_to_segm_distance(skeleton, r0, r1, 0),
+        human_to_segm_distance(skeleton, r2, r3, 1),
+        human_to_segm_distance(skeleton, r4, r5, 2),
+        human_to_segm_distance(skeleton, r7, r8, 3)
     };
 
     std::optional<DistanceResult> best;

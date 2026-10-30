@@ -77,6 +77,7 @@ void writeSample(std::ofstream& outfile_dist,
     outfile_dist << "\t<keypoint time='" << s.t << "'>\n";
     outfile_dist << "\t\t<length>" << s.distance.length << "'</length>\n";
     outfile_dist << "\t\t<h_index>" << s.distance.ind_h << "'</h_index>\n";
+    outfile_dist << "\t\t<r_index>" << s.distance.ind_r << "'</r_index>\n";
     outfile_dist << "\t\t<c_h>\n";
     for (int j = 0; j < 3; ++j)
         outfile_dist << "\t\t\t<point id='" << axis[j] << "'>" << s.distance.c_h[j] << "</point>\n";

@@ -235,15 +235,17 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         // ── Core SSM computation ─────────────────────────────────────────────
         std::array<double, 4> radii{};
-        DistanceResult closest;
-        closest.length = NAN;
-        closest.c_h = Eigen::Vector3d::Constant(NAN);
-        closest.c_r = Eigen::Vector3d::Constant(NAN);
-        closest.ind_h = -1;
-
+        std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, q_ref);
+        // DistanceResult closest;
+        // if (distance.has_value()) {
+        //     closest = distance.value();
+        // }
+        // else collision = false;
+        
         const double stop_duration = optimizer.solve(q_ref, qd_ref, qdd_ref);
+
         collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
-                           robot, radii, &closest);
+                           robot, radii, *closest);
 
         if (collision && !collision_prev) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
@@ -280,7 +282,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             s.p[j] = real_traj.p[i][j];
             s.pd[j] = real_traj.pd[i][j];
         }
-        s.distance = closest;
+        s.distance = *closest;
         log_queue.push(s);
 
         g_t_log += dt;

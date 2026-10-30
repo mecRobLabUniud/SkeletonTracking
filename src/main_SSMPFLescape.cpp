@@ -235,13 +235,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         }
 
         // ── Core SSM, PFL and escape trajectory computation ──────────────────────────
+        std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
+
         SSMPFLResult res = SSMPFLescape(robot, dt, stopping_time, real_traj.q[i], real_traj.qd[i],
                                 nominal_traj.p[r_idx], nominal_traj.pd[r_idx], nominal_traj.q[r_idx],
                                 ro_vec, vo_vec, delta_vec);
 
-        std::optional<DistanceResult> closest;
         if (res.exitflag) {
-            closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
             if (closest && closest->length <= HR_clearance[closest->ind_h]) {
                 collision = true;
             }
