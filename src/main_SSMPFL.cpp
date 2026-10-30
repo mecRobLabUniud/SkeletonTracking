@@ -41,7 +41,48 @@ const double velocity_PFL = 0.4;
 const double pause_after_collision = 0.5;
 std::vector<double> rh = {{0.16, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.1, 0.1, 0.16, 0.15}};
 const double rv = 0.085;
+constexpr double WORKSPACE_RADIUS          = 0.9;  // meters, from robot base
+constexpr double ROBOT_ACTIVE_VEL_THRESH   = 0.05;  // rad/s (joint velocity norm)
+constexpr double IDLE_DEBOUNCE_SEC         = 0.2;
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Commit a still-open idle streak once the robot starts moving again, or after
+// the whole task has finished.
+// ─────────────────────────────────────────────────────────────────────────────
+static void flushIdleStreak() {
+    if (g_idle_streak_duration >= IDLE_DEBOUNCE_SEC) {
+        g_idle_time += g_idle_streak_duration;
+    }
+    g_idle_streak_duration = 0.0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Write the task metrics (T-TIME / R-IDLE / C-ACT-WS / R-STOPS) to disk
+// ─────────────────────────────────────────────────────────────────────────────
+static void writeMetricsFile(const std::string& pathname) {
+    double t_time    = g_t_log;
+    double idle_time = g_idle_time;
+    double conc_time = g_concurrent_ws_time;
+    int    stops     = g_stop_count.load();
+
+    double r_idle_pct   = (t_time > 0.0) ? (idle_time / t_time) * 100.0 : 0.0;
+    double c_act_ws_pct = (t_time > 0.0) ? (conc_time / t_time) * 100.0 : 0.0;
+
+    std::ofstream out(pathname + "metrics.txt");
+    out << "T-TIME (s)      : " << t_time      << "\n";
+    out << "R-IDLE (%)      : " << r_idle_pct   << "\n";
+    out << "C-ACT-WS (%)    : " << c_act_ws_pct << "\n";
+    out << "R-STOPS (count) : " << stops        << "\n";
+    out.close();
+
+    std::cout << "\n===== Task metrics =====\n";
+    std::cout << "T-TIME:   " << t_time      << " s\n";
+    std::cout << "R-IDLE:   " << r_idle_pct   << " %\n";
+    std::cout << "C-ACT-WS: " << c_act_ws_pct << " %\n";
+    std::cout << "R-STOPS:  " << stops        << "\n";
+    std::cout << "Saved to " << pathname << "metrics.txt\n";
+}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -319,6 +360,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         std::this_thread::sleep_until(next_time);
     }
 
+    std::cout << "\n── Task completed ──────────────────────────────────────────────\n";
+    trajectory_done.store(true);
     logger_thread.join();
 
     outfile_dist << "</distance>\n";
@@ -333,6 +376,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_qdd.close();
     outfile_p.close();
     outfile_pd.close();
+
+    flushIdleStreak();
+    writeMetricsFile(pathname);
 
     return 0;
 }

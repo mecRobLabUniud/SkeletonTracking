@@ -36,10 +36,7 @@ const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 constexpr double WORKSPACE_RADIUS          = 0.9;  // meters, from robot base
 constexpr double ROBOT_ACTIVE_VEL_THRESH   = 0.05;  // rad/s (joint velocity norm)
-constexpr double IDLE_DEBOUNCE_SEC         = 0.2;   // s -- a low-velocity streak shorter
-                                                     // than this is treated as a normal
-                                                     // waypoint-to-waypoint zero-crossing,
-                                                     // not real idle time.
+constexpr double IDLE_DEBOUNCE_SEC         = 0.2;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -320,6 +317,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         std::this_thread::sleep_until(next_time);
     }
 
+    std::cout << "\n── Task completed ──────────────────────────────────────────────\n";
     trajectory_done.store(true);
     logger_thread.join();
 
