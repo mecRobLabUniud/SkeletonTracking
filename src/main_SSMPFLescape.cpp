@@ -190,7 +190,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_pd << "<pd>\n";
     std::cout << "Outfiles initiated\n";
 
-    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_qd), std::ref(outfile_qdd),
+    std::thread logger_thread(loggerThread, std::ref(outfile_dist), std::ref(outfile_q), std::ref(outfile_qd), std::ref(outfile_qdd),
                                 std::ref(outfile_p), std::ref(outfile_pd));
 
     // ── Starting main loop ───────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                                 ro_vec, vo_vec, delta_vec);
 
         std::optional<DistanceResult> closest;
-        if (exitflag) {
+        if (res.exitflag) {
             closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
             if (closest && closest->length <= HR_clearance[closest->ind_h]) {
                 collision = true;
@@ -286,6 +286,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             s.p[j] = real_traj.p[i][j];
             s.pd[j] = real_traj.pd[i][j];
         }
+        s.distance = *closest;
         log_queue.push(s);
 
         skeleton_prev = skeleton;

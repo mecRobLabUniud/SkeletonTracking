@@ -188,7 +188,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     outfile_pd << "<pd>\n";
     std::cout << "Outfiles initiated\n";
 
-    std::thread logger_thread(loggerThread, std::ref(outfile_q), std::ref(outfile_qd), std::ref(outfile_qdd),
+    std::thread logger_thread(loggerThread, std::ref(outfile_dist), std::ref(outfile_q), std::ref(outfile_qd), std::ref(outfile_qdd),
                                 std::ref(outfile_p), std::ref(outfile_pd));
 
     // ── Starting main loop ───────────────────────────────────────────────────────
