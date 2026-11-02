@@ -72,6 +72,10 @@ function loadOne(name){
             if (opacity) {
                 o.material.transparent = true;
                 o.material.opacity = 0.8;
+                // Transparent robot parts must not write depth either; otherwise
+                // the link that happens to be drawn first hides the parts behind
+                // it, making the robot look incomplete.
+                o.material.depthWrite = false;
             }
           }
         });

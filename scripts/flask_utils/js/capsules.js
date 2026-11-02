@@ -14,22 +14,29 @@ const socket = io();
 
 let human_caps = []
 for (const _ of MP_SKELETON) {
-    human_caps.push(createCapsule());
+    human_caps.push(createCapsule(0.5));
 }
 let robot_caps = []
 for (const _ of MP_SKELETON) {
-    robot_caps.push(createCapsule());
+    robot_caps.push(createCapsule(0.05));
 }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Plot capsules mesh
 // ─────────────────────────────────────────────────────────────────────────────
-function createCapsule() {
+function createCapsule(opacity = 0.5) {
     const geometry = new THREE.CapsuleGeometry(0.01, 0.01, 4, 8);
-    const material = new THREE.MeshBasicMaterial( { color: '#aaaaaa', transparent: true, opacity: 0.8 } );
+    const material = new THREE.MeshBasicMaterial( {
+        color: '#aaaaaa',
+        transparent: true,
+        opacity: opacity,
+        depthWrite: false
+    } );
 
     const mesh = new THREE.Mesh(geometry, material);
+    // Render capsules after the robot meshes so they only tint them.
+    mesh.renderOrder = 1;
     mesh.visible = false;
     scene.add(mesh);
 
@@ -78,7 +85,7 @@ function updateCapsule(capsule, p1, p2, radius = 0.05, rula = false, opacity = 0
     capsule.geometry.dispose();
     capsule.geometry = new THREE.CapsuleGeometry(radius, length, 10, 20);
     capsule.position.copy(mid);
-    capsule.material = new THREE.MeshBasicMaterial( { color: caps_color, transparent: true, opacity: opacity } );
+    capsule.material = new THREE.MeshBasicMaterial( { color: caps_color, transparent: true, opacity: opacity, depthWrite: false} );
 
     // Default capsule axis is Y; rotate to align with p1->p2
     const dir = end.clone().sub(start).normalize();
