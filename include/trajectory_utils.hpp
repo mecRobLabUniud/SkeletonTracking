@@ -10,6 +10,7 @@ trajectory_utils.hpp - Declaration of the quintic trajectory generator and of th
 
 
 #include <Eigen/Dense>
+#include <optional>
 #include <vector>
 #include <string>
 
@@ -53,10 +54,20 @@ struct Trajectory {
 // p_csv / t_csv override the file names; when they are left empty the format
 // is detected from the files that are present in the trajectory directory.
 //
+// When `start` is given, the trajectory is recomputed from that new starting
+// point instead of the first recorded waypoint. The duration of the first
+// segment is scaled by the ratio between the new and the recorded segment
+// length, so that its playback speed is preserved while adapting the timing
+// to the new path. `start` may be a joint configuration (7 values) or, for a
+// trajectory stored in Cartesian coordinates, a Cartesian point (3 values,
+// solved with the inverse kinematics using the same orientation as the
+// recorded waypoints). An empty vector means "use the recorded start".
+//
 // N is the number of samples used for a segment whose duration is unknown
 // (a segment with a non-positive duration carries no motion and is skipped).
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir,
                                int n_traj, double dt,
+                               const std::optional<Eigen::VectorXd>& start = std::nullopt,
                                const std::string& p_csv = "",
                                const std::string& t_csv = "");

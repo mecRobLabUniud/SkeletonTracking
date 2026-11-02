@@ -51,11 +51,14 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
 // kinematics) or in joint coordinates (q_ref.csv, used as they are). The
 // cumulative time of each waypoint (t_ref.csv) gives the duration of every
 // segment, so each segment is sampled at the control rate and the playback
-// takes exactly the recorded time.
+// takes exactly the recorded time. When a new starting point is passed, the
+// first waypoint is replaced by it and the duration of the first segment is
+// scaled with the ratio of the new to the recorded path length, so that its
+// playback speed is preserved.
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj,
-                               double dt, const std::string& p_csv,
-                               const std::string& t_csv) {
+                               double dt, const std::optional<Eigen::VectorXd>& start,
+                               const std::string& p_csv, const std::string& t_csv) {
 
     // ── Waypoint and time loading ───────────────────────────────────────────
     const fs::path traj_dir =
@@ -84,6 +87,15 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     // ── Joint waypoints ─────────────────────────────────────────────────────
     // Cartesian waypoints are solved with the inverse kinematics, joint
     // waypoints are already configurations and are used as they are.
+    Eigen::VectorXd q_base(7);
+    q_base << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
+
+    // Fixed orientation of the end effector for the Cartesian waypoints (only
+    // the position is taken from the file).
+    Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+    R(1, 1) = -1.0;
+    R(2, 2) = -1.0;
+
     std::vector<Eigen::VectorXd> robot_q;
     if (data.isJointSpace()) {
         robot_q = data.q;
@@ -91,13 +103,6 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
                   << traj_dir << std::endl;
     }
     else {
-        Eigen::VectorXd q_base(7);
-        q_base << 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785;
-
-        Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
-        R(1, 1) = -1.0;
-        R(2, 2) = -1.0;
-
         robot_q.reserve(data.p.size());
         for (size_t i = 0; i < data.p.size(); ++i) {
             Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
@@ -122,6 +127,62 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
         }
         std::cout << "Loaded " << robot_q.size() << " Cartesian waypoints from "
                   << traj_dir << " and solved the IK for each of them" << std::endl;
+    }
+
+    // ── Optional new starting point ─────────────────────────────────────────
+    // The first waypoint is replaced by the requested start and the duration of
+    // the first segment is scaled by the ratio between the new and the recorded
+    // path lengths, so that the playback speed of that segment is preserved.
+    double first_segment_scale = 1.0;
+    if (start && start->size() > 0) {
+        Eigen::VectorXd q_start;
+
+        if (start->size() == robot_q.front().size()) {
+            // A joint configuration is used directly.
+            q_start = *start;
+        }
+        else if (!data.isJointSpace() && start->size() == 3) {
+            // A Cartesian point is solved with the IK, keeping the same
+            // orientation as the recorded waypoints.
+            Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+            T.linear() = R;
+            T.translation() = start->head<3>();
+
+            if (!robot.ComputeIK("panda_link8", T, robot_q.front(), &q_start) &&
+                !robot.ComputeIK("panda_link8", T, q_base, &q_start)) {
+                throw std::runtime_error("IK failed for the new starting point of " +
+                                         traj_dir.string());
+            }
+        }
+        else {
+            throw std::runtime_error(
+                traj_dir.string() + ": the new starting point must have " +
+                std::to_string(robot_q.front().size()) + " values (joint configuration)" +
+                (data.isJointSpace() ? "" : " or 3 values (Cartesian point)"));
+        }
+
+        // Length of a segment in the space in which the trajectory was
+        // recorded: joint space for q_ref.csv, Cartesian space for p_ref.csv.
+        const auto segment_length = [&](const Eigen::VectorXd& a,
+                                        const Eigen::VectorXd& b) {
+            if (data.isJointSpace()) return (b - a).norm();
+            return (robot.GetJointPose("panda_link8", b).translation() -
+                    robot.GetJointPose("panda_link8", a).translation()).norm();
+        };
+
+        // The scale is only meaningful when the recorded segment has a
+        // non-zero length. If the new start coincides with the second waypoint
+        // the first segment carries no motion and is skipped later on.
+        const double recorded_len = segment_length(robot_q[0], robot_q[1]);
+        const double new_len      = segment_length(q_start, robot_q[1]);
+        if (recorded_len > 1e-9) {
+            first_segment_scale = (new_len > 1e-9) ? new_len / recorded_len : 0.0;
+        }
+
+        robot_q.front() = q_start;
+        std::cout << "Recomputed the trajectory from a new starting point"
+                  << " (first segment duration scaled by " << first_segment_scale << ")"
+                  << std::endl;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -166,7 +227,8 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
 
     double t = 0;
     for (size_t i = 0; i < n_seg; ++i) {
-        const double t_end = robot_t[i + 1] - robot_t[i];
+        double t_end = robot_t[i + 1] - robot_t[i];
+        if (i == 0) t_end *= first_segment_scale;
         if (t_end <= 0.0) {
             // A segment with no duration carries no motion: skip it instead of
             // building a degenerate polynomial (which would divide by zero).
