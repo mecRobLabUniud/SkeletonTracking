@@ -69,12 +69,15 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     // files that are present in the trajectory directory.
     TrajectoryData data = loadTrajectorySet(traj_dir);
     TrajectoryData temp = data;
+    std::vector<Eigen::VectorXd> q_robot;
+    std::vector<double> t_robot;
 
     // ── Restart time ────────────────────────────────────────────────────────
     // Only the waypoints whose timestamp is strictly smaller than the restart
     // time are kept: the trajectory is rebuilt up to that point.
-    if (t_restart) {
+    if (t_restart && *t_restart > 0.0) {
 
+        std::cout << "q restart = " << *q_restart << std::endl;
         std::cout << "t restart = " << *t_restart << std::endl;
 
         size_t del = 0;
@@ -92,6 +95,11 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
         }
         temp.t.resize(temp.t.size() - del);
         temp.t = std::vector<double>(data.t.begin() + del, data.t.begin() + data.t.size());
+
+        if (q_restart && q_restart->size() > 0) {
+            q_robot.push_back(*q_restart);
+            t_robot.push_back(0.0);
+        }
     }
 
     std::cout << "p temp = " << std::endl;
@@ -118,35 +126,10 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     R(1, 1) = -1.0;
     R(2, 2) = -1.0;
 
-
-
-
-
-
-
-    std::vector<Eigen::VectorXd> q_robot;
-    std::vector<double>& t_robot = temp.t;
-
-    if (q_restart && q_restart->size() > 0) {
-        if (q_restart->size() != q_robot.front().size()) {
-            throw std::runtime_error(
-                traj_dir.string() + ": the restart configuration must have " +
-                std::to_string(q_robot.front().size()) + " values");
-        }
-
-        q_robot.push_back(q_restart);
-        t_robot.push_back(t_restart);
-    }
-
-
-
-
-
-
-
-
     if (temp.isJointSpace()) {
-        q_robot = temp.q;
+        for (auto q : temp.q) {
+            q_robot.push_back(q);
+        }
         std::cout << "Loaded " << q_robot.size() << " joint-space waypoints from "
                   << traj_dir << std::endl;
     }
@@ -175,6 +158,10 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
         }
         std::cout << "Loaded " << q_robot.size() << " Cartesian waypoints from "
                   << traj_dir << " and solved the IK for each of them" << std::endl;
+    }
+
+    for (auto t : temp.t) {
+        t_robot.push_back(t - (t_restart ? *t_restart : 0.0));
     }
 
     
@@ -236,8 +223,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
 
     double t = 0;
     for (size_t i = 0; i < n_seg; ++i) {
-        double t_end = t_robot[i + 1] - t_robot[i];
-        if (i == 0) t_end *= first_segment_scale;
+        const double t_end = t_robot[i + 1] - t_robot[i];
         if (t_end <= 0.0) {
             // A segment with no duration carries no motion: skip it instead of
             // building a degenerate polynomial (which would divide by zero).
