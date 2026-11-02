@@ -51,36 +51,58 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
 // kinematics) or in joint coordinates (q_ref.csv, used as they are). The
 // cumulative time of each waypoint (t_ref.csv) gives the duration of every
 // segment, so each segment is sampled at the control rate and the playback
-// takes exactly the recorded time. When a new starting point is passed, the
-// first waypoint is replaced by it and the duration of the first segment is
+// takes exactly the recorded time. When a restart time is given, the waypoints
+// reached before it are kept; when a restart configuration is given as well,
+// it replaces the first kept waypoint and the duration of the first segment is
 // scaled with the ratio of the new to the recorded path length, so that its
 // playback speed is preserved.
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj,
-                               double dt, const std::optional<Eigen::VectorXd>& start,
-                               const std::string& p_csv, const std::string& t_csv) {
+                               double dt, const std::optional<Eigen::VectorXd>& q_restart,
+                               const std::optional<double>& t_restart) {
 
     // ── Waypoint and time loading ───────────────────────────────────────────
     const fs::path traj_dir =
         fs::path(c_dir) / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
-    TrajectoryData data;
-    if (p_csv.empty() && t_csv.empty()) {
-        // The waypoint format (Cartesian or joint space) is detected from the
-        // files that are present in the trajectory directory.
-        data = loadTrajectorySet(traj_dir);
-    } else {
-        data = loadTrajectory(traj_dir,
-                              p_csv.empty() ? std::string("p_ref.csv") : p_csv,
-                              t_csv.empty() ? std::string("t_ref.csv") : t_csv);
+    // The waypoint format (Cartesian or joint space) is detected from the
+    // files that are present in the trajectory directory.
+    TrajectoryData data = loadTrajectorySet(traj_dir);
+    TrajectoryData temp = data;
+
+    // ── Restart time ────────────────────────────────────────────────────────
+    // Only the waypoints whose timestamp is strictly smaller than the restart
+    // time are kept: the trajectory is rebuilt up to that point.
+    if (t_restart) {
+
+        std::cout << "t restart = " << *t_restart << std::endl;
+
+        size_t del = 0;
+        while (del < data.t.size() && data.t[del] < *t_restart) del++;
+
+        std::cout << "delete = " << del << std::endl;
+
+        if (!data.q.empty()) {
+            temp.q.resize(temp.t.size() - del);
+            temp.q = std::vector<Eigen::VectorXd>(data.q.begin() + del, data.q.begin() + data.q.size());
+        }
+        if (!data.p.empty()) {
+            temp.p.resize(temp.t.size() - del);
+            temp.p = std::vector<Eigen::Vector3d>(data.p.begin() + del, data.p.begin() + data.p.size());
+        }
+        temp.t.resize(temp.t.size() - del);
+        temp.t = std::vector<double>(data.t.begin() + del, data.t.begin() + data.t.size());
     }
 
-    const std::vector<double>& robot_t = data.t;
+    std::cout << "p temp = " << std::endl;
+    for (auto p : temp.p) std::cout << p.transpose() << std::endl;
+    std::cout << "t temp = " << std::endl;
+    for (auto t : temp.t) std::cout << t << std::endl;
 
-    if (data.p.empty() && data.q.empty()) {
+    if (temp.p.empty() && temp.q.empty()) {
         throw std::runtime_error(traj_dir.string() + ": the trajectory holds no waypoints");
     }
-    if (robot_t.size() < 2) {
+    if (temp.t.size() < 2) {
         throw std::runtime_error(traj_dir.string() + ": the trajectory needs at least 2 waypoints");
     }
 
@@ -96,18 +118,44 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     R(1, 1) = -1.0;
     R(2, 2) = -1.0;
 
-    std::vector<Eigen::VectorXd> robot_q;
-    if (data.isJointSpace()) {
-        robot_q = data.q;
-        std::cout << "Loaded " << robot_q.size() << " joint-space waypoints from "
+
+
+
+
+
+
+    std::vector<Eigen::VectorXd> q_robot;
+    std::vector<double>& t_robot = temp.t;
+
+    if (q_restart && q_restart->size() > 0) {
+        if (q_restart->size() != q_robot.front().size()) {
+            throw std::runtime_error(
+                traj_dir.string() + ": the restart configuration must have " +
+                std::to_string(q_robot.front().size()) + " values");
+        }
+
+        q_robot.push_back(q_restart);
+        t_robot.push_back(t_restart);
+    }
+
+
+
+
+
+
+
+
+    if (temp.isJointSpace()) {
+        q_robot = temp.q;
+        std::cout << "Loaded " << q_robot.size() << " joint-space waypoints from "
                   << traj_dir << std::endl;
     }
     else {
-        robot_q.reserve(data.p.size());
-        for (size_t i = 0; i < data.p.size(); ++i) {
+        q_robot.reserve(temp.p.size());
+        for (size_t i = 0; i < temp.p.size(); ++i) {
             Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
             T.linear() = R;
-            T.translation() = data.p[i];
+            T.translation() = temp.p[i];
 
             Eigen::VectorXd q;
             if (!robot.ComputeIK("panda_link8", T, q_base, &q)) {
@@ -116,74 +164,35 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
                 // which is usually much closer to the target.
                 bool ok = false;
                 if (i > 0) {
-                    ok = robot.ComputeIK("panda_link8", T, robot_q.back(), &q);
+                    ok = robot.ComputeIK("panda_link8", T, q_robot.back(), &q);
                 }
                 if (!ok) {
                     throw std::runtime_error("IK failed for waypoint " + std::to_string(i) +
                                              " of " + traj_dir.string());
                 }
             }
-            robot_q.push_back(q);
+            q_robot.push_back(q);
         }
-        std::cout << "Loaded " << robot_q.size() << " Cartesian waypoints from "
+        std::cout << "Loaded " << q_robot.size() << " Cartesian waypoints from "
                   << traj_dir << " and solved the IK for each of them" << std::endl;
     }
 
-    // ── Optional new starting point ─────────────────────────────────────────
-    // The first waypoint is replaced by the requested start and the duration of
-    // the first segment is scaled by the ratio between the new and the recorded
-    // path lengths, so that the playback speed of that segment is preserved.
-    double first_segment_scale = 1.0;
-    if (start && start->size() > 0) {
-        Eigen::VectorXd q_start;
+    
 
-        if (start->size() == robot_q.front().size()) {
-            // A joint configuration is used directly.
-            q_start = *start;
-        }
-        else if (!data.isJointSpace() && start->size() == 3) {
-            // A Cartesian point is solved with the IK, keeping the same
-            // orientation as the recorded waypoints.
-            Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
-            T.linear() = R;
-            T.translation() = start->head<3>();
 
-            if (!robot.ComputeIK("panda_link8", T, robot_q.front(), &q_start) &&
-                !robot.ComputeIK("panda_link8", T, q_base, &q_start)) {
-                throw std::runtime_error("IK failed for the new starting point of " +
-                                         traj_dir.string());
-            }
-        }
-        else {
-            throw std::runtime_error(
-                traj_dir.string() + ": the new starting point must have " +
-                std::to_string(robot_q.front().size()) + " values (joint configuration)" +
-                (data.isJointSpace() ? "" : " or 3 values (Cartesian point)"));
-        }
 
-        // Length of a segment in the space in which the trajectory was
-        // recorded: joint space for q_ref.csv, Cartesian space for p_ref.csv.
-        const auto segment_length = [&](const Eigen::VectorXd& a,
-                                        const Eigen::VectorXd& b) {
-            if (data.isJointSpace()) return (b - a).norm();
-            return (robot.GetJointPose("panda_link8", b).translation() -
-                    robot.GetJointPose("panda_link8", a).translation()).norm();
-        };
 
-        // The scale is only meaningful when the recorded segment has a
-        // non-zero length. If the new start coincides with the second waypoint
-        // the first segment carries no motion and is skipped later on.
-        const double recorded_len = segment_length(robot_q[0], robot_q[1]);
-        const double new_len      = segment_length(q_start, robot_q[1]);
-        if (recorded_len > 1e-9) {
-            first_segment_scale = (new_len > 1e-9) ? new_len / recorded_len : 0.0;
-        }
 
-        robot_q.front() = q_start;
-        std::cout << "Recomputed the trajectory from a new starting point"
-                  << " (first segment duration scaled by " << first_segment_scale << ")"
-                  << std::endl;
-    }
+    std::cout << "q_robot = " << std::endl;
+    for (auto p : q_robot) std::cout << p.transpose() << std::endl;
+    std::cout << "t_robot = " << std::endl;
+    for (auto t : t_robot) std::cout << t << std::endl;
+
+
+
+
+
+
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Append one quintic segment to the output trajectory
@@ -214,9 +223,9 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     };
 
     // ── Segment assembly ────────────────────────────────────────────────────
-    const size_t n_seg = robot_q.size() - 1;
+    const size_t n_seg = q_robot.size() - 1;
     std::vector<double> v_norm;
-    int N = robot_t[robot_t.size() - 1]/dt;
+    int N = t_robot[t_robot.size() - 1]/dt;
     Trajectory traj;
     traj.q.reserve(N);
     traj.qd.reserve(N);
@@ -227,7 +236,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
 
     double t = 0;
     for (size_t i = 0; i < n_seg; ++i) {
-        double t_end = robot_t[i + 1] - robot_t[i];
+        double t_end = t_robot[i + 1] - t_robot[i];
         if (i == 0) t_end *= first_segment_scale;
         if (t_end <= 0.0) {
             // A segment with no duration carries no motion: skip it instead of
@@ -236,7 +245,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
                       << std::endl;
             continue;
         }
-        build_traj(robot_q[i], robot_q[i + 1], &v_norm, traj, t_end, t);
+        build_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t);
     }
 
     if (traj.q.empty()) {

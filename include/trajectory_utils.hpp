@@ -51,23 +51,19 @@ struct Trajectory {
 // cumulative time of each waypoint is read from t_ref.csv and gives the
 // duration of each segment.
 //
-// p_csv / t_csv override the file names; when they are left empty the format
-// is detected from the files that are present in the trajectory directory.
+// When `t_restart` is given, only the waypoints reached before that time
+// (timestamps strictly smaller than t_restart) are kept and the trajectory is
+// rebuilt from them.
 //
-// When `start` is given, the trajectory is recomputed from that new starting
-// point instead of the first recorded waypoint. The duration of the first
+// When `q_restart` is given, it becomes the first waypoint of the rebuilt
+// trajectory (replacing the first kept waypoint). The duration of the first
 // segment is scaled by the ratio between the new and the recorded segment
 // length, so that its playback speed is preserved while adapting the timing
-// to the new path. `start` may be a joint configuration (7 values) or, for a
-// trajectory stored in Cartesian coordinates, a Cartesian point (3 values,
-// solved with the inverse kinematics using the same orientation as the
-// recorded waypoints). An empty vector means "use the recorded start".
+// to the new path. `q_restart` must be a joint configuration.
 //
-// N is the number of samples used for a segment whose duration is unknown
-// (a segment with a non-positive duration carries no motion and is skipped).
+// The two arguments are independent: either one alone is applied.
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir,
                                int n_traj, double dt,
-                               const std::optional<Eigen::VectorXd>& start = std::nullopt,
-                               const std::string& p_csv = "",
-                               const std::string& t_csv = "");
+                               const std::optional<Eigen::VectorXd>& q_restart = std::nullopt,
+                               const std::optional<double>& t_restart = std::nullopt);

@@ -130,6 +130,18 @@ static std::vector<Eigen::Vector3d> receiveSkeleton(DataTransmitter& tx) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// True when at least one valid skeleton point lies inside the robot workspace
+// ─────────────────────────────────────────────────────────────────────────────
+static bool humanInWorkspace(const Skeleton& skeleton) {
+    for (const auto& p : skeleton) {
+        if (p.hasNaN()) continue;
+        if (p.norm() < WORKSPACE_RADIUS) return true;
+    }
+    return false;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Run the simulated tracking task for the given trajectory index and working
 // directory
 // ─────────────────────────────────────────────────────────────────────────────
@@ -275,6 +287,17 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             delta_vec.push_back(-(-(HR_clearance[j] + v_o.norm() * stopping_time) / stopping_time + velocity_PFL) * stopping_time);
         }
 
+        // ── C-ACT-WS / R-IDLE bookkeeping ────────────────────────────────────
+        const bool robot_active = nominal_traj.qd[r_idx].norm() > ROBOT_ACTIVE_VEL_THRESH;
+        if (robot_active && humanInWorkspace(skeleton)) {
+            g_concurrent_ws_time += dt;
+        }
+        if (robot_active) {
+            flushIdleStreak();
+        } else {
+            g_idle_streak_duration += dt;
+        }
+
         // ── Core SSM, PFL and escape trajectory computation ──────────────────────────
         std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
 
@@ -285,11 +308,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         if (res.exitflag) {
             if (closest && closest->length <= HR_clearance[closest->ind_h]) {
                 collision = true;
+                g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             }
             else collision = false;
         }
         else {
             collision = true;
+            g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
         }
 
         // ── Real trajectory update ──────────────────────────────────────

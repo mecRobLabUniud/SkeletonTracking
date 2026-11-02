@@ -121,7 +121,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
     // ── Delay for loading the web interface ─────────────────────────────────
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // std::this_thread::sleep_for(std::chrono::seconds(5));
 
     // ── Nominal trajectory construction ──────────────────────────────────────
     const std::filesystem::path traj_dir =
@@ -245,7 +245,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                            robot, radii, *closest);
 
         if (collision && !collision_prev) {
+            std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
+            nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt, nominal_traj.q[r_idx], i*dt);
         }
         collision_prev = collision;
 
