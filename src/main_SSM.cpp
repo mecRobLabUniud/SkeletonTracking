@@ -293,7 +293,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             points.push_back(nlohmann::json::array({p[0], p[1], p[2]}));
         }
         nlohmann::json radii_json = nlohmann::json::array();
-        for (const double radius : ROBOT_CAPSULE_RADII) {
+        for (const double radius : radii) {
             radii_json.push_back(radius);
         }
         nlohmann::json q_json = nlohmann::json::array();

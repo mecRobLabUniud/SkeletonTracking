@@ -53,19 +53,6 @@ else {
 const loader = new ColladaLoader();
 const loaded = {};
 
-// function setRobotColor(color = 0xff0000){
-//     socket.on('update_plot', function (point) {
-//         if (point.collision) {
-//             const col = new THREE.Color(color);
-//             robotGroup.traverse(o=>{
-//                 if (o.isMesh && o.material){
-//                     o.material.color.copy(col);
-//                 }
-//             });
-//         }
-//     })
-// }
-// window.setRobotColor = setRobotColor;
 
 function loadOne(name){
   return new Promise((resolve, reject)=>{
@@ -84,7 +71,7 @@ function loadOne(name){
             if (c) o.material.userData.originalColor = c.clone();
             if (opacity) {
                 o.material.transparent = true;
-                o.material.opacity = 0.5;
+                o.material.opacity = 0.8;
             }
           }
         });
@@ -229,6 +216,9 @@ updateCamera();
 let do_once = true;
 function update_plot() {
     socket.on('update_plot', function (point) {
+        console.log("point.q_robot");
+        console.log(point.q_robot);
+
         if (point.q_robot != undefined) {
             q = point.q_robot;
             if (do_once) {
@@ -240,25 +230,24 @@ function update_plot() {
         updateKinematics();
     }); 
 
-    socket.on('update_plot', function (point) {
-        if (point.collision) {
-            const col = new THREE.Color(0xff0000);
-            robotGroup.traverse(o=>{
-                if (o.isMesh && o.material){
-                    o.material.color.copy(col);
-                }
-            });
-        }
-        else {
-            robotGroup.traverse(o=>{
-                if (o.isMesh && o.material){
-                    o.material.color.copy(o.material.userData.originalColor);
-                }
-            });  
-        }
-    })
+    // socket.on('update_plot', function (point) {
+    //     if (point.collision) {
+    //         const col = new THREE.Color(0xff0000);
+    //         robotGroup.traverse(o=>{
+    //             if (o.isMesh && o.material){
+    //                 o.material.color.copy(col);
+    //             }
+    //         });
+    //     }
+    //     else {
+    //         robotGroup.traverse(o=>{
+    //             if (o.isMesh && o.material){
+    //                 o.material.color.copy(o.material.userData.originalColor);
+    //             }
+    //         });  
+    //     }
+    // })
 
-    // window.setRobotColor = setRobotColor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

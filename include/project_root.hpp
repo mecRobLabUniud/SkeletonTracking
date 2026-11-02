@@ -8,24 +8,6 @@ project_root.hpp - Locates the repository root at runtime (CLI argument, working
 
 #pragma once
 
-/*
-░█▀▄░█▀█░▀█▀░█▀█░░░▀█▀░█▀▄░█▀█░█▀█░█▀▀░█▄█░▀█▀░▀█▀░▀█▀░█▀▀░█▀▄
-░█░█░█▀█░░█░░█▀█░░░░█░░█▀▄░█▀█░█░█░▀▀█░█░█░░█░░░█░░░█░░█▀▀░█▀▄
-░▀▀░░▀░▀░░▀░░▀░▀░░░░▀░░▀░▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░▀▀▀▀▀░▀░▀
-
-Location of the repository root, i.e. of the directory holding src/urdf/,
-src/trajectories/ and scripts/.
-
-The root is looked up in this order:
-  1) the path given on the command line (run.sh passes the repository root)
-  2) the current working directory
-  3) the parent of the executable's directory (build/ -> project root)
-
-so that the executables can be launched either from the build directory or
-from the project root, with no path depending on the current working
-directory.
-*/
-
 #include <filesystem>
 #include <string>
 
