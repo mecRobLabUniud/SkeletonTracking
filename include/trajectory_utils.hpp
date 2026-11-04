@@ -66,5 +66,9 @@ struct Trajectory {
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir,
                                int n_traj, double dt);
 
+
+double computeAddedTime(const Eigen::VectorXd& q_end, const Eigen::VectorXd& q_c);
+
+
 Trajectory restart_p2p_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restart,
                                     const double& t_restart, double dt);

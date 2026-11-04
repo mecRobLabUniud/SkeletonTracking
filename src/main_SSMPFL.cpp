@@ -190,7 +190,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     real_traj.pd.push_back(nominal_traj.pd[0]);
 
     bool collision = false;
-    int collision_counter = 0;
+    bool collision_prev = false;
     int r = 1;
     int kNumKeypoints = 11;
 
@@ -248,8 +248,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.t.size());
-    for (int i = 0; i <= n_steps-1; ++i) {
-        auto t0 = std::chrono::steady_clock::now();
+    // for (int i = 0; i <= n_steps-1; ++i) {
+    int i = 0;
+    while (true) {
+        if (r >= static_cast<int>(nominal_traj.q.size())) break;
+
         const std::vector<Eigen::Vector3d> skeleton_new = receiveSkeleton(*transmitters[0]);
         if (!skeleton_new.empty()) {
             skeleton = skeleton_new;
@@ -301,16 +304,19 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         if (exitflag) {
             if (closest && closest->length <= HR_clearance[closest->ind_h]) {
                 collision = true;
-                g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-                // nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt, nominal_traj.q[r_idx], i*dt);
             }
             else collision = false;
         }
         else {
             collision = true;
-            g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            // nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt, nominal_traj.q[r_idx], i*dt);
         }
+
+        if (collision && !collision_prev) {
+            std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
+            g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
+            nominal_traj = restart_p2p_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
+        }
+        collision_prev = collision;
 
         // ── Real trajectory update ──────────────────────────────────────
         if (!collision) {
@@ -329,11 +335,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             real_traj.q.push_back(real_traj.q[prev]);
             real_traj.p.push_back(real_traj.p[prev]);
             real_traj.pd.push_back(Eigen::Vector3d::Zero());
-            if (collision_counter++ > pause_after_collision * rate_hz) {
-                collision = false;
-                collision_counter = 0;
-            }
-            // collision = false;
+            // if (collision_counter++ > pause_after_collision * rate_hz) {
+            //     collision = false;
+            //     collision_counter = 0;
+            // }
+            collision = false;
         }
 
         LogSample s;
@@ -385,6 +391,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         next_time += std::chrono::milliseconds(period_ms);
         std::this_thread::sleep_until(next_time);
+
+        ++i;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";

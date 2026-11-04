@@ -93,46 +93,46 @@ target_include_directories(main_SSM PRIVATE
 )
 
 # # ── Main SSMPFL ──────────────────────────────────────────────────────────────
-# add_executable(main_SSMPFL 
-#     src/main_SSMPFL.cpp
-#     src/trajectory_utils.cpp
-#     src/trajectory_loader.cpp
-#     src/robot_model.cpp
-# 	src/SSMPFL_core.cpp
-#     src/geometry.cpp
-#     src/min_distance_calculation.cpp
-# )
-# target_link_libraries(main_SSMPFL PRIVATE 
-#     Eigen3::Eigen
-#     ${ZMQ_LIBRARIES}
-#     Threads::Threads
-#     nlohmann_json::nlohmann_json
-#     pthread
-#     rt
-#     qpOASES
-#     pinocchio::pinocchio
-#     OpenMP::OpenMP_CXX
-# )
-# 
-# # ── Main SSMPFLescape ────────────────────────────────────────────────────────
-# add_executable(main_SSMPFLescape 
-#     src/main_SSMPFLescape.cpp
-#     src/trajectory_utils.cpp
-#     src/trajectory_loader.cpp
-#     src/robot_model.cpp
-# 	src/SSMPFLescape_core.cpp
-#     src/geometry.cpp
-#     src/min_distance_calculation.cpp
-# )
-# target_link_libraries(main_SSMPFLescape PRIVATE 
-#     Eigen3::Eigen
-#     ${ZMQ_LIBRARIES}
-#     Threads::Threads
-#     nlohmann_json::nlohmann_json
-#     pthread
-#     rt
-#     qpOASES
-#     pinocchio::pinocchio
-#     OpenMP::OpenMP_CXX
-# )
+add_executable(main_SSMPFL 
+    src/main_SSMPFL.cpp
+    src/trajectory_utils.cpp
+    src/trajectory_loader.cpp
+    src/robot_model.cpp
+	src/SSMPFL_core.cpp
+    src/geometry.cpp
+    src/min_distance_calculation.cpp
+)
+target_link_libraries(main_SSMPFL PRIVATE 
+    Eigen3::Eigen
+    ${ZMQ_LIBRARIES}
+    Threads::Threads
+    nlohmann_json::nlohmann_json
+    pthread
+    rt
+    qpOASES
+    pinocchio::pinocchio
+    OpenMP::OpenMP_CXX
+)
+
+# ── Main SSMPFLescape ────────────────────────────────────────────────────────
+add_executable(main_SSMPFLescape 
+    src/main_SSMPFLescape.cpp
+    src/trajectory_utils.cpp
+    src/trajectory_loader.cpp
+    src/robot_model.cpp
+	src/SSMPFLescape_core.cpp
+    src/geometry.cpp
+    src/min_distance_calculation.cpp
+)
+target_link_libraries(main_SSMPFLescape PRIVATE 
+    Eigen3::Eigen
+    ${ZMQ_LIBRARIES}
+    Threads::Threads
+    nlohmann_json::nlohmann_json
+    pthread
+    rt
+    qpOASES
+    pinocchio::pinocchio
+    OpenMP::OpenMP_CXX
+)
 

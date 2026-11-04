@@ -16,10 +16,12 @@ trajectory_utils.cpp - Quintic trajectory generation and point-to-point trajecto
 #include "trajectory_utils.hpp"
 #include "robot_model.hpp"
 #include "trajectory_loader.hpp"
+#include "core.hpp"
 
 namespace fs = std::filesystem;
 std::vector<Eigen::VectorXd> q_robot;
 std::vector<double> t_robot;
+double t_gap_prev = 0.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sample a quintic polynomial trajectory between x0 and x1
@@ -204,6 +206,29 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
 
 
 
+double computeAddedTime(const Eigen::VectorXd& q_end, const Eigen::VectorXd& q_c)
+{
+    static const KinematicsLimits limits;
+
+    // Upper limits (row 1) as column vectors
+    const Eigen::VectorXd q_p_lim  = limits.qd_limits.row(1).transpose();
+    const Eigen::VectorXd q_pp_lim = limits.qdd_limits.row(1).transpose();
+
+    const Eigen::VectorXd dq = q_end - q_c;
+
+    // Velocity-limited time
+    const Eigen::VectorXd vect_t_vel = (15.0 * dq).cwiseQuotient(8.0 * q_p_lim);
+    const double t_vel = vect_t_vel.cwiseAbs().maxCoeff();
+
+    // Acceleration-limited time
+    const Eigen::VectorXd vect_t_acc = (10.0 * dq).cwiseQuotient(std::sqrt(3.0) * q_pp_lim);
+    const double t_acc = vect_t_acc.cwiseAbs().cwiseSqrt().maxCoeff();
+
+    // Enforce minimum duration of 0.5 s
+    return std::max({t_vel, t_acc, 0.5});
+}
+
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -225,27 +250,41 @@ Trajectory restart_p2p_trajectory(RobotModel& robot, const Eigen::VectorXd& q_re
 
         std::vector<Eigen::VectorXd> q_robot_temp;
         std::vector<double> t_robot_temp;
-        q_robot_temp.resize(q_robot.size() + 1);
-        t_robot_temp.resize(q_robot_temp.size());
-        double t_gap = 0;
+        q_robot_temp.reserve(q_robot.size() + 1);
+        t_robot_temp.reserve(q_robot.size() + 1);
 
-        int j = 0;
-        for (int i = 0; i < q_robot.size(); ++i) {
-            if (j == ins) {
-                q_robot_temp[j] = q_restart;
-                t_robot_temp[j] = t_restart;
-                t_gap = t_restart - t_robot[i - 1];
-                j++;
+        // Offset added to the recorded timestamps of the waypoints that are
+        // still to be reached. It is computed from the time actually left in
+        // the interrupted segment once the restart point is inserted.
+        double t_gap = 0.0;
+
+
+        
+
+
+
+
+        for (size_t i = 0; i <= q_robot.size(); ++i) {
+            if (i == ins) {
+                q_robot_temp.push_back(q_restart);
+                t_robot_temp.push_back(t_restart);
+
+                t_gap = t_restart - t_robot[i-1]; // computeAddedTime(q_robot[i], q_restart);
             }
-            q_robot_temp[j] = q_robot[i];
-            t_robot_temp[j] = t_robot[i] + t_gap;
 
-            j++;
+            if (i == q_robot.size()) break;
+
+            q_robot_temp.push_back(q_robot[i]);
+            t_robot_temp.push_back(t_robot[i] + t_gap); // - t_gap_prev);
         }
 
         q_robot = q_robot_temp;
         t_robot = t_robot_temp;
+
+        t_gap_prev = t_gap;
     }    
+
+    
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Append one quintic segment to the output trajectory
