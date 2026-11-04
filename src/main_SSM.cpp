@@ -121,7 +121,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
 
     // ── Delay for loading the web interface ─────────────────────────────────
-    // std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     // ── Nominal trajectory construction ──────────────────────────────────────
     const std::filesystem::path traj_dir =
@@ -204,7 +204,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.t.size());
-    for (int i = 0; i <= n_steps-1; ++i) {
+    // for (int i = 0; i <= n_steps-1; ++i) {
+    int i = 0;
+    while (true) {
+        if (r >= static_cast<int>(nominal_traj.q.size())) break;
+
         const Skeleton skeleton_new = receiveSkeleton(*transmitters[0]);
         if (!skeleton_new.empty()) {
             skeleton = skeleton_new;
@@ -247,7 +251,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         if (collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt, nominal_traj.q[r_idx], i*dt);
+            nominal_traj = restart_p2p_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
         }
         collision_prev = collision;
 
@@ -317,6 +321,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         next_time += std::chrono::milliseconds(period_ms);
         std::this_thread::sleep_until(next_time);
+
+        ++i;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";

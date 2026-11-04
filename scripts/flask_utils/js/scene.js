@@ -56,7 +56,7 @@ scene.add(worldAxes);
 // ─────────────────────────────────────────────────────────────────────────────
 // 3D graphics controls
 // ─────────────────────────────────────────────────────────────────────────────
-let camDist = 1.7, camTheta = 0.6, camPhi = 1.15, camTarget = new THREE.Vector3(0,0.35,0);
+let camDist = 2.5, camTheta = 0.2, camPhi = 1.4, camTarget = new THREE.Vector3(0,0.35,0);
 let dragging = false, panning = false, lastX=0, lastY=0;
 
 export function updateCamera(){

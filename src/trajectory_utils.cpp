@@ -18,7 +18,8 @@ trajectory_utils.cpp - Quintic trajectory generation and point-to-point trajecto
 #include "trajectory_loader.hpp"
 
 namespace fs = std::filesystem;
-
+std::vector<Eigen::VectorXd> q_robot;
+std::vector<double> t_robot;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sample a quintic polynomial trajectory between x0 and x1
@@ -45,21 +46,9 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point trajectory from the waypoints of a trajectory set
-//
-// The waypoints live in <c_dir>/src/trajectories/test<n_traj>/ and are given
-// either in Cartesian coordinates (p_ref.csv, solved here with the inverse
-// kinematics) or in joint coordinates (q_ref.csv, used as they are). The
-// cumulative time of each waypoint (t_ref.csv) gives the duration of every
-// segment, so each segment is sampled at the control rate and the playback
-// takes exactly the recorded time. When a restart time is given, the waypoints
-// reached before it are kept; when a restart configuration is given as well,
-// it replaces the first kept waypoint and the duration of the first segment is
-// scaled with the ratio of the new to the recorded path length, so that its
-// playback speed is preserved.
 // ─────────────────────────────────────────────────────────────────────────────
 Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj,
-                               double dt, const std::optional<Eigen::VectorXd>& q_restart,
-                               const std::optional<double>& t_restart) {
+                               double dt) {
 
     // ── Waypoint and time loading ───────────────────────────────────────────
     const fs::path traj_dir =
@@ -68,49 +57,11 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     // The waypoint format (Cartesian or joint space) is detected from the
     // files that are present in the trajectory directory.
     TrajectoryData data = loadTrajectorySet(traj_dir);
-    TrajectoryData temp = data;
-    std::vector<Eigen::VectorXd> q_robot;
-    std::vector<double> t_robot;
 
-    // ── Restart time ────────────────────────────────────────────────────────
-    // Only the waypoints whose timestamp is strictly smaller than the restart
-    // time are kept: the trajectory is rebuilt up to that point.
-    if (t_restart && *t_restart > 0.0) {
-
-        std::cout << "q restart = " << *q_restart << std::endl;
-        std::cout << "t restart = " << *t_restart << std::endl;
-
-        size_t del = 0;
-        while (del < data.t.size() && data.t[del] < *t_restart) del++;
-
-        std::cout << "delete = " << del << std::endl;
-
-        if (!data.q.empty()) {
-            temp.q.resize(temp.t.size() - del);
-            temp.q = std::vector<Eigen::VectorXd>(data.q.begin() + del, data.q.begin() + data.q.size());
-        }
-        if (!data.p.empty()) {
-            temp.p.resize(temp.t.size() - del);
-            temp.p = std::vector<Eigen::Vector3d>(data.p.begin() + del, data.p.begin() + data.p.size());
-        }
-        temp.t.resize(temp.t.size() - del);
-        temp.t = std::vector<double>(data.t.begin() + del, data.t.begin() + data.t.size());
-
-        if (q_restart && q_restart->size() > 0) {
-            q_robot.push_back(*q_restart);
-            t_robot.push_back(0.0);
-        }
-    }
-
-    std::cout << "p temp = " << std::endl;
-    for (auto p : temp.p) std::cout << p.transpose() << std::endl;
-    std::cout << "t temp = " << std::endl;
-    for (auto t : temp.t) std::cout << t << std::endl;
-
-    if (temp.p.empty() && temp.q.empty()) {
+    if (data.p.empty() && data.q.empty()) {
         throw std::runtime_error(traj_dir.string() + ": the trajectory holds no waypoints");
     }
-    if (temp.t.size() < 2) {
+    if (data.t.size() < 2) {
         throw std::runtime_error(traj_dir.string() + ": the trajectory needs at least 2 waypoints");
     }
 
@@ -126,19 +77,19 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     R(1, 1) = -1.0;
     R(2, 2) = -1.0;
 
-    if (temp.isJointSpace()) {
-        for (auto q : temp.q) {
+    if (data.isJointSpace()) {
+        for (auto q : data.q) {
             q_robot.push_back(q);
         }
         std::cout << "Loaded " << q_robot.size() << " joint-space waypoints from "
                   << traj_dir << std::endl;
     }
     else {
-        q_robot.reserve(temp.p.size());
-        for (size_t i = 0; i < temp.p.size(); ++i) {
+        q_robot.reserve(data.p.size());
+        for (size_t i = 0; i < data.p.size(); ++i) {
             Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
             T.linear() = R;
-            T.translation() = temp.p[i];
+            T.translation() = data.p[i];
 
             Eigen::VectorXd q;
             if (!robot.ComputeIK("panda_link8", T, q_base, &q)) {
@@ -160,8 +111,8 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
                   << traj_dir << " and solved the IK for each of them" << std::endl;
     }
 
-    for (auto t : temp.t) {
-        t_robot.push_back(t - (t_restart ? *t_restart : 0.0));
+    for (auto t : data.t) {
+        t_robot.push_back(t);
     }
 
     
@@ -244,6 +195,120 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
     for (double x : v_norm) v_rms += x * x;
     v_rms = std::sqrt(v_rms / v_norm.size());
     std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
+
+    std::cout << "traj q = " << std::endl;
+    std::cout << traj.q[0].transpose() << std::endl;
+
+    return traj;
+}
+
+
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point trajectory from the waypoints of a trajectory set
+// ─────────────────────────────────────────────────────────────────────────────
+Trajectory restart_p2p_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restart,
+                                    const double& t_restart, double dt) {
+    // ── Restart time ────────────────────────────────────────────────────────
+    // Only the waypoints whose timestamp is strictly smaller than the restart
+    // time are kept: the trajectory is rebuilt up to that point.
+    if (t_restart && t_restart > 0.0) {
+        std::cout << "q restart = " << q_restart.transpose() << std::endl;
+        std::cout << "t restart = " << t_restart << std::endl;
+
+        size_t ins = 0;
+        while (ins < t_robot.size() && t_robot[ins] < t_restart) ins++;
+
+        std::cout << "insert = " << ins << std::endl;
+
+        std::vector<Eigen::VectorXd> q_robot_temp;
+        std::vector<double> t_robot_temp;
+        q_robot_temp.resize(q_robot.size() + 1);
+        t_robot_temp.resize(q_robot_temp.size());
+        double t_gap = 0;
+
+        int j = 0;
+        for (int i = 0; i < q_robot.size(); ++i) {
+            if (j == ins) {
+                q_robot_temp[j] = q_restart;
+                t_robot_temp[j] = t_restart;
+                t_gap = t_restart - t_robot[i - 1];
+                j++;
+            }
+            q_robot_temp[j] = q_robot[i];
+            t_robot_temp[j] = t_robot[i] + t_gap;
+
+            j++;
+        }
+
+        q_robot = q_robot_temp;
+        t_robot = t_robot_temp;
+    }    
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Append one quintic segment to the output trajectory
+    // ─────────────────────────────────────────────────────────────────────────────
+    auto build_traj = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
+                          std::vector<double>* vnorm, Trajectory& out, const double t_end, double& t) {
+        // The segment is sampled at the control rate, so that the playback
+        // takes exactly the recorded duration.
+        const int n = std::max(2, static_cast<int>(std::lround(t_end / dt)));
+
+        Traj tr = QuinticPolyTraj(a, b, t_end, dt, n);
+
+        for (int k = 0; k < n; ++k) {
+            const Eigen::VectorXd q   = tr.p.col(k);
+            const Eigen::VectorXd qd  = tr.v.col(k);
+            const Eigen::VectorXd qdd = tr.a.col(k);
+
+            const Eigen::Matrix<double, 6, 1> v = robot.ComputeJacobian("panda_link8", q) * qd;
+
+            out.q.push_back(q);
+            out.qd.push_back(qd);
+            out.qdd.push_back(qdd);
+            out.p.push_back(robot.GetJointPose("panda_link8", q).translation());
+            out.pd.push_back(v.head<3>());
+            out.t.push_back(dt * t++);
+            if (vnorm) vnorm->push_back(v.norm());
+        }
+    };
+
+    // ── Segment assembly ────────────────────────────────────────────────────
+    const size_t n_seg = q_robot.size() - 1;
+    std::vector<double> v_norm;
+    int N = t_robot[t_robot.size() - 1]/dt;
+    Trajectory traj;
+    traj.q.reserve(N);
+    traj.qd.reserve(N);
+    traj.qdd.reserve(N);
+    traj.p.reserve(N);
+    traj.pd.reserve(N);
+    traj.t.reserve(N);
+
+    double t = 0;
+    for (size_t i = 0; i < n_seg; ++i) {
+        const double t_end = t_robot[i + 1] - t_robot[i];
+        if (t_end <= 0.0) {
+            // A segment with no duration carries no motion: skip it instead of
+            // building a degenerate polynomial (which would divide by zero).
+            std::cout << "Skipping segment " << i << ": its duration is not positive"
+                      << std::endl;
+            continue;
+        }
+        build_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t);
+    }
+
+    // ── Velocity statistics ─────────────────────────────────────────────────
+    double v_max = *std::max_element(v_norm.begin(), v_norm.end());
+    double v_rms = 0;
+    for (double x : v_norm) v_rms += x * x;
+    v_rms = std::sqrt(v_rms / v_norm.size());
+    std::cout << "v_max = " << v_max << "\nv_norm_base(rms) = " << v_rms << "\n";
+
+    std::cout << "traj q = " << std::endl;
+    std::cout << traj.q[0].transpose() << std::endl;
 
     return traj;
 }
