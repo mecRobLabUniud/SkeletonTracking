@@ -318,23 +318,96 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             collision = true;
         }
 
+        // Appends one sample of the nominal trajectory to the real trajectory.
+        const auto append_nominal = [&](size_t idx) {
+            real_traj.q.push_back(nominal_traj.q[idx]);
+            real_traj.qd.push_back(nominal_traj.qd[idx]);
+            real_traj.qdd.push_back(nominal_traj.qdd[idx]);
+            real_traj.p.push_back(nominal_traj.p[idx]);
+            real_traj.pd.push_back(nominal_traj.pd[idx]);
+        };
+
+        // Logs the last sample of the real trajectory, publishes it and waits
+        // for the next control period.
+        const auto log_and_publish = [&](const DistanceResult& dist, size_t idx) {
+            LogSample s;
+            s.t = g_t_log;
+            for (int j = 0; j < 7; ++j) {
+                s.q[j] = real_traj.q[i][j];
+                s.qd[j] = real_traj.qd[i][j];
+                s.qdd[j] = real_traj.qdd[i][j];
+            }
+            for (int j = 0; j < 3; ++j) {
+                s.p[j] = real_traj.p[i][j];
+                s.pd[j] = real_traj.pd[i][j];
+            }
+            s.distance = dist;
+            log_queue.push(s);
+
+            skeleton_prev = skeleton;
+
+            g_t_log += dt;
+
+            // ── Publish robot state, obstacle distance and trajectory ───
+            const Eigen::VectorXd& q_now = real_traj.q[i + 1];
+            const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
+
+            nlohmann::json points = nlohmann::json::array();
+            for (const auto& p : caps) {
+                points.push_back(nlohmann::json::array({p[0], p[1], p[2]}));
+            }
+            nlohmann::json radii_json = nlohmann::json::array();
+            for (const double radius : ROBOT_CAPSULE_RADII) {
+                radii_json.push_back(radius);
+            }
+            nlohmann::json q_json = nlohmann::json::array();
+            for (int j = 0; j < q_now.size(); ++j) q_json.push_back(q_now(j));
+
+            std::vector<nlohmann::json> payload;
+            payload.push_back(points);
+            payload.push_back(q_json);
+            payload.push_back(radii_json);
+            transmitters[1]->send_data(payload);
+
+            // The trajectory topic carries the position of the end effector and
+            // the position it is heading to, plus the collision flag
+            payload.clear();
+            payload.push_back(std::vector<double>(real_traj.p[i + 1].data(), real_traj.p[i + 1].data() + real_traj.p[i + 1].size()));
+            payload.push_back(std::vector<double>(nominal_traj.p[idx].data(), nominal_traj.p[idx].data() + nominal_traj.p[idx].size()));
+            payload.push_back(collision);
+            transmitters[2]->send_data(payload);
+
+            next_time += std::chrono::milliseconds(period_ms);
+            std::this_thread::sleep_until(next_time);
+
+            ++i;
+        };
+
+        size_t stop_end = 0;
+        bool stopping = false;
         if (collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stopping_time, dt);
+            stopping = true;
             // restart_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], r_idx*dt, dt);
         }
         collision_prev = collision;
 
         // ── Real trajectory update ──────────────────────────────────────
-        if (!collision) {
-            real_traj.q.push_back(res.q_next);
-            real_traj.qd.push_back(res.qd_next);
-            real_traj.qdd.push_back(res.qdd_next);
-            real_traj.p.push_back(res.p_next);
-            real_traj.pd.push_back(res.pd_next);
-
-            r++;  
+        if (stopping) {
+            // Play the whole stop trajectory (deceleration and hold) before
+            // the loop goes on. No other logic runs until the robot is at rest.
+            // The stop is followed in joint space from the nominal trajectory,
+            // so the escape controller cannot override it.
+            const size_t play_end = std::max<size_t>(r_idx, stop_end);
+            for (int idx = static_cast<int>(r_idx);
+                 idx <= static_cast<int>(play_end) &&
+                 idx < static_cast<int>(nominal_traj.q.size()); ++idx) {
+                append_nominal(static_cast<size_t>(idx));
+                ++r;
+                log_and_publish(*closest, static_cast<size_t>(idx));
+            }
         }
         else {
             real_traj.q.push_back(res.q_next);
@@ -343,61 +416,10 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             real_traj.p.push_back(res.p_next);
             real_traj.pd.push_back(res.pd_next);
 
-            r++; 
+            r++;
             collision = false;
+            log_and_publish(*closest, r_idx);
         }
-
-        LogSample s;
-        s.t = g_t_log;
-        for (int j = 0; j < 7; ++j) {
-            s.q[j] = real_traj.q[i][j];
-            s.qd[j] = real_traj.qd[i][j];
-            s.qdd[j] = real_traj.qdd[i][j];
-        }
-        for (int j = 0; j < 3; ++j) {
-            s.p[j] = real_traj.p[i][j];
-            s.pd[j] = real_traj.pd[i][j];
-        }
-        s.distance = *closest;
-        log_queue.push(s);
-
-        skeleton_prev = skeleton;
-
-        g_t_log += dt;
-
-        // ── Publish robot state, obstacle distance and trajectory ───────
-        const Eigen::VectorXd& q_now = real_traj.q[i + 1];
-        const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
-
-        nlohmann::json points = nlohmann::json::array();
-        for (const auto& p : caps) {
-            points.push_back(nlohmann::json::array({p[0], p[1], p[2]}));
-        }
-        nlohmann::json radii = nlohmann::json::array();
-        for (const double radius : ROBOT_CAPSULE_RADII) {
-            radii.push_back(radius);
-        }
-        nlohmann::json q_json = nlohmann::json::array();
-        for (int j = 0; j < q_now.size(); ++j) q_json.push_back(q_now(j));
-
-        std::vector<nlohmann::json> payload;
-        payload.push_back(points);
-        payload.push_back(q_json);
-        payload.push_back(radii);
-        transmitters[1]->send_data(payload);
-
-        // The trajectory topic carries the position of the end effector and
-        // the position it is heading to, plus the collision flag
-        payload.clear();
-        payload.push_back(std::vector<double>(real_traj.p[i + 1].data(), real_traj.p[i + 1].data() + real_traj.p[i + 1].size()));
-        payload.push_back(std::vector<double>(nominal_traj.p[r_idx].data(), nominal_traj.p[r_idx].data() + nominal_traj.p[r_idx].size()));
-        payload.push_back(collision);
-        transmitters[2]->send_data(payload);
-
-        next_time += std::chrono::milliseconds(period_ms);
-        std::this_thread::sleep_until(next_time);
-
-        ++i;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";
