@@ -26,21 +26,38 @@ std::vector<double> t_data;
 // ─────────────────────────────────────────────────────────────────────────────
 // Sample a quintic polynomial trajectory between x0 and x1
 // ─────────────────────────────────────────────────────────────────────────────
-Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, double T,
-                        double dt, int n) {
+Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1,
+                     double T, double dt, int n,
+                     const Eigen::VectorXd& v0,
+                     const Eigen::VectorXd& a0,
+                     const Eigen::VectorXd& v1,
+                     const Eigen::VectorXd& a1) {
     const int d = static_cast<int>(x0.size());
+    assert(x1.size() == d && v0.size() == d && a0.size() == d &&
+           v1.size() == d && a1.size() == d);
+
     Traj tr{Eigen::MatrixXd(d, n), Eigen::MatrixXd(d, n), Eigen::MatrixXd(d, n)};
-    const Eigen::VectorXd dx = x1 - x0;
+
+    const double T2 = T * T, T3 = T2 * T, T4 = T3 * T, T5 = T4 * T;
+
+    const Eigen::VectorXd c0 = x0;
+    const Eigen::VectorXd c1 = v0;
+    const Eigen::VectorXd c2 = 0.5 * a0;
+
+    const Eigen::VectorXd c3 = ( 20.0 * (x1 - x0) - (8.0 * v1 + 12.0 * v0) * T
+                                 - (3.0 * a0 - a1) * T2) / (2.0 * T3);
+    const Eigen::VectorXd c4 = (-30.0 * (x1 - x0) + (14.0 * v1 + 16.0 * v0) * T
+                                 + (3.0 * a0 - 2.0 * a1) * T2) / (2.0 * T4);
+    const Eigen::VectorXd c5 = ( 12.0 * (x1 - x0) - 6.0 * (v1 + v0) * T
+                                 - (a0 - a1) * T2) / (2.0 * T5);
+
     for (int k = 0; k < n; ++k) {
-        const double t = std::min(k * dt, T);
-        const double s = t / T;
-        const double s2 = s * s, s3 = s2 * s, s4 = s3 * s, s5 = s4 * s;
-        const double h = 10 * s3 - 15 * s4 + 6 * s5;
-        const double dh = (30 * s2 - 60 * s3 + 30 * s4) / T;
-        const double ddh = (60 * s - 180 * s2 + 120 * s3) / (T * T);
-        tr.p.col(k) = x0 + dx * h;
-        tr.v.col(k) = dx * dh;
-        tr.a.col(k) = dx * ddh;
+        const double t  = std::min(k * dt, T);
+        const double t2 = t * t, t3 = t2 * t, t4 = t3 * t, t5 = t4 * t;
+
+        tr.p.col(k) = c0 + c1 * t + c2 * t2 + c3 * t3 + c4 * t4 + c5 * t5;
+        tr.v.col(k) = c1 + 2.0 * c2 * t + 3.0 * c3 * t2 + 4.0 * c4 * t3 + 5.0 * c5 * t4;
+        tr.a.col(k) = 2.0 * c2 + 6.0 * c3 * t + 12.0 * c4 * t2 + 20.0 * c5 * t3;
     }
     return tr;
 }
@@ -49,14 +66,18 @@ Traj QuinticPolyTraj(const Eigen::VectorXd& x0, const Eigen::VectorXd& x1, doubl
 // ─────────────────────────────────────────────────────────────────────────────
 // Append one quintic segment to the output trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-void build_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
-                        std::vector<double>* vnorm, Trajectory& out, const double t_end, 
-                        double& t, RobotModel& robot, double dt) {
+void build_p2p_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
+                    std::vector<double>* vnorm, Trajectory& out, const double t_end,
+                    double& t, RobotModel& robot, double dt,
+                    const Eigen::VectorXd& va,
+                    const Eigen::VectorXd& aa,
+                    const Eigen::VectorXd& vb,
+                    const Eigen::VectorXd& ab) {
     // The segment is sampled at the control rate, so that the playback
     // takes exactly the recorded duration.
     const int n = std::max(2, static_cast<int>(std::lround(t_end / dt)));
 
-    Traj tr = QuinticPolyTraj(a, b, t_end, dt, n);
+    Traj tr = QuinticPolyTraj(a, b, t_end, dt, n, va, aa, vb, ab);
 
     for (int k = 0; k < n; ++k) {
         const Eigen::VectorXd q   = tr.p.col(k);
@@ -73,7 +94,7 @@ void build_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
         out.t.push_back(dt * t++);
         if (vnorm) vnorm->push_back(v.norm());
     }
-};
+}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,7 +126,7 @@ double computeAddedTime(const Eigen::VectorXd& q_end, const Eigen::VectorXd& q_c
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point trajectory from the waypoints of a trajectory set
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj,
+Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir, int n_traj,
                                double dt) {
 
     // ── Waypoint and time loading ───────────────────────────────────────────
@@ -197,7 +218,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
                       << std::endl;
             continue;
         }
-        build_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
+        build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
     }
 
     if (traj.q.empty()) {
@@ -217,7 +238,7 @@ Trajectory load_p2p_trajectory(RobotModel& robot, const std::string& c_dir, int 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point trajectory from the waypoints of a trajectory set
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory restart_p2p_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restart,
+Trajectory restart_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restart,
                                     const double& t_restart, double dt) {
     // ── Restart time ────────────────────────────────────────────────────────
     // Only the waypoints whose timestamp is strictly smaller than the restart
@@ -275,7 +296,121 @@ Trajectory restart_p2p_trajectory(RobotModel& robot, const Eigen::VectorXd& q_re
                       << std::endl;
             continue;
         }
-        build_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
+        build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
+    }
+
+    // ── Velocity statistics ─────────────────────────────────────────────────
+    double v_max = *std::max_element(v_norm.begin(), v_norm.end());
+    double v_rms = 0;
+    for (double x : v_norm) v_rms += x * x;
+    v_rms = std::sqrt(v_rms / v_norm.size());
+
+    return traj;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point emergency stop trajectory
+// ─────────────────────────────────────────────────────────────────────────────
+Trajectory stop_trajectory(RobotModel& robot, const Eigen::VectorXd& q_stop,
+                            const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                            const double& t_stop, const double& stop_duration, double dt) {
+    // ── Adding stop waypoint ────────────────────────────────────────────────
+    size_t ins = 0;
+    while (ins < t_robot.size() && t_robot[ins] < t_stop) ins++;
+
+    double stop_dur = stop_duration*10; 
+
+    std::vector<Eigen::VectorXd> q_robot_temp;
+    std::vector<double> t_robot_temp;
+    q_robot_temp.reserve(q_robot.size() + 2);
+    t_robot_temp.reserve(q_robot.size() + 2);
+
+    std::cout << "ins: " << ins << " t_stop: " << t_stop << " stop_duration: " << stop_duration << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "t_robot prev: ";
+    for (const auto& t : t_robot) {
+        std::cout << t << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "t_data: ";
+    for (const auto& t : t_data) {
+        std::cout << t << " ";
+    }
+    std::cout << std::endl;
+
+    // Offset added to the recorded timestamps of the waypoints that are
+    // still to be reached. It is computed from the time actually left in
+    // the interrupted segment once the restart point is inserted.
+    for (size_t i = 0; i <= q_robot.size(); ++i) {
+        double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
+        if (i == ins) {
+            q_robot_temp.push_back(q_stop);
+            q_robot_temp.push_back(q_stop);
+            t_robot_temp.push_back(t_stop);
+            t_robot_temp.push_back(t_stop + stop_dur);
+        }
+
+        if (i == q_robot.size()) break;
+        if (i < ins) {
+            t_robot_temp.push_back(t_robot[i]);
+        } 
+        else {
+            t_robot_temp.push_back(t_ref + stop_dur);
+            std::cout << "q_robot.size() - i: " << q_robot.size() - i << " t data ind: " << t_data.size() - (q_robot.size() - i) << std::endl;
+
+            std::cout << "t_ref: " << t_ref << " stop_dur: " << stop_dur << std::endl;
+            t_data[t_data.size() - (q_robot.size() - i)] = t_ref + stop_dur;
+        } 
+        q_robot_temp.push_back(q_robot[i]);
+
+        
+    }
+
+    q_robot = q_robot_temp;
+    t_robot = t_robot_temp;  
+
+    std::cout << std::endl;
+    std::cout << "t_robot: ";
+    for (const auto& t : t_robot) {
+        std::cout << t << " ";
+    }
+    std::cout << std::endl;
+
+
+
+    // ── Segment assembly ────────────────────────────────────────────────────
+    const size_t n_seg = q_robot.size() - 1;
+    std::vector<double> v_norm;
+    int N = t_robot[t_robot.size() - 1]/dt;
+    Trajectory traj;
+    traj.q.reserve(N);
+    traj.qd.reserve(N);
+    traj.qdd.reserve(N);
+    traj.p.reserve(N);
+    traj.pd.reserve(N);
+    traj.t.reserve(N);
+
+    double t = 0;
+    for (size_t i = 0; i < n_seg; ++i) {
+        const double t_end = t_robot[i + 1] - t_robot[i];
+        if (t_end <= 0.0) {
+            // A segment with no duration carries no motion: skip it instead of
+            // building a degenerate polynomial (which would divide by zero).
+            std::cout << "Skipping segment " << i << ": its duration is not positive"
+                      << std::endl;
+            continue;
+        }
+        if (i == ins) {
+            build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt, qd_stop, qdd_stop);
+        } 
+        else {
+            build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
+        }
+        
     }
 
     // ── Velocity statistics ─────────────────────────────────────────────────

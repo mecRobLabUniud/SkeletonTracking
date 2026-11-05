@@ -169,7 +169,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     Trajectory nominal_traj;
     try {
-        nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
+        nominal_traj = load_trajectory(robot, root.string() + "/", n_traj, dt);
     } catch (const std::exception& e) {
         std::cerr << "Cannot load the nominal trajectory from " << traj_dir << ": "
                   << e.what() << "\n";
@@ -314,7 +314,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         if (collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            nominal_traj = restart_p2p_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
+            nominal_traj = restart_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
         }
         collision_prev = collision;
 

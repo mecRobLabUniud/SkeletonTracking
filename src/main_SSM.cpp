@@ -129,7 +129,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     Trajectory nominal_traj;
     try {
-        nominal_traj = load_p2p_trajectory(robot, root.string() + "/", n_traj, dt);
+        nominal_traj = load_trajectory(robot, root.string() + "/", n_traj, dt);
     } catch (const std::exception& e) {
         std::cerr << "Cannot load the nominal trajectory from " << traj_dir << ": "
                   << e.what() << "\n";
@@ -248,30 +248,37 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
                            robot, radii, *closest);
 
+        // if (i == 100) nominal_traj = stop_trajectory(robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
+
+        std::cout << "r_idx: " << r_idx  << " - r_idx*dt: " << r_idx*dt << std::endl;
+
         if (collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            nominal_traj = restart_p2p_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
+            nominal_traj = stop_trajectory(robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
+            // nominal_traj = restart_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
         }
         collision_prev = collision;
 
         // ── Real trajectory update ──────────────────────────────────────
         if (!collision) {
-            real_traj.q.push_back(q_ref);
-            real_traj.qd.push_back(qd_ref);
-            real_traj.qdd.push_back(qdd_ref);
+            real_traj.q.push_back(nominal_traj.q[r_idx]);
+            real_traj.qd.push_back(nominal_traj.qd[r_idx]);
+            real_traj.qdd.push_back(nominal_traj.qdd[r_idx]);
             real_traj.p.push_back(nominal_traj.p[r_idx]);
             real_traj.pd.push_back(nominal_traj.pd[r_idx]);
 
             r++;
         }
         else {
-            real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
-            real_traj.qd.push_back(Eigen::VectorXd::Zero(7));
-            const int prev = i > 0 ? i - 1 : i;
-            real_traj.q.push_back(real_traj.q[prev]);
-            real_traj.p.push_back(real_traj.p[prev]);
-            real_traj.pd.push_back(Eigen::Vector3d::Zero());
+
+            real_traj.q.push_back(nominal_traj.q[r_idx]);
+            real_traj.qd.push_back(nominal_traj.qd[r_idx]);
+            real_traj.qdd.push_back(nominal_traj.qdd[r_idx]);
+            real_traj.p.push_back(nominal_traj.p[r_idx]);
+            real_traj.pd.push_back(nominal_traj.pd[r_idx]);
+
+            r++;
         }
 
         LogSample s;
