@@ -77,9 +77,11 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
                         const double& t_restart, double dt);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Build a point-to-point emergency stop trajectory
+// Build a point-to-point emergency stop trajectory. Returns the index of the
+// last sample of the inserted stop (the end of the hold), so the caller knows
+// when the stop has been fully played.
 // ─────────────────────────────────────────────────────────────────────────────
-void stop_trajectory(Trajectory& traj, RobotModel& robot,
-                     const Eigen::VectorXd& q_stop,
-                     const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
-                     const double& t_stop, const double& stop_duration, double dt);
+size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
+                       const Eigen::VectorXd& q_stop,
+                       const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                       const double& t_stop, const double& stop_duration, double dt);

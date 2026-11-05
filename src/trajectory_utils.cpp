@@ -337,10 +337,10 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point emergency stop trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-void stop_trajectory(Trajectory& traj, RobotModel& robot,
-                     const Eigen::VectorXd& q_stop,
-                     const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
-                     const double& t_stop, const double& stop_duration, double dt) {
+size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
+                       const Eigen::VectorXd& q_stop,
+                       const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                       const double& t_stop, const double& stop_duration, double dt) {
     // The stop state usually references an element of traj (traj.q[r_idx]),
     // which is modified below: work on copies.
     const Eigen::VectorXd q_stop_c  = q_stop;
@@ -440,4 +440,9 @@ void stop_trajectory(Trajectory& traj, RobotModel& robot,
             build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
         }
     }
+
+    // Index of the last sample of the inserted stop: the stop segment is at
+    // index `ins` (q_stop -> q_stop) and spans the hold duration.
+    const size_t stop_end = sampled_prefix(t_robot, ins + 1, dt);
+    return stop_end > 0 ? stop_end - 1 : 0;
 }
