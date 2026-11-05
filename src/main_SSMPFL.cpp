@@ -314,7 +314,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         if (collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            nominal_traj = restart_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
+            restart_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], r_idx*dt, dt);
         }
         collision_prev = collision;
 

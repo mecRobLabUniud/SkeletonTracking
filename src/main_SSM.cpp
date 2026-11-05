@@ -248,15 +248,15 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
                            robot, radii, *closest);
 
-        // if (i == 100) nominal_traj = stop_trajectory(robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
+        // if (i == 100) stop_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
 
         std::cout << "r_idx: " << r_idx  << " - r_idx*dt: " << r_idx*dt << std::endl;
 
         if (collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            nominal_traj = stop_trajectory(robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
-            // nominal_traj = restart_trajectory(robot, nominal_traj.q[r_idx], r_idx*dt, dt);
+            stop_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
+            // restart_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], r_idx*dt, dt);
         }
         collision_prev = collision;
 

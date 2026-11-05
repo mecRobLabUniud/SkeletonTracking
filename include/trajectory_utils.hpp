@@ -72,12 +72,14 @@ Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir,
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point trajectory from the waypoints of a trajectory set
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory restart_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restart,
-                                    const double& t_restart, double dt);
+void restart_trajectory(Trajectory& traj, RobotModel& robot,
+                        const Eigen::VectorXd& q_restart,
+                        const double& t_restart, double dt);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point emergency stop trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory stop_trajectory(RobotModel& robot, const Eigen::VectorXd& q_stop,
-                            const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
-                            const double& t_stop, const double& stop_duration, double dt);
+void stop_trajectory(Trajectory& traj, RobotModel& robot,
+                     const Eigen::VectorXd& q_stop,
+                     const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                     const double& t_stop, const double& stop_duration, double dt);

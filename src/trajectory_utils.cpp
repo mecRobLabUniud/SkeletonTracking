@@ -236,58 +236,91 @@ Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir, int n_tr
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Build a point-to-point trajectory from the waypoints of a trajectory set
+// Rebuild helpers
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory restart_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restart,
-                                    const double& t_restart, double dt) {
+namespace {
+
+// Number of samples build_p2p_traj produces for the segments [0, n_seg)
+size_t sampled_prefix(const std::vector<double>& t_wp, size_t n_seg, double dt) {
+    size_t n = 0;
+    for (size_t i = 0; i < n_seg && i + 1 < t_wp.size(); ++i) {
+        const double t_end = t_wp[i + 1] - t_wp[i];
+        if (t_end <= 0.0) continue;
+        n += static_cast<size_t>(std::max(2, static_cast<int>(std::lround(t_end / dt))));
+    }
+    return n;
+}
+
+// Drop every sample that belongs to a segment which is going to be rebuilt and
+// return the number of samples that are kept.
+size_t truncate_trajectory(Trajectory& traj, size_t n_keep) {
+    n_keep = std::min(n_keep, traj.t.size());
+    traj.q.resize(n_keep);
+    traj.qd.resize(n_keep);
+    traj.qdd.resize(n_keep);
+    traj.p.resize(n_keep);
+    traj.pd.resize(n_keep);
+    traj.t.resize(n_keep);
+    return n_keep;
+}
+
+}  // namespace
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rebuild a point-to-point trajectory from the waypoints of a trajectory set
+// ─────────────────────────────────────────────────────────────────────────────
+void restart_trajectory(Trajectory& traj, RobotModel& robot,
+                        const Eigen::VectorXd& q_restart,
+                        const double& t_restart, double dt) {
+    // The restart configuration usually references an element of traj
+    // (traj.q[r_idx]), which is modified below: work on a copy.
+    const Eigen::VectorXd q_restart_c = q_restart;
+
     // ── Restart time ────────────────────────────────────────────────────────
     // Only the waypoints whose timestamp is strictly smaller than the restart
     // time are kept: the trajectory is rebuilt up to that point.
-    if (t_restart && t_restart > 0.0) {
-        size_t ins = 0;
-        while (ins < t_robot.size() && t_robot[ins] < t_restart) ins++;
+    if (!(t_restart > 0.0)) return;
 
-        std::vector<Eigen::VectorXd> q_robot_temp;
-        std::vector<double> t_robot_temp;
-        q_robot_temp.reserve(q_robot.size() + 1);
-        t_robot_temp.reserve(q_robot.size() + 1);
+    size_t ins = 0;
+    while (ins < t_robot.size() && t_robot[ins] < t_restart) ins++;
 
-        // Offset added to the recorded timestamps of the waypoints that are
-        // still to be reached. It is computed from the time actually left in
-        // the interrupted segment once the restart point is inserted.
-        double t_gap = 0.0;
-        for (size_t i = 0; i <= q_robot.size(); ++i) {
-            double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
-            if (i == ins) {
-                q_robot_temp.push_back(q_restart);
-                t_robot_temp.push_back(t_restart);
+    std::vector<Eigen::VectorXd> q_robot_temp;
+    std::vector<double> t_robot_temp;
+    q_robot_temp.reserve(q_robot.size() + 1);
+    t_robot_temp.reserve(q_robot.size() + 1);
 
-                t_gap = t_restart + computeAddedTime(q_robot[i], q_restart) - t_ref;
-            }
+    // Offset added to the recorded timestamps of the waypoints that are
+    // still to be reached. It is computed from the time actually left in
+    // the interrupted segment once the restart point is inserted.
+    double t_gap = 0.0;
+    for (size_t i = 0; i <= q_robot.size(); ++i) {
+        double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
+        if (i == ins) {
+            q_robot_temp.push_back(q_restart_c);
+            t_robot_temp.push_back(t_restart);
 
-            if (i == q_robot.size()) break;
-            i < ins ? t_robot_temp.push_back(t_robot[i]) : t_robot_temp.push_back(t_ref + t_gap);
-            q_robot_temp.push_back(q_robot[i]);
+            t_gap = t_restart + computeAddedTime(q_robot[i], q_restart_c) - t_ref;
         }
 
-        q_robot = q_robot_temp;
-        t_robot = t_robot_temp;
-    }    
+        if (i == q_robot.size()) break;
+        i < ins ? t_robot_temp.push_back(t_robot[i]) : t_robot_temp.push_back(t_ref + t_gap);
+        q_robot_temp.push_back(q_robot[i]);
+    }
 
-    // ── Segment assembly ────────────────────────────────────────────────────
-    const size_t n_seg = q_robot.size() - 1;
-    std::vector<double> v_norm;
-    int N = t_robot[t_robot.size() - 1]/dt;
-    Trajectory traj;
-    traj.q.reserve(N);
-    traj.qd.reserve(N);
-    traj.qdd.reserve(N);
-    traj.p.reserve(N);
-    traj.pd.reserve(N);
-    traj.t.reserve(N);
+    q_robot = q_robot_temp;
+    t_robot = t_robot_temp;
 
-    double t = 0;
-    for (size_t i = 0; i < n_seg; ++i) {
+    // ── Partial segment assembly ────────────────────────────────────────────
+    // The waypoints before the restart point are unchanged, so the samples of
+    // the trajectory leading up to them are kept. Only the segment that ends
+    // at the newly inserted waypoint (ins - 1) and the following ones are
+    // rebuilt, starting from the insertion index.
+    const size_t first_seg = ins > 0 ? ins - 1 : 0;
+    const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot, first_seg, dt));
+    double t = dt * static_cast<double>(keep);
+
+    for (size_t i = first_seg; i + 1 < q_robot.size(); ++i) {
         const double t_end = t_robot[i + 1] - t_robot[i];
         if (t_end <= 0.0) {
             // A segment with no duration carries no motion: skip it instead of
@@ -296,25 +329,24 @@ Trajectory restart_trajectory(RobotModel& robot, const Eigen::VectorXd& q_restar
                       << std::endl;
             continue;
         }
-        build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
+        build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
     }
-
-    // ── Velocity statistics ─────────────────────────────────────────────────
-    double v_max = *std::max_element(v_norm.begin(), v_norm.end());
-    double v_rms = 0;
-    for (double x : v_norm) v_rms += x * x;
-    v_rms = std::sqrt(v_rms / v_norm.size());
-
-    return traj;
 }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point emergency stop trajectory
 // ─────────────────────────────────────────────────────────────────────────────
-Trajectory stop_trajectory(RobotModel& robot, const Eigen::VectorXd& q_stop,
-                            const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
-                            const double& t_stop, const double& stop_duration, double dt) {
+void stop_trajectory(Trajectory& traj, RobotModel& robot,
+                     const Eigen::VectorXd& q_stop,
+                     const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                     const double& t_stop, const double& stop_duration, double dt) {
+    // The stop state usually references an element of traj (traj.q[r_idx]),
+    // which is modified below: work on copies.
+    const Eigen::VectorXd q_stop_c  = q_stop;
+    const Eigen::VectorXd qd_stop_c = qd_stop;
+    const Eigen::VectorXd qdd_stop_c = qdd_stop;
+
     // ── Adding stop waypoint ────────────────────────────────────────────────
     size_t ins = 0;
     while (ins < t_robot.size() && t_robot[ins] < t_stop) ins++;
@@ -348,8 +380,8 @@ Trajectory stop_trajectory(RobotModel& robot, const Eigen::VectorXd& q_stop,
     for (size_t i = 0; i <= q_robot.size(); ++i) {
         double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
         if (i == ins) {
-            q_robot_temp.push_back(q_stop);
-            q_robot_temp.push_back(q_stop);
+            q_robot_temp.push_back(q_stop_c);
+            q_robot_temp.push_back(q_stop_c);
             t_robot_temp.push_back(t_stop);
             t_robot_temp.push_back(t_stop + stop_dur);
         }
@@ -382,20 +414,16 @@ Trajectory stop_trajectory(RobotModel& robot, const Eigen::VectorXd& q_stop,
 
 
 
-    // ── Segment assembly ────────────────────────────────────────────────────
-    const size_t n_seg = q_robot.size() - 1;
-    std::vector<double> v_norm;
-    int N = t_robot[t_robot.size() - 1]/dt;
-    Trajectory traj;
-    traj.q.reserve(N);
-    traj.qd.reserve(N);
-    traj.qdd.reserve(N);
-    traj.p.reserve(N);
-    traj.pd.reserve(N);
-    traj.t.reserve(N);
+    // ── Partial segment assembly ────────────────────────────────────────────
+    // The waypoints before the stop point are unchanged, so the samples of the
+    // trajectory leading up to them are kept. Only the segment that ends at
+    // the inserted stop waypoint (ins - 1) and the following ones are rebuilt,
+    // starting from the insertion index.
+    const size_t first_seg = ins > 0 ? ins - 1 : 0;
+    const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot, first_seg, dt));
+    double t = dt * static_cast<double>(keep);
 
-    double t = 0;
-    for (size_t i = 0; i < n_seg; ++i) {
+    for (size_t i = first_seg; i + 1 < q_robot.size(); ++i) {
         const double t_end = t_robot[i + 1] - t_robot[i];
         if (t_end <= 0.0) {
             // A segment with no duration carries no motion: skip it instead of
@@ -405,19 +433,11 @@ Trajectory stop_trajectory(RobotModel& robot, const Eigen::VectorXd& q_stop,
             continue;
         }
         if (i == ins) {
-            build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt, qd_stop, qdd_stop);
-        } 
-        else {
-            build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
+            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+                           qd_stop_c, qdd_stop_c);
         }
-        
+        else {
+            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
+        }
     }
-
-    // ── Velocity statistics ─────────────────────────────────────────────────
-    double v_max = *std::max_element(v_norm.begin(), v_norm.end());
-    double v_rms = 0;
-    for (double x : v_norm) v_rms += x * x;
-    v_rms = std::sqrt(v_rms / v_norm.size());
-
-    return traj;
 }
