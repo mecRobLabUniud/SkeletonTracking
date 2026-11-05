@@ -248,10 +248,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
                            robot, radii, *closest);
 
-        // if (i == 100) stop_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stop_duration, dt);
-
-        std::cout << "r_idx: " << r_idx  << " - r_idx*dt: " << r_idx*dt << std::endl;
-
         // Plays one sample of the nominal trajectory: appends it to the real
         // trajectory, logs it and publishes it at the control rate.
         const auto play_sample = [&](size_t idx, const DistanceResult& dist) {
@@ -335,6 +331,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                    r < static_cast<int>(nominal_traj.q.size())) {
                 play_sample(static_cast<size_t>(r), *closest);
             }
+
+            // restart_trajectory(nominal_traj, robot, nominal_traj.q[r], r*dt, dt);
         }
     }
 

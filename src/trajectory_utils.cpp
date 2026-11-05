@@ -290,6 +290,14 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
     q_robot_temp.reserve(q_robot.size() + 1);
     t_robot_temp.reserve(q_robot.size() + 1);
 
+    std::cout << std::endl;
+    std::cout << "t_data: ";
+    for (const auto& t : t_data) {
+        std::cout << t << " ";
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+
     // Offset added to the recorded timestamps of the waypoints that are
     // still to be reached. It is computed from the time actually left in
     // the interrupted segment once the restart point is inserted.
@@ -301,6 +309,8 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
             t_robot_temp.push_back(t_restart);
 
             t_gap = t_restart + computeAddedTime(q_robot[i], q_restart_c) - t_ref;
+
+            std::cout << "t_restart: " << t_restart << " - t_next: " << t_ref + t_gap << std::endl;
         }
 
         if (i == q_robot.size()) break;
@@ -310,6 +320,14 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
 
     q_robot = q_robot_temp;
     t_robot = t_robot_temp;
+
+    std::cout << std::endl;
+    std::cout << "t_robot: ";
+    for (const auto& t : t_robot) {
+        std::cout << t << " ";
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
 
     // ── Partial segment assembly ────────────────────────────────────────────
     // The waypoints before the restart point are unchanged, so the samples of
@@ -351,27 +369,17 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
     size_t ins = 0;
     while (ins < t_robot.size() && t_robot[ins] < t_stop) ins++;
 
-    double stop_dur = stop_duration*10; 
-
     std::vector<Eigen::VectorXd> q_robot_temp;
     std::vector<double> t_robot_temp;
     q_robot_temp.reserve(q_robot.size() + 2);
     t_robot_temp.reserve(q_robot.size() + 2);
-
-    std::cout << "ins: " << ins << " t_stop: " << t_stop << " stop_duration: " << stop_duration << std::endl;
-
-    std::cout << std::endl;
-    std::cout << "t_robot prev: ";
-    for (const auto& t : t_robot) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
 
     std::cout << std::endl;
     std::cout << "t_data: ";
     for (const auto& t : t_data) {
         std::cout << t << " ";
     }
+    std::cout << std::endl;
     std::cout << std::endl;
 
     // Offset added to the recorded timestamps of the waypoints that are
@@ -383,7 +391,9 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
             q_robot_temp.push_back(q_stop_c);
             q_robot_temp.push_back(q_stop_c);
             t_robot_temp.push_back(t_stop);
-            t_robot_temp.push_back(t_stop + stop_dur);
+            t_robot_temp.push_back(t_stop + stop_duration);
+
+            std::cout << "t_stop: " << t_stop << " - t_next: " << t_ref + stop_duration << std::endl;
         }
 
         if (i == q_robot.size()) break;
@@ -391,11 +401,8 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
             t_robot_temp.push_back(t_robot[i]);
         } 
         else {
-            t_robot_temp.push_back(t_ref + stop_dur);
-            std::cout << "q_robot.size() - i: " << q_robot.size() - i << " t data ind: " << t_data.size() - (q_robot.size() - i) << std::endl;
-
-            std::cout << "t_ref: " << t_ref << " stop_dur: " << stop_dur << std::endl;
-            t_data[t_data.size() - (q_robot.size() - i)] = t_ref + stop_dur;
+            t_robot_temp.push_back(t_ref + stop_duration);
+            t_data[t_data.size() - (q_robot.size() - i)] = t_ref + stop_duration;
         } 
         q_robot_temp.push_back(q_robot[i]);
 
@@ -411,7 +418,7 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
         std::cout << t << " ";
     }
     std::cout << std::endl;
-
+    std::cout << std::endl;
 
 
     // ── Partial segment assembly ────────────────────────────────────────────
