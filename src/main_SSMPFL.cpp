@@ -190,6 +190,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                             nominal_traj.wp[0].p,
                             nominal_traj.wp[0].pd,
                             nominal_traj.wp[0].timestamp});
+    Waypoint waypoint;
 
     nominal_traj.collision = false;
     bool collision_prev = false;
@@ -313,10 +314,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             nominal_traj.collision = true;
         }
 
-        // Plays one sample of the nominal trajectory: appends it to the real
-        // trajectory, logs it and publishes it at the control rate.
-        const auto play_sample = [&](size_t idx, const DistanceResult& dist) {
-            real_traj.wp.push_back(nominal_traj.wp[idx]);
+        // ── Plays one waypoint at time ───────────────────────────────────────
+        const auto play_sample = [&](Waypoint waypoint, const DistanceResult& dist) {
+            real_traj.wp.push_back(waypoint);
 
             LogSample s;
             s.t = g_t_log;
@@ -361,7 +361,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             // the position it is heading to, plus the collision flag
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
-            payload.push_back(std::vector<double>(nominal_traj.wp[idx].p.data(), nominal_traj.wp[idx].p.data() + nominal_traj.wp[idx].p.size()));
+            payload.push_back(std::vector<double>(waypoint.p.data(), waypoint.p.data() + waypoint.p.size()));
             payload.push_back(nominal_traj.collision);
             transmitters[2]->send_data(payload);
 
@@ -379,17 +379,17 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt);
             stopping = true;
-            // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, r_idx*dt, dt);
         }
         collision_prev = nominal_traj.collision;
 
         // ── Real trajectory update ──────────────────────────────────────
-        play_sample(r_idx, *closest);
+        waypoint = nominal_traj.wp[r_idx];
+        play_sample(waypoint, *closest);
 
         if (stopping) {
-            while (r <= static_cast<int>(stop_end) &&
-                   r < static_cast<int>(nominal_traj.wp.size())) {
-                play_sample(static_cast<size_t>(r), *closest);
+            while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
+                waypoint = nominal_traj.wp[r];
+                play_sample(waypoint, *closest);
             }
 
             restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
