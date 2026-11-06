@@ -208,6 +208,14 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.wp.size());
     // for (int i = 0; i <= n_steps-1; ++i) {
+    // Map the string state to a code usable in a switch statement.
+    const auto state_code = [](const std::string& s) -> int {
+        if (s == "running")  return 0;
+        if (s == "stopping") return 1;
+        if (s == "steady")   return 2;
+        return -1;
+    };
+    std::string last_state;
     int i = 0;
     while (true) {
         if (r >= static_cast<int>(nominal_traj.wp.size())) break;
@@ -315,6 +323,17 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             std::cout << "--------------- SAFE -------------------" << std::endl;
         }
         collision_prev = nominal_traj.collision;
+
+        // ── Print the current state when it changes ─────────────────────
+        if (state != last_state) {
+            switch (state_code(state)) {
+                case 0:  std::cout << "[STATE] running"  << std::endl; break;
+                case 1:  std::cout << "[STATE] stopping" << std::endl; break;
+                case 2:  std::cout << "[STATE] steady"   << std::endl; break;
+                default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
+            }
+            last_state = state;
+        }
 
         // ── Real trajectory update ──────────────────────────────────────
         waypoint = nominal_traj.wp[r_idx];
