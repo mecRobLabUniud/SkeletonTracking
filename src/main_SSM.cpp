@@ -215,6 +215,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         if (s == "steady")   return 2;
         return -1;
     };
+
     std::string last_state;
     int i = 0;
     while (true) {
@@ -320,33 +321,40 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             state = "stopping";
         }
         else if (nominal_traj.collision && collision_prev) {
-            std::cout << "--------------- SAFE -------------------" << std::endl;
+            state = "steady";
         }
         collision_prev = nominal_traj.collision;
 
-        // ── Print the current state when it changes ─────────────────────
-        if (state != last_state) {
-            switch (state_code(state)) {
-                case 0:  std::cout << "[STATE] running"  << std::endl; break;
-                case 1:  std::cout << "[STATE] stopping" << std::endl; break;
-                case 2:  std::cout << "[STATE] steady"   << std::endl; break;
-                default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
-            }
-            last_state = state;
-        }
-
         // ── Real trajectory update ──────────────────────────────────────
-        waypoint = nominal_traj.wp[r_idx];
-        play_sample(waypoint, *closest);
+        switch (state_code(state)) {
+            case 0:  {
+                if (state != last_state) std::cout << "[STATE] running" << std::endl; 
 
-        if (state == "stopping") {
-            while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
-                waypoint = nominal_traj.wp[r];
+                waypoint = nominal_traj.wp[r_idx];
                 play_sample(waypoint, *closest);
+                break;
             }
+            case 1:  {
+                if (state != last_state) std::cout << "[STATE] stopping" << std::endl; 
 
-            restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+                while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
+                    waypoint = nominal_traj.wp[r];
+                    play_sample(waypoint, *closest);
+                }
+
+                restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+                break;
+            }
+            case 2:  {
+                if (state != last_state) std::cout << "[STATE] steady" << std::endl; 
+
+                waypoint = nominal_traj.wp[r_idx];
+                play_sample(waypoint, *closest);
+                break;
+            }
+            default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
         }
+        last_state = state;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";
