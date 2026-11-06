@@ -192,6 +192,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                             nominal_traj.wp[0].p,
                             nominal_traj.wp[0].pd,
                             nominal_traj.wp[0].timestamp});
+    Waypoint waypoint;
 
     nominal_traj.collision = false;
     bool collision_prev = false;
@@ -320,14 +321,10 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             nominal_traj.collision = true;
         }
 
-        // Appends one sample of the nominal trajectory to the real trajectory.
-        const auto append_nominal = [&](size_t idx) {
-            real_traj.wp.push_back(nominal_traj.wp[idx]);
-        };
+        // ── Plays one waypoint at time ───────────────────────────────────────
+        const auto play_sample = [&](Waypoint waypoint, const DistanceResult& dist) {
+            real_traj.wp.push_back(waypoint);
 
-        // Logs the last sample of the real trajectory, publishes it and waits
-        // for the next control period.
-        const auto log_and_publish = [&](const DistanceResult& dist, size_t idx) {
             LogSample s;
             s.t = g_t_log;
             for (int j = 0; j < 7; ++j) {
@@ -371,7 +368,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             // the position it is heading to, plus the collision flag
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
-            payload.push_back(std::vector<double>(nominal_traj.wp[idx].p.data(), nominal_traj.wp[idx].p.data() + nominal_traj.wp[idx].p.size()));
+            payload.push_back(std::vector<double>(nominal_traj.wp[i + 1].p.data(), nominal_traj.wp[i + 1].p.data() + nominal_traj.wp[i + 1].p.size()));
             payload.push_back(nominal_traj.collision);
             transmitters[2]->send_data(payload);
 
@@ -379,6 +376,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             std::this_thread::sleep_until(next_time);
 
             ++i;
+            ++r;
         };
 
         size_t stop_end = 0;
@@ -388,32 +386,20 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt);
             stopping = true;
-            // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, r_idx*dt, dt);
         }
         collision_prev = nominal_traj.collision;
 
         // ── Real trajectory update ──────────────────────────────────────
-        if (stopping) {
-            const size_t play_end = std::max<size_t>(r_idx, stop_end);
-            for (int idx = static_cast<int>(r_idx);
-                 idx <= static_cast<int>(play_end) &&
-                 idx < static_cast<int>(nominal_traj.wp.size()); ++idx) {
-                append_nominal(static_cast<size_t>(idx));
-                ++r;
-                log_and_publish(*closest, static_cast<size_t>(idx));
-            }
-        }
-        else {
-            real_traj.wp.push_back({res.q_next,
-                                    res.qd_next,
-                                    res.qdd_next,
-                                    res.p_next,
-                                    res.pd_next,
-                                    g_t_log});
+        waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
+        play_sample(waypoint, *closest);
 
-            r++;
-            nominal_traj.collision = false;
-            log_and_publish(*closest, r_idx);
+        if (stopping) {
+            while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
+                waypoint = nominal_traj.wp[r];
+                play_sample(waypoint, *closest);
+            }
+
+            restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
         }
     }
 

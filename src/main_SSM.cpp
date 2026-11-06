@@ -310,6 +310,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stop_duration, dt);
             stopping = true;
         }
+        else if (nominal_traj.collision && collision_prev) {
+            std::cout << "--------------- SAFE -------------------" << std::endl;
+        }
         collision_prev = nominal_traj.collision;
 
         // ── Real trajectory update ──────────────────────────────────────
