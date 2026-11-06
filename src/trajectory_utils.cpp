@@ -86,12 +86,14 @@ void build_p2p_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
 
         const Eigen::Matrix<double, 6, 1> v = robot.ComputeJacobian("panda_link8", q) * qd;
 
-        out.q.push_back(q);
-        out.qd.push_back(qd);
-        out.qdd.push_back(qdd);
-        out.p.push_back(robot.GetJointPose("panda_link8", q).translation());
-        out.pd.push_back(v.head<3>());
-        out.t.push_back(dt * t++);
+        Waypoint wp;
+        wp.q = q;
+        wp.qd = qd;
+        wp.qdd = qdd;
+        wp.p = robot.GetJointPose("panda_link8", q).translation();
+        wp.pd = v.head<3>();
+        wp.timestamp = dt * t++;
+        out.wp.push_back(wp);
         if (vnorm) vnorm->push_back(v.norm());
     }
 }
@@ -201,12 +203,8 @@ Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir, int n_tr
     std::vector<double> v_norm;
     int N = t_robot[t_robot.size() - 1]/dt;
     Trajectory traj;
-    traj.q.reserve(N);
-    traj.qd.reserve(N);
-    traj.qdd.reserve(N);
-    traj.p.reserve(N);
-    traj.pd.reserve(N);
-    traj.t.reserve(N);
+    traj.collision = false;
+    traj.wp.reserve(N);
 
     double t = 0;
     for (size_t i = 0; i < n_seg; ++i) {
@@ -221,7 +219,7 @@ Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir, int n_tr
         build_p2p_traj(q_robot[i], q_robot[i + 1], &v_norm, traj, t_end, t, robot, dt);
     }
 
-    if (traj.q.empty()) {
+    if (traj.wp.empty()) {
         throw std::runtime_error(traj_dir.string() + ": the trajectory holds no motion");
     }
 
@@ -254,13 +252,8 @@ size_t sampled_prefix(const std::vector<double>& t_wp, size_t n_seg, double dt) 
 // Drop every sample that belongs to a segment which is going to be rebuilt and
 // return the number of samples that are kept.
 size_t truncate_trajectory(Trajectory& traj, size_t n_keep) {
-    n_keep = std::min(n_keep, traj.t.size());
-    traj.q.resize(n_keep);
-    traj.qd.resize(n_keep);
-    traj.qdd.resize(n_keep);
-    traj.p.resize(n_keep);
-    traj.pd.resize(n_keep);
-    traj.t.resize(n_keep);
+    n_keep = std::min(n_keep, traj.wp.size());
+    traj.wp.resize(n_keep);
     return n_keep;
 }
 
@@ -274,7 +267,7 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
                         const Eigen::VectorXd& q_restart,
                         const double& t_restart, double dt) {
     // The restart configuration usually references an element of traj
-    // (traj.q[r_idx]), which is modified below: work on a copy.
+    // (traj.wp[r_idx].q), which is modified below: work on a copy.
     const Eigen::VectorXd q_restart_c = q_restart;
 
     // ── Restart time ────────────────────────────────────────────────────────
@@ -354,7 +347,7 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
                        const Eigen::VectorXd& q_stop,
                        const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
                        const double& t_stop, const double& stop_duration, double dt) {
-    // The stop state usually references an element of traj (traj.q[r_idx]),
+    // The stop state usually references an element of traj (traj.wp[r_idx].q),
     // which is modified below: work on copies.
     const Eigen::VectorXd q_stop_c  = q_stop;
     const Eigen::VectorXd qd_stop_c = qd_stop;

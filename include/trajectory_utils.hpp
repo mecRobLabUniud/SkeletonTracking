@@ -25,15 +25,23 @@ struct Traj {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// One time-stamped sample of a trajectory
+// ─────────────────────────────────────────────────────────────────────────────
+struct Waypoint {
+    Eigen::VectorXd q;
+    Eigen::VectorXd qd;
+    Eigen::VectorXd qdd;
+    Eigen::Vector3d p;
+    Eigen::Vector3d pd;
+    double timestamp;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Time-indexed joint and Cartesian trajectory container
 // ─────────────────────────────────────────────────────────────────────────────
 struct Trajectory {
-    std::vector<Eigen::VectorXd> q;
-    std::vector<Eigen::VectorXd> qd;
-    std::vector<Eigen::VectorXd> qdd;
-    std::vector<Eigen::Vector3d> p;
-    std::vector<Eigen::Vector3d> pd;
-    std::vector<double> t;
+    std::vector<Waypoint> wp;
+    bool collision;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

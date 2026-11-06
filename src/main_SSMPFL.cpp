@@ -176,20 +176,22 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         return 1;
     }
 
-    if (nominal_traj.q.size() < 2 || nominal_traj.t.empty()) {
+    if (nominal_traj.wp.size() < 2 || nominal_traj.wp.empty()) {
         std::cerr << "The nominal trajectory in " << traj_dir << " is empty\n";
         return 1;
     }
 
     // ── PFL and SSM simulation ───────────────────────────────────────────────────
     Trajectory real_traj;
-    real_traj.q.push_back(nominal_traj.q[0]);
-    real_traj.qd.push_back(nominal_traj.qd[0]);
-    real_traj.qdd.push_back(Eigen::VectorXd::Zero(7));
-    real_traj.p.push_back(nominal_traj.p[0]);
-    real_traj.pd.push_back(nominal_traj.pd[0]);
+    real_traj.collision = false;
+    real_traj.wp.push_back({nominal_traj.wp[0].q,
+                            nominal_traj.wp[0].qd,
+                            Eigen::VectorXd::Zero(7),
+                            nominal_traj.wp[0].p,
+                            nominal_traj.wp[0].pd,
+                            nominal_traj.wp[0].timestamp});
 
-    bool collision = false;
+    nominal_traj.collision = false;
     bool collision_prev = false;
     int r = 1;
     int kNumKeypoints = 11;
@@ -247,11 +249,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── Starting main loop ───────────────────────────────────────────────────────
     const int period_ms = static_cast<int>(dt*1000.0);
     auto next_time = std::chrono::steady_clock::now();
-    const int n_steps = static_cast<int>(nominal_traj.t.size());
+    const int n_steps = static_cast<int>(nominal_traj.wp.size());
     // for (int i = 0; i <= n_steps-1; ++i) {
     int i = 0;
     while (true) {
-        if (r >= static_cast<int>(nominal_traj.q.size())) break;
+        if (r >= static_cast<int>(nominal_traj.wp.size())) break;
 
         const std::vector<Eigen::Vector3d> skeleton_new = receiveSkeleton(*transmitters[0]);
         if (!skeleton_new.empty()) {
@@ -261,7 +263,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         // Index of the sample of the nominal trajectory that is being tracked.
         // It is clamped, so that the last sample is never read out of range.
         const size_t r_idx = std::min<size_t>(static_cast<size_t>(std::max(r, 0)),
-                                               nominal_traj.q.size() - 1);      
+                                               nominal_traj.wp.size() - 1);
 
         
         // ── Construction of obstacle and velocity term vectors ───────────────────────
@@ -285,7 +287,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         }
 
         // ── C-ACT-WS / R-IDLE bookkeeping ────────────────────────────────────
-        const bool robot_active = nominal_traj.qd[r_idx].norm() > ROBOT_ACTIVE_VEL_THRESH;
+        const bool robot_active = nominal_traj.wp[r_idx].qd.norm() > ROBOT_ACTIVE_VEL_THRESH;
         if (robot_active && humanInWorkspace(skeleton)) {
             g_concurrent_ws_time += dt;
         }
@@ -296,40 +298,36 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         }
 
         // ── Core SSM and PFL computation ─────────────────────────────────────────────
-        std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, real_traj.q[i]);
-        
-        bool exitflag = SSMPFL(robot, dt, stopping_time, nominal_traj.q[r_idx], nominal_traj.qd[r_idx],
-                                    nominal_traj.qdd[r_idx], ro_vec, vo_vec, delta_vec);
+        std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, real_traj.wp[i].q);
+
+        bool exitflag = SSMPFL(robot, dt, stopping_time, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd,
+                                    nominal_traj.wp[r_idx].qdd, ro_vec, vo_vec, delta_vec);
 
         if (exitflag) {
             if (closest && closest->length <= HR_clearance[closest->ind_h]) {
-                collision = true;
+                nominal_traj.collision = true;
             }
-            else collision = false;
+            else nominal_traj.collision = false;
         }
         else {
-            collision = true;
+            nominal_traj.collision = true;
         }
 
         // Plays one sample of the nominal trajectory: appends it to the real
         // trajectory, logs it and publishes it at the control rate.
         const auto play_sample = [&](size_t idx, const DistanceResult& dist) {
-            real_traj.q.push_back(nominal_traj.q[idx]);
-            real_traj.qd.push_back(nominal_traj.qd[idx]);
-            real_traj.qdd.push_back(nominal_traj.qdd[idx]);
-            real_traj.p.push_back(nominal_traj.p[idx]);
-            real_traj.pd.push_back(nominal_traj.pd[idx]);
+            real_traj.wp.push_back(nominal_traj.wp[idx]);
 
             LogSample s;
             s.t = g_t_log;
             for (int j = 0; j < 7; ++j) {
-                s.q[j] = real_traj.q[i][j];
-                s.qd[j] = real_traj.qd[i][j];
-                s.qdd[j] = real_traj.qdd[i][j];
+                s.q[j] = real_traj.wp[i].q[j];
+                s.qd[j] = real_traj.wp[i].qd[j];
+                s.qdd[j] = real_traj.wp[i].qdd[j];
             }
             for (int j = 0; j < 3; ++j) {
-                s.p[j] = real_traj.p[i][j];
-                s.pd[j] = real_traj.pd[i][j];
+                s.p[j] = real_traj.wp[i].p[j];
+                s.pd[j] = real_traj.wp[i].pd[j];
             }
             s.distance = dist;
             log_queue.push(s);
@@ -339,7 +337,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             g_t_log += dt;
 
             // ── Publish robot state, obstacle distance and trajectory ───
-            const Eigen::VectorXd& q_now = real_traj.q[i + 1];
+            const Eigen::VectorXd& q_now = real_traj.wp[i + 1].q;
             const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
 
             nlohmann::json points = nlohmann::json::array();
@@ -362,9 +360,9 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             // The trajectory topic carries the position of the end effector and
             // the position it is heading to, plus the collision flag
             payload.clear();
-            payload.push_back(std::vector<double>(real_traj.p[i + 1].data(), real_traj.p[i + 1].data() + real_traj.p[i + 1].size()));
-            payload.push_back(std::vector<double>(nominal_traj.p[idx].data(), nominal_traj.p[idx].data() + nominal_traj.p[idx].size()));
-            payload.push_back(collision);
+            payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
+            payload.push_back(std::vector<double>(nominal_traj.wp[idx].p.data(), nominal_traj.wp[idx].p.data() + nominal_traj.wp[idx].p.size()));
+            payload.push_back(nominal_traj.collision);
             transmitters[2]->send_data(payload);
 
             next_time += std::chrono::milliseconds(period_ms);
@@ -376,25 +374,25 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         size_t stop_end = 0;
         bool stopping = false;
-        if (collision && !collision_prev) {
+        if (nominal_traj.collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
-            stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], nominal_traj.qd[r_idx], nominal_traj.qdd[r_idx], r_idx*dt, stopping_time, dt);
+            stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt);
             stopping = true;
-            // restart_trajectory(nominal_traj, robot, nominal_traj.q[r_idx], r_idx*dt, dt);
+            // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, r_idx*dt, dt);
         }
-        collision_prev = collision;
+        collision_prev = nominal_traj.collision;
 
         // ── Real trajectory update ──────────────────────────────────────
         play_sample(r_idx, *closest);
 
         if (stopping) {
             while (r <= static_cast<int>(stop_end) &&
-                   r < static_cast<int>(nominal_traj.q.size())) {
+                   r < static_cast<int>(nominal_traj.wp.size())) {
                 play_sample(static_cast<size_t>(r), *closest);
             }
 
-            restart_trajectory(nominal_traj, robot, nominal_traj.q[r+1], (r+1)*dt, dt);
+            restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
         }
     }
 
