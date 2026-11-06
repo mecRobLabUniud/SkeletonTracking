@@ -303,12 +303,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         };
 
         size_t stop_end = 0;
-        bool stopping = false;
+        // Robot state: "running", "stopping" or "steady" ("steady" is reserved).
+        std::string state = "running";
         if (nominal_traj.collision && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stop_duration, dt);
-            stopping = true;
+            state = "stopping";
         }
         else if (nominal_traj.collision && collision_prev) {
             std::cout << "--------------- SAFE -------------------" << std::endl;
@@ -319,7 +320,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         waypoint = nominal_traj.wp[r_idx];
         play_sample(waypoint, *closest);
 
-        if (stopping) {
+        if (state == "stopping") {
             while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
                 waypoint = nominal_traj.wp[r];
                 play_sample(waypoint, *closest);
