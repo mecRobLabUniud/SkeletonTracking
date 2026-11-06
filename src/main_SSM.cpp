@@ -332,7 +332,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 play_sample(static_cast<size_t>(r), *closest);
             }
 
-            // restart_trajectory(nominal_traj, robot, nominal_traj.q[r], r*dt, dt);
+            restart_trajectory(nominal_traj, robot, nominal_traj.q[r+1], (r+1)*dt, dt);
         }
     }
 

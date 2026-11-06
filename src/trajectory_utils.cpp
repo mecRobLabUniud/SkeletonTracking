@@ -305,12 +305,7 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
     for (size_t i = 0; i <= q_robot.size(); ++i) {
         double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
         if (i == ins) {
-            q_robot_temp.push_back(q_restart_c);
-            t_robot_temp.push_back(t_restart);
-
             t_gap = t_restart + computeAddedTime(q_robot[i], q_restart_c) - t_ref;
-
-            std::cout << "t_restart: " << t_restart << " - t_next: " << t_ref + t_gap << std::endl;
         }
 
         if (i == q_robot.size()) break;
@@ -392,21 +387,11 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
             q_robot_temp.push_back(q_stop_c);
             t_robot_temp.push_back(t_stop);
             t_robot_temp.push_back(t_stop + stop_duration);
-
-            std::cout << "t_stop: " << t_stop << " - t_next: " << t_ref + stop_duration << std::endl;
         }
 
         if (i == q_robot.size()) break;
-        if (i < ins) {
-            t_robot_temp.push_back(t_robot[i]);
-        } 
-        else {
-            t_robot_temp.push_back(t_ref + stop_duration);
-            t_data[t_data.size() - (q_robot.size() - i)] = t_ref + stop_duration;
-        } 
+        i < ins ? t_robot_temp.push_back(t_robot[i]) : t_robot_temp.push_back(t_robot[i] + stop_duration);
         q_robot_temp.push_back(q_robot[i]);
-
-        
     }
 
     q_robot = q_robot_temp;

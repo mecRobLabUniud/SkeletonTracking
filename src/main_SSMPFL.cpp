@@ -388,14 +388,13 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         // ── Real trajectory update ──────────────────────────────────────
         play_sample(r_idx, *closest);
 
-        // A stop was just inserted: play the whole stop trajectory (deceleration
-        // and hold) before the loop goes on. No other logic runs until the robot
-        // is at rest.
         if (stopping) {
             while (r <= static_cast<int>(stop_end) &&
                    r < static_cast<int>(nominal_traj.q.size())) {
                 play_sample(static_cast<size_t>(r), *closest);
             }
+
+            restart_trajectory(nominal_traj, robot, nominal_traj.q[r+1], (r+1)*dt, dt);
         }
     }
 

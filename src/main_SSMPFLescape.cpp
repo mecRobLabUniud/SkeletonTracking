@@ -396,10 +396,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         // ── Real trajectory update ──────────────────────────────────────
         if (stopping) {
-            // Play the whole stop trajectory (deceleration and hold) before
-            // the loop goes on. No other logic runs until the robot is at rest.
-            // The stop is followed in joint space from the nominal trajectory,
-            // so the escape controller cannot override it.
             const size_t play_end = std::max<size_t>(r_idx, stop_end);
             for (int idx = static_cast<int>(r_idx);
                  idx <= static_cast<int>(play_end) &&
