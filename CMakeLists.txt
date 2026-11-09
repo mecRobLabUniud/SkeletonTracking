@@ -19,6 +19,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 # Dependencies
 # ─────────────────────────────────────────────────────────────────────────────
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Franka 0.8.0 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -134,5 +135,46 @@ target_link_libraries(main_SSMPFLescape PRIVATE
     qpOASES
     pinocchio::pinocchio
     OpenMP::OpenMP_CXX
+)
+
+
+
+# ────────────────────────────────────────────────────────────────────────────
+add_executable(joint_point_to_point_motion 
+    src/robot_controller/joint_point_to_point_motion.cpp 
+    src/robot_controller/examples_common.cpp
+)
+target_link_libraries(joint_point_to_point_motion PRIVATE 
+    Franka::Franka 
+    Eigen3::Eigen
+)
+
+add_executable(record_trajectory 
+    src/robot_controller/record_trajectory.cpp
+)
+target_link_libraries(record_trajectory PRIVATE 
+    Franka::Franka 
+    Eigen3::Eigen 
+    Threads::Threads
+)
+
+add_executable(replay_trajectory 
+    src/robot_controller/replay_trajectory.cpp 
+    src/robot_controller/examples_common.cpp
+)
+target_link_libraries(replay_trajectory PRIVATE 
+    Franka::Franka 
+    Eigen3::Eigen
+)
+
+add_executable(robot_control 
+    src/robot_controller/robot_control.cpp 
+    src/robot_controller/examples_common.cpp
+)
+target_link_libraries(robot_control PRIVATE 
+    Franka::Franka 
+    Eigen3::Eigen 
+    ${ZMQ_LIBRARIES} 
+    Threads::Threads
 )
 
