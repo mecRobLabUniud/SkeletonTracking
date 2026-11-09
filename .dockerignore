@@ -1,5 +1,7 @@
 .git/
 .vscode/
 build/
+logs/
 *.pyc
+__pycache__/
 media/

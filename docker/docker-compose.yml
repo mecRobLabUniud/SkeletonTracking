@@ -1,23 +1,24 @@
-version: '3.8'
-
 services:
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    image: skeletontracking:dev
     container_name: R3D_project
     stdin_open: true
     tty: true
-    # network_mode: host 
+    init: true
+    # network_mode: host
     # user: lab
-    privileged: true 
+    privileged: true
     environment:
       - PYTHONUNBUFFERED=1
       - DISPLAY=${DISPLAY}
       - XAUTHORITY=/root/.Xauthority
-    # ports:
-    #   - "6050:6050"
-    restart: unless-stopped
+    ports:
+      # Flask web interface (--gui)
+      - "5000:5000"
+    working_dir: /home/lab/SkeletonTracking
     # devices:
     #   - /dev:/dev
     volumes:
