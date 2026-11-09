@@ -275,11 +275,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         // It is clamped, so that the last sample is never read out of range.
         const size_t r_idx = std::min<size_t>(static_cast<size_t>(std::max(r, 0)),
                                                nominal_traj.wp.size() - 1);
-
-        // Distance between the human and the robot at the current
-        // configuration: it drives the collision flag and it is published to
-        // the web interface.
-
     
         // ── Construction of obstacle and velocity term vectors ───────────────────────
         std::vector<Eigen::Vector3d> ro_vec;
@@ -376,15 +371,12 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             // the position it is heading to, plus the collision flag
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
-            payload.push_back(std::vector<double>(nominal_traj.wp[i + 1].p.data(), nominal_traj.wp[i + 1].p.data() + nominal_traj.wp[i + 1].p.size()));
+            payload.push_back(std::vector<double>(nominal_traj.wp[r_idx].p.data(), nominal_traj.wp[r_idx].p.data() + nominal_traj.wp[r_idx].p.size()));
             payload.push_back(nominal_traj.collision);
             transmitters[2]->send_data(payload);
 
             next_time += std::chrono::milliseconds(period_ms);
             std::this_thread::sleep_until(next_time);
-
-            ++i;
-            ++r;
         };
 
         size_t stop_end = 0;
@@ -396,31 +388,44 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt);
             state = "stopping";
         }
+        else if (nominal_traj.collision && collision_prev) {
+            state = "steady";
+        }
         collision_prev = nominal_traj.collision;
 
-        // ── Print the current state when it changes ─────────────────────
-        if (state != last_state) {
-            switch (state_code(state)) {
-                case 0:  std::cout << "[STATE] running"  << std::endl; break;
-                case 1:  std::cout << "[STATE] stopping" << std::endl; break;
-                case 2:  std::cout << "[STATE] steady"   << std::endl; break;
-                default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
-            }
-            last_state = state;
-        }
-
         // ── Real trajectory update ──────────────────────────────────────
-        waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
-        play_sample(waypoint, *closest);
+        switch (state_code(state)) {
+            case 0:  {
+                if (state != last_state) std::cout << "[STATE] running" << std::endl; 
 
-        if (state == "stopping") {
-            while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
-                waypoint = nominal_traj.wp[r];
+                waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
                 play_sample(waypoint, *closest);
+                ++i; ++r;
+                break;
             }
+            case 1:  {
+                if (state != last_state) std::cout << "[STATE] stopping" << std::endl; 
 
-            restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+                while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
+                    waypoint = nominal_traj.wp[r];
+                    play_sample(waypoint, *closest);
+                    ++i; ++r;
+                }
+
+                restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+                break;
+            }
+            case 2:  {
+                if (state != last_state) std::cout << "[STATE] steady" << std::endl; 
+
+                waypoint = nominal_traj.wp[r_idx];
+                play_sample(waypoint, *closest);
+                ++i;
+                break;
+            }
+            default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
         }
+        last_state = state;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";

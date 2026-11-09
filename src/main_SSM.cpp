@@ -306,9 +306,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
             next_time += std::chrono::milliseconds(period_ms);
             std::this_thread::sleep_until(next_time);
-
-            ++i;
-            ++r;
         };
 
         size_t stop_end = 0;
@@ -332,6 +329,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
                 waypoint = nominal_traj.wp[r_idx];
                 play_sample(waypoint, *closest);
+                ++i; ++r;
                 break;
             }
             case 1:  {
@@ -340,6 +338,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
                     waypoint = nominal_traj.wp[r];
                     play_sample(waypoint, *closest);
+                    ++i; ++r;
                 }
 
                 restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
@@ -350,6 +349,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
                 waypoint = nominal_traj.wp[r_idx];
                 play_sample(waypoint, *closest);
+                ++i;
                 break;
             }
             default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
