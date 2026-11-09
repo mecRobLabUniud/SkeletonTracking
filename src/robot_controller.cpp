@@ -175,7 +175,7 @@ void executeTrajectory(franka::Robot& robot,
 
     // Define callback for the joint torque control loop.
     std::function<franka::Torques(const franka::RobotState&, franka::Duration)>
-        impedance_control_callback =
+        effort_control_callback =
             [&idx, &model, N, k_gains, d_gains, traj_q, traj_qd](
                 const franka::RobotState& state, franka::Duration /*period*/) -> franka::Torques {
         // Read current coriolis terms from model.
@@ -202,8 +202,34 @@ void executeTrajectory(franka::Robot& robot,
         return tau_d_rate_limited;
     };
 
+
+    // Define callback for the joint torque control loop.
+    std::function<franka::JointPositions(const franka::RobotState&, franka::Duration)>
+        position_control_callback =
+    [&](const franka::RobotState& /*state*/, franka::Duration /*dt*/) -> franka::JointPositions {
+        franka::JointPositions cmd{traj_q[idx]};
+
+        if (idx + 1 >= N) {
+            return franka::MotionFinished(cmd);
+        }
+        idx++;
+        return cmd;
+    };
+
+    std::function<franka::JointVelocities(const franka::RobotState&, franka::Duration)>
+        velocity_control_callback =
+    [&](const franka::RobotState& /*state*/, franka::Duration /*dt*/) -> franka::JointVelocities {
+        franka::JointVelocities cmd{traj_qd[idx]};
+
+        if (idx + 1 >= N) {
+            return franka::MotionFinished(cmd);
+        }
+        idx++;
+        return cmd;
+    };
+
     // Start real-time control loop.
-    robot.control(impedance_control_callback);
+    robot.control(velocity_control_callback);
 }
 
 
@@ -261,8 +287,8 @@ int main(int argc, char** argv) {
     // }
 
     const std::string robot_ip   = "172.16.0.2"; // argv[1];
-    const std::string q_file  = "src/trajectories/test1/q.csv";
-    const std::string qd_file  = "src/trajectories/test1/qd.csv";
+    const std::string q_file  = "src/trajectories/recorded_test/q.csv";
+    const std::string qd_file  = "src/trajectories/recorded_test/qd.csv";
     const int         window     = 11; // (argc >= 4) ? std::stoi(argv[3]) : 11;
 
     // --- Load ---
@@ -277,6 +303,8 @@ int main(int argc, char** argv) {
 
     // --- Smooth ---
     // Use moving average first (fast), then SG on top for shape preservation
+    auto traj_q_smooth = movingAverage(traj_q, window);
+    traj_q_smooth      = savitzkyGolay(traj_q_smooth, window / 2);
     auto traj_q_smooth = movingAverage(traj_q, window);
     traj_q_smooth      = savitzkyGolay(traj_q_smooth, window / 2);
 

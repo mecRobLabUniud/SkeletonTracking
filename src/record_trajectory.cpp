@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
   //   return -1;
   // }
 
-  std::string trajectory_path = "src/trajectories/new_test/";
+  std::string trajectory_path = "src/trajectories/recorded_test/";
 
   try {
     franka::Robot robot("172.16.0.2");
@@ -67,7 +67,6 @@ int main(int argc, char** argv) {
 
     size_t count = 0;
     std::vector<std::array<double, 7>> q;
-    std::vector<std::array<double, 7>> q_d;
     std::vector<std::array<double, 7>> dq;
     bool running = true;
     std::thread optimizer_thread([&]() {
@@ -78,14 +77,12 @@ int main(int argc, char** argv) {
 
     robot.read([&](const franka::RobotState& robot_state) {
       q.push_back(robot_state.q);
-      q_d.push_back(robot_state.q_d);
       dq.push_back(robot_state.dq);
       return running;
     });
 
-    saveTrajectoryCSV(trajectory_path + "q.csv",  q);
-    saveTrajectoryCSV(trajectory_path + "q_d.csv",  q_d);
-    saveTrajectoryCSV(trajectory_path + "dq.csv",  dq);
+    saveTrajectoryCSV(trajectory_path + "q.csv", q);
+    saveTrajectoryCSV(trajectory_path + "qd.csv", dq);
 
     std::cout << "Done." << std::endl;
   } catch (franka::Exception const& e) {

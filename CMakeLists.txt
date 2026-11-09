@@ -137,20 +137,9 @@ target_link_libraries(main_SSMPFLescape PRIVATE
     OpenMP::OpenMP_CXX
 )
 
-
-
-# ────────────────────────────────────────────────────────────────────────────
-add_executable(joint_point_to_point_motion 
-    src/robot_controller/joint_point_to_point_motion.cpp 
-    src/robot_controller/examples_common.cpp
-)
-target_link_libraries(joint_point_to_point_motion PRIVATE 
-    Franka::Franka 
-    Eigen3::Eigen
-)
-
+# ── Record trajectory ───────────────────────────────────────────────────────
 add_executable(record_trajectory 
-    src/robot_controller/record_trajectory.cpp
+    src/record_trajectory.cpp
 )
 target_link_libraries(record_trajectory PRIVATE 
     Franka::Franka 
@@ -158,23 +147,13 @@ target_link_libraries(record_trajectory PRIVATE
     Threads::Threads
 )
 
-add_executable(replay_trajectory 
-    src/robot_controller/replay_trajectory.cpp 
-    src/robot_controller/examples_common.cpp
+# ── Robot controller ──────────────────────────────────────────────────────
+add_executable(robot_controller 
+    src/robot_controller.cpp 
+    src/examples_common.cpp
 )
-target_link_libraries(replay_trajectory PRIVATE 
+target_link_libraries(robot_controller PRIVATE 
     Franka::Franka 
     Eigen3::Eigen
-)
-
-add_executable(robot_control 
-    src/robot_controller/robot_control.cpp 
-    src/robot_controller/examples_common.cpp
-)
-target_link_libraries(robot_control PRIVATE 
-    Franka::Franka 
-    Eigen3::Eigen 
-    ${ZMQ_LIBRARIES} 
-    Threads::Threads
 )
 
