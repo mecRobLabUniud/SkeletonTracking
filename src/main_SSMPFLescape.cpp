@@ -348,6 +348,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
             // ── Publish robot state, obstacle distance and trajectory ───
             const Eigen::VectorXd& q_now = real_traj.wp[i + 1].q;
+            const Eigen::VectorXd& qd_now = real_traj.wp[i + 1].qd;
             const std::array<std::array<double, 3>, 8> caps = robotCapsulePoints(robot, q_now);
 
             nlohmann::json points = nlohmann::json::array();
@@ -360,11 +361,14 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             }
             nlohmann::json q_json = nlohmann::json::array();
             for (int j = 0; j < q_now.size(); ++j) q_json.push_back(q_now(j));
+            nlohmann::json qd_json = nlohmann::json::array();
+            for (int j = 0; j < qd_now.size(); ++j) qd_json.push_back(qd_now(j));
 
             std::vector<nlohmann::json> payload;
             payload.push_back(points);
-            payload.push_back(q_json);
             payload.push_back(radii_json);
+            payload.push_back(q_json);
+            payload.push_back(qd_json);
             transmitters[1]->send_data(payload);
 
             // The trajectory topic carries the position of the end effector and

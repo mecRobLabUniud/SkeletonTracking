@@ -4,12 +4,15 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <Eigen/Dense>
 
+#include "utils.hpp"
 #include "data_transmitter.hpp"
+#include "trajectory_utils.hpp"
 
-struct Sample { double t; std::array<double,7> q, dq; };
+// struct Sample { double t; std::array<double,7> q, dq; };
 
-std::array<double,7> hermite(const Sample& a, const Sample& b, double t) {
+/*std::array<double,7> hermite(const Sample& a, const Sample& b, double t) {
   double h = b.t - a.t;
     double s = (t - a.t) / h;
     double h00 =  2*s*s*s - 3*s*s + 1;
@@ -37,11 +40,22 @@ std::array<double,7> quintic(const WP& a, const WP& b, double t) {
         q[i] = h0*a.q[i] + h1*T*a.dq[i] + h2*T*T*a.ddq[i]
             + h3*b.q[i] + h4*T*b.dq[i] + h5*T*T*b.ddq[i];
     return q;
-}
+}*/
+
+static Waypoint receiveRobotStates(DataTransmitter& tx) {
+        const std::vector<nlohmann::json> data = tx.receive_data();
+        std::cout << "data[2]: " << data[2] << std::endl;
+        std::cout << "data[3]: " << data[3] << std::endl;
+
+        if (data.empty()) return {};
+        Waypoint wp;
+        wp.q = json_to_robotstate(data[2]);
+        wp.qd = json_to_robotstate(data[3]);
+        return wp;
+    }
 
 
 int main() {
-    std::vector<Sample> traj = /* carica a 60 Hz, t_k = k/60.0 */;
     franka::Robot robot("172.16.0.2");
     robot.setCollisionBehavior(
         {{20,20,18,18,16,14,12}}, {{20,20,18,18,16,14,12}},
@@ -50,18 +64,22 @@ int main() {
         {{20,20,20,25,25,25}}, {{20,20,20,25,25,25}});
 
     // ── Data transmitters ───────────────────────────────────────────────────
-    std::vector<std::unique_ptr<DataTransmitter>> transmitters;
-    transmitters.reserve(3);
-    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
-    transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
+    DataTransmitter transmitter = DataTransmitter(DataTransmitter::Mode::Receiver, 12, "ROBOT");
 
-  double time = 0.0;
-  size_t k = 0;
-  try {
+    Waypoint waypoint;
+
+    while (true) {
+        waypoint = receiveRobotStates(transmitter);
+        std::cout << "q: " << waypoint.q.transpose() << " - qd: "  << waypoint.qd.transpose() << std::endl;
+    }
+
+    /*double time = 0.0;
+    size_t k = 0;
+    try {
         robot.control([&](const franka::RobotState& state,
                         franka::Duration period) -> franka::JointPositions {
         // time += period.toSec();
-        // if (time == period.toSec()) { /* primo ciclo: verifica che state.q ≈ traj[0].q */ }
+        // if (time == period.toSec()) { // primo ciclo: verifica che state.q ≈ traj[0].q }
     // 
         // while (k + 2 < traj.size() && time > traj[k+1].t) ++k;
         // double tt = std::min(time, traj.back().t);
@@ -69,13 +87,13 @@ int main() {
         // out.motion_finished = (time >= traj.back().t);
         // return out;
 
-        struct Segment { /* waypoint futuri + stato di partenza */ };
+        struct Segment { };
         std::array<Segment, 2> buf;
         std::atomic<int> active{0};
 
         // thread 60 Hz (non RT): scrive nel buffer inattivo, poi swap
         int idle = 1 - active.load(std::memory_order_acquire);
-        buf[idle] = build_blended_segment(/* ultimo q_d, dq_d, nuovi waypoint */);
+        buf[idle] = build_blended_segment(// ultimo q_d, dq_d, nuovi waypoint);
         active.store(idle, std::memory_order_release);
 
         // callback 1 kHz: legge solo buf[active], nessun lock né allocazione
@@ -85,11 +103,9 @@ int main() {
             while (time >= w1.t) {
             WP next;
             if (queue.pop(next)) { w0 = w1; w1 = next; }
-            else { /* underrun: passa a stato di frenata */ break; }
-            }
             return franka::JointPositions(quintic(w0, w1, std::min(time, w1.t)));
         });
     } catch (const franka::Exception& e) {
         std::cerr << e.what() << std::endl;
-    }
+    }*/
 }

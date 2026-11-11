@@ -62,8 +62,8 @@ def send_data():
 
         if use_robot:
             robot_p = dtrs[n_devices+2].receive_data()[0]
-            robot_q = dtrs[n_devices+2].receive_data()[1]
-            caps_radius = dtrs[n_devices+2].receive_data()[2]
+            caps_radius = dtrs[n_devices+2].receive_data()[1]
+            robot_q = dtrs[n_devices+2].receive_data()[2]
 
             x_robot = [pnt[0] if not np.isnan(pnt[0]) else None for pnt in robot_p]
             y_robot = [pnt[1] if not np.isnan(pnt[1]) else None for pnt in robot_p]
@@ -161,15 +161,15 @@ def main():
     threading.Thread(target=skeleton_thread, daemon=True).start()              
     threading.Thread(target=frame_thread, daemon=True).start()
     threading.Thread(target=rula_thread, daemon=True).start()
-    webbrowser.open_new('http://127.0.0.1:5000/')
+    webbrowser.open_new('http://127.0.0.1:5001/')
     try:
         # flask-socketio >= 5.5 refuses to serve with Werkzeug unless the
         # caller explicitly opts in (stdin is not a TTY when launched by run.sh)
-        socketio.run(app, host="0.0.0.0", port=5000, debug=False,
+        socketio.run(app, host="0.0.0.0", port=5001, debug=False,
                      allow_unsafe_werkzeug=True)
     except TypeError:
         # Older flask-socketio versions do not accept the flag
-        socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+        socketio.run(app, host="0.0.0.0", port=5001, debug=False)
     
 
 if __name__ == "__main__":

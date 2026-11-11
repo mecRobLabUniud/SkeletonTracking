@@ -157,13 +157,21 @@ target_link_libraries(play_trajectory PRIVATE
     Eigen3::Eigen
 )
 
-# # ── Robot controller ──────────────────────────────────────────────────────
-# add_executable(robot_controller 
-#     src/robot_controller.cpp 
-#     src/examples_common.cpp
-# )
-# target_link_libraries(robot_controller PRIVATE 
-#     Franka::Franka 
-#     Eigen3::Eigen
-# )
+# ── Robot controller ──────────────────────────────────────────────────────
+add_executable(robot_controller 
+    src/robot_controller.cpp 
+    src/examples_common.cpp
+    src/trajectory_utils.cpp
+    src/robot_model.cpp
+    src/trajectory_loader.cpp
+)
+target_link_libraries(robot_controller PRIVATE 
+    Franka::Franka 
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    ${ZMQ_LIBRARIES}
+    Threads::Threads
+    nlohmann_json::nlohmann_json
+    rt
+)
 

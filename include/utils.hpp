@@ -33,3 +33,19 @@ inline std::vector<Eigen::Vector3d> json_to_keypoints(const nlohmann::json& arr)
     }
     return out;
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Convert a JSON array of 7D robot state into a vector of Eigen 7D vectors
+// ─────────────────────────────────────────────────────────────────────────────
+inline Eigen::VectorXd json_to_robotstate(const nlohmann::json& arr) {
+    Eigen::VectorXd out;
+    out = { json_to_double(arr[0]), 
+            json_to_double(arr[1]), 
+            json_to_double(arr[2]),
+            json_to_double(arr[3]),
+            json_to_double(arr[4]),
+            json_to_double(arr[5]),
+            json_to_double(arr[6])};
+    return out;
+}
