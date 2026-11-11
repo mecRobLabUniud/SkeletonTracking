@@ -147,13 +147,23 @@ target_link_libraries(record_trajectory PRIVATE
     Threads::Threads
 )
 
-# ── Robot controller ──────────────────────────────────────────────────────
-add_executable(robot_controller 
-    src/robot_controller.cpp 
+# ── Play trajectory ───────────────────────────────────────────────────────
+add_executable(play_trajectory
+    src/play_trajectory.cpp 
     src/examples_common.cpp
 )
-target_link_libraries(robot_controller PRIVATE 
+target_link_libraries(play_trajectory PRIVATE 
     Franka::Franka 
     Eigen3::Eigen
 )
+
+# # ── Robot controller ──────────────────────────────────────────────────────
+# add_executable(robot_controller 
+#     src/robot_controller.cpp 
+#     src/examples_common.cpp
+# )
+# target_link_libraries(robot_controller PRIVATE 
+#     Franka::Franka 
+#     Eigen3::Eigen
+# )
 
