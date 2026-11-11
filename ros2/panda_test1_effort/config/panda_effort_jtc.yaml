@@ -1,0 +1,69 @@
+# Controller parameters for the effort-based trajectory controller used by
+# test1_trajectory_sender.
+#
+# This file is handed to the controller_manager spawner with
+#   spawner panda_effort_jtc \
+#       -t joint_trajectory_controller/JointTrajectoryController \
+#       -p config/panda_effort_jtc.yaml
+#
+# ros2_control's JointTrajectoryController supports an "effort" command
+# interface.  It then runs one control_toolbox PID per joint and writes the
+# resulting torque to the Franka hardware interface.  The Franka control
+# interface executes that torque in joint torque mode and compensates gravity;
+# ff_velocity_scale is kept at zero because a raw velocity feed-forward is not
+# physically meaningful as a torque.
+#
+# Gains: the trajectory in src/trajectories/test1 is gentle (max |qd| ~1.4
+# rad/s on joint 1, max |qdd| ~2.2 rad/s^2).  The gains below keep the torque
+# inside the Panda joint limits even at the 0.15 rad path-tolerance abort
+# threshold, while providing enough stiffness for good tracking:
+#   joint 1-4: 400 * 0.15 = 60 Nm  (limit 87 Nm)
+#   joint 5:    80 * 0.15 = 12 Nm  (limit 12 Nm)
+#   joint 6:    60 * 0.15 =  9 Nm  (limit 12 Nm)
+#   joint 7:    40 * 0.15 =  6 Nm  (limit 12 Nm)
+
+panda_effort_jtc:
+  ros__parameters:
+    joints:
+      - panda_joint1
+      - panda_joint2
+      - panda_joint3
+      - panda_joint4
+      - panda_joint5
+      - panda_joint6
+      - panda_joint7
+    command_interfaces:
+      - effort
+    state_interfaces:
+      - position
+      - velocity
+
+    allow_partial_joints_goal: false
+    open_loop_control: false
+    allow_integration_in_goal_trajectories: false
+    allow_nonzero_velocity_at_trajectory_end: true
+
+    # Higher rate is useful when watching a 1 kHz reference in rqt_plot.
+    state_publish_rate: 100.0
+    action_monitor_rate: 20.0
+    interpolation_method: splines
+
+    constraints:
+      stopped_velocity_tolerance: 0.05
+      goal_time: 2.0
+      panda_joint1: { trajectory: 0.15, goal: 0.05 }
+      panda_joint2: { trajectory: 0.15, goal: 0.05 }
+      panda_joint3: { trajectory: 0.15, goal: 0.05 }
+      panda_joint4: { trajectory: 0.15, goal: 0.05 }
+      panda_joint5: { trajectory: 0.15, goal: 0.05 }
+      panda_joint6: { trajectory: 0.15, goal: 0.05 }
+      panda_joint7: { trajectory: 0.15, goal: 0.05 }
+
+    gains:
+      panda_joint1: { p: 400.0, i: 0.0, d: 20.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }
+      panda_joint2: { p: 400.0, i: 0.0, d: 20.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }
+      panda_joint3: { p: 400.0, i: 0.0, d: 20.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }
+      panda_joint4: { p: 400.0, i: 0.0, d: 20.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }
+      panda_joint5: { p: 80.0, i: 0.0, d: 8.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }
+      panda_joint6: { p: 60.0, i: 0.0, d: 6.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }
+      panda_joint7: { p: 40.0, i: 0.0, d: 4.0, i_clamp: 1.0, ff_velocity_scale: 0.0 }

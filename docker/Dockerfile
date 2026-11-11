@@ -300,6 +300,36 @@ RUN cd /tmp && \
     cmake --install build && \
     cd /tmp && rm -rf /tmp/libfranka && ldconfig
 
+# ── libfranka 0.8.0 (installed side-by-side for older robot firmware) ───────
+# GCC 11 needs a couple of standard headers that the 0.8.0 sources included
+# only transitively.  Install into a separate prefix so the 0.9.2 build used by
+# multipanda_ros2 keeps working.
+RUN cd /tmp && \
+    ( for i in 1 2 3; do \
+        rm -rf libfranka-0.8.0; \
+        GIT_TERMINAL_PROMPT=0 git clone --recursive https://github.com/frankaemika/libfranka.git libfranka-0.8.0 && exit 0; \
+        sleep 5; \
+      done; exit 1 ) && \
+    cd libfranka-0.8.0 && \
+    git checkout 0.8.0 && \
+    git submodule update --init --recursive && \
+    sed -i '1i #include <stdexcept>' src/control_types.cpp && \
+    sed -i '1i #include <string>' include/franka/control_tools.h && \
+    cmake -S . -B build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX=/opt/libfranka-0.8.0 \
+      -DBUILD_TESTS=OFF \
+      -DBUILD_EXAMPLES=OFF && \
+    cmake --build build -j"$(nproc)" && \
+    cmake --install build && \
+    ln -sfn /opt/libfranka-0.8.0/lib/libfranka.so.0.8.0 \
+        /opt/libfranka/lib/libfranka.so.0.8 && \
+    printf '%s\n' \
+      'export LD_LIBRARY_PATH=/opt/libfranka-0.8.0/lib:$LD_LIBRARY_PATH' \
+      'export CMAKE_PREFIX_PATH=/opt/libfranka-0.8.0:$CMAKE_PREFIX_PATH' \
+      > /opt/libfranka-0.8.0/setup.sh && \
+    cd /tmp && rm -rf /tmp/libfranka-0.8.0 && ldconfig
+
 # ── DQ Robotics (needed by panda_motion_generators) ─────────────────────────
 RUN apt-get update && \
     add-apt-repository -y ppa:dqrobotics-dev/release && \
@@ -339,12 +369,23 @@ RUN mkdir -p /home/lab/multipanda_ws/src && \
     git -C /home/lab/multipanda_ws/src/multipanda_ros2 checkout "${MULTIPANDA_COMMIT}" && \
     git -C /home/lab/multipanda_ws/src/multipanda_ros2 submodule update --init --recursive
 
+# ── test1 effort trajectory sender ───────────────────────────────────────────
+# SkeletonTracking's test1 trajectory sender, built as a normal ROS 2 package in
+# the multipanda workspace.
+COPY ros2/panda_test1_effort/ /home/lab/multipanda_ws/src/panda_test1_effort/
+
+# The Panda in this lab runs robot system 4.1.2, which speaks libfranka server
+# version 4 (0.8.x).  Override this for a robot with system >= 4.2.1, which
+# needs /opt/libfranka/lib/cmake/Franka (0.9.2, server version 5).
+ARG LIBFRANKA_CMAKE_DIR=/opt/libfranka-0.8.0/lib/cmake/Franka
+
 RUN . /opt/ros/humble/setup.sh && \
     cd /home/lab/multipanda_ws && \
     colcon build \
       --cmake-args \
         -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_TESTING=OFF
+        -DBUILD_TESTING=OFF \
+        -DFranka_DIR="${LIBFRANKA_CMAKE_DIR}"
 
 # Make ROS and the built workspace available in plain `bash` sessions too.
 RUN { \
