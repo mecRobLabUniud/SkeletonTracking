@@ -74,7 +74,7 @@ static Waypoint receiveRobotStates(DataTransmitter& tx) {
 }
 
 
-void robotStatesThread(DataTransmitter& transmitter, SpcsRingBuffer<Waypoint, 5>& wp_queue) {
+void robotStatesThread(DataTransmitter& transmitter, SpcsRingBuffer<Waypoint, 2>& wp_queue) {
     Waypoint wp;
     while (!stop_flag.load(std::memory_order_acquire)) {
         auto t1 = std::chrono::steady_clock::now();
@@ -83,7 +83,7 @@ void robotStatesThread(DataTransmitter& transmitter, SpcsRingBuffer<Waypoint, 5>
         
 
         wp_queue.push(wp);
-        std::cout << "NEW Waypoint q: " << wp.q.transpose() << std::endl;
+        std::cout << "############### NEW Waypoint q: " << wp.q.transpose() << std::endl;
         auto t2 = std::chrono::steady_clock::now();
         std::cout << "\rt: " << static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()) << std::endl;
     }
@@ -139,34 +139,41 @@ int controller(int n_traj, const std::filesystem::path& root) {
     // ── Data transmitters ───────────────────────────────────────────────────
     DataTransmitter transmitter = DataTransmitter(DataTransmitter::Mode::Receiver, 12, "ROBOT");
 
-    SpcsRingBuffer<Waypoint, 5> wp_queue;
+    SpcsRingBuffer<Waypoint, 2> wp_queue;
     std::thread states_thread(robotStatesThread, std::ref(transmitter), std::ref(wp_queue));
 
-    Waypoint previous;
+    Waypoint previous = nominal_traj.wp[0];
     Waypoint next = nominal_traj.wp[0];
     double time = 0.0;
+    std::vector<double> vnorm;
+    Trajectory traj;
     // std::array<Waypoint, 2> buf;
+    int i = 0;
+    double t = 0.0;
     try {
         robot.control([&](const franka::RobotState& state,
                         franka::Duration period) -> franka::JointPositions {
-            // previous = next;
-            // wp_queue.pop(next);
 
-            std::cout << "IN Waypoint q: " << wp_queue.in().q.transpose() << std::endl;
-            std::cout << "OUT Waypoint q: " << wp_queue.out().q.transpose() << std::endl;
-            
+            // std::cout << "====================================" << std::endl;
+            // std::cout << "IN Waypoint q: " << wp_queue.in().q.transpose() << std::endl;
+            // std::cout << "OUT Waypoint q: " << wp_queue.out().q.transpose() << std::endl;
             // std::cout << "PREVIOUS Waypoint q: " << previous.q.transpose() << std::endl;
             // std::cout << "NEXT Waypoint q: " << next.q.transpose() << std::endl;
 
 
+            if (wp_queue.in().q.size() == next.q.size() && wp_queue.in().q != next.q) {
+                previous = next;
+                wp_queue.pop(next); 
 
-            // build_p2p_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
-            //         std::vector<double>* vnorm, Trajectory& out, const double t_end,
-            //         double& t, RobotModel& robot, double dt,
-            //         const Eigen::VectorXd& va,
-            //         const Eigen::VectorXd& aa,
-            //         const Eigen::VectorXd& vb,
-            //         const Eigen::VectorXd& ab)
+                build_p2p_traj(previous.q, next.q, &vnorm, traj, dt,
+                    t, robot_model, dt,previous.qd, previous.qdd, next.qd, next.qdd);
+
+                std::cout << "NEXT Waypoint q: " << next.q.transpose() << std::endl;
+                i = 0;
+            }
+
+            std::cout << "Waypoint q: " << traj.wp[i++].q.transpose() << std::endl;
+            
 
 
             franka::JointPositions q{q_start};
