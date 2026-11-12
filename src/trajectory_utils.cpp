@@ -283,13 +283,13 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
     q_robot_temp.reserve(q_robot.size() + 1);
     t_robot_temp.reserve(q_robot.size() + 1);
 
-    std::cout << std::endl;
-    std::cout << "t_data: ";
-    for (const auto& t : t_data) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // std::cout << "t_data: ";
+    // for (const auto& t : t_data) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << std::endl;
 
     // Offset added to the recorded timestamps of the waypoints that are
     // still to be reached. It is computed from the time actually left in
@@ -309,13 +309,13 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
     q_robot = q_robot_temp;
     t_robot = t_robot_temp;
 
-    std::cout << std::endl;
-    std::cout << "t_robot: ";
-    for (const auto& t : t_robot) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // std::cout << "t_robot: ";
+    // for (const auto& t : t_robot) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << std::endl;
 
     // ── Partial segment assembly ────────────────────────────────────────────
     // The waypoints before the restart point are unchanged, so the samples of
@@ -362,13 +362,13 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
     q_robot_temp.reserve(q_robot.size() + 2);
     t_robot_temp.reserve(q_robot.size() + 2);
 
-    std::cout << std::endl;
-    std::cout << "t_data: ";
-    for (const auto& t : t_data) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // std::cout << "t_data: ";
+    // for (const auto& t : t_data) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << std::endl;
 
     // Offset added to the recorded timestamps of the waypoints that are
     // still to be reached. It is computed from the time actually left in
@@ -390,13 +390,13 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
     q_robot = q_robot_temp;
     t_robot = t_robot_temp;  
 
-    std::cout << std::endl;
-    std::cout << "t_robot: ";
-    for (const auto& t : t_robot) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // std::cout << "t_robot: ";
+    // for (const auto& t : t_robot) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << std::endl;
 
 
     // ── Partial segment assembly ────────────────────────────────────────────

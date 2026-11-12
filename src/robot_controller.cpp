@@ -1,16 +1,34 @@
-#include <franka/robot.h>
-#include <franka/exception.h>
 #include <array>
 #include <vector>
+#include <chrono>
+#include <charconv>
 #include <cmath>
+#include <thread>
 #include <algorithm>
+#include <filesystem>
 #include <Eigen/Dense>
+
+#include <franka/robot.h>
+#include <franka/control_types.h>
+#include <franka/duration.h>
+#include <franka/robot_state.h>
+#include <franka/exception.h>
+#include <franka/model.h>
+#include <franka/rate_limiting.h>
 
 #include "utils.hpp"
 #include "data_transmitter.hpp"
 #include "trajectory_utils.hpp"
+#include "project_root.hpp"
+#include "shared_state.h"
+#include "robot_model.hpp"
+#include "examples_common.hpp"
 
 // struct Sample { double t; std::array<double,7> q, dq; };
+
+// ── Parameters ──────────────────────────────────────────────────────────────
+const double rate_hz = 60.0;
+const double dt      = 1.0 / rate_hz;
 
 /*std::array<double,7> hermite(const Sample& a, const Sample& b, double t) {
   double h = b.t - a.t;
@@ -43,19 +61,58 @@ std::array<double,7> quintic(const WP& a, const WP& b, double t) {
 }*/
 
 static Waypoint receiveRobotStates(DataTransmitter& tx) {
-        const std::vector<nlohmann::json> data = tx.receive_data();
-        std::cout << "data[2]: " << data[2] << std::endl;
-        std::cout << "data[3]: " << data[3] << std::endl;
+    const std::vector<nlohmann::json> data = tx.receive_data();
+    // std::cout << "data[2]: " << data[2] << std::endl;
+    // std::cout << "data[3]: " << data[3] << std::endl;
 
-        if (data.empty()) return {};
-        Waypoint wp;
-        wp.q = json_to_robotstate(data[2]);
-        wp.qd = json_to_robotstate(data[3]);
-        return wp;
+    if (data.empty()) return {};
+    Waypoint wp;
+    wp.q = json_to_robotstate(data[2]);
+    wp.qd = json_to_robotstate(data[3]);
+    wp.qdd = json_to_robotstate(data[4]);
+    return wp;
+}
+
+
+void robotStatesThread(DataTransmitter& transmitter, SpcsRingBuffer<Waypoint, 5>& wp_queue) {
+    Waypoint wp;
+    while (!stop_flag.load(std::memory_order_acquire)) {
+        auto t1 = std::chrono::steady_clock::now();
+        wp = receiveRobotStates(transmitter);
+
+        
+
+        wp_queue.push(wp);
+        std::cout << "NEW Waypoint q: " << wp.q.transpose() << std::endl;
+        auto t2 = std::chrono::steady_clock::now();
+        std::cout << "\rt: " << static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()) << std::endl;
+    }
+}
+
+
+int controller(int n_traj, const std::filesystem::path& root) {
+    // ── Kinematic model ─────────────────────────────────────────────────────
+    const std::filesystem::path urdf = root / "src" / "urdf" / "panda.urdf";
+    if (!std::filesystem::exists(urdf)) {
+        std::cerr << "URDF not found: " << urdf.string() << "\n";
+        return 1;
+    }
+    RobotModel robot_model(urdf.string());
+
+    // ── Nominal trajectory construction ──────────────────────────────────────
+    const std::filesystem::path traj_dir =
+        root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
+
+    Trajectory nominal_traj;
+    try {
+        nominal_traj = load_trajectory(robot_model, root.string() + "/", n_traj, dt);
+    } catch (const std::exception& e) {
+        std::cerr << "Cannot load the nominal trajectory from " << traj_dir << ": "
+                  << e.what() << "\n";
+        return 1;
     }
 
-
-int main() {
+    // ── Franka robot initialization ─────────────────────────────────────────
     franka::Robot robot("172.16.0.2");
     robot.setCollisionBehavior(
         {{20,20,18,18,16,14,12}}, {{20,20,18,18,16,14,12}},
@@ -63,49 +120,126 @@ int main() {
         {{20,20,20,25,25,25}}, {{20,20,20,25,25,25}},
         {{20,20,20,25,25,25}}, {{20,20,20,25,25,25}});
 
+    std::array<double, 7> q_start;
+    std::copy(nominal_traj.wp[0].q.begin(), nominal_traj.wp[0].q.end(), q_start.begin());
+
+    // std::cout << "nominal q = " << nominal_traj.wp[0].q.transpose() << std::endl; 
+    // std::cout << "array q = "; for (auto p : q_start) {std::cout << p << ", ";}; std::cout << std::endl; 
+
+
+
+    MotionGenerator motion_generator(0.3, q_start);
+    std::cout << "WARNING: This example will move the robot! "
+            << "Please make sure to have the user stop button at hand!" << std::endl
+            << "Press Enter to continue..." << std::endl;
+    std::cin.ignore();
+    // robot.control(motion_generator);
+    std::cout << "Finished moving to initial joint configuration." << std::endl;
+
     // ── Data transmitters ───────────────────────────────────────────────────
     DataTransmitter transmitter = DataTransmitter(DataTransmitter::Mode::Receiver, 12, "ROBOT");
 
-    Waypoint waypoint;
+    SpcsRingBuffer<Waypoint, 5> wp_queue;
+    std::thread states_thread(robotStatesThread, std::ref(transmitter), std::ref(wp_queue));
 
-    while (true) {
-        waypoint = receiveRobotStates(transmitter);
-        std::cout << "q: " << waypoint.q.transpose() << " - qd: "  << waypoint.qd.transpose() << std::endl;
-    }
-
-    /*double time = 0.0;
-    size_t k = 0;
+    Waypoint previous;
+    Waypoint next = nominal_traj.wp[0];
+    double time = 0.0;
+    // std::array<Waypoint, 2> buf;
     try {
         robot.control([&](const franka::RobotState& state,
                         franka::Duration period) -> franka::JointPositions {
-        // time += period.toSec();
-        // if (time == period.toSec()) { // primo ciclo: verifica che state.q ≈ traj[0].q }
-    // 
-        // while (k + 2 < traj.size() && time > traj[k+1].t) ++k;
-        // double tt = std::min(time, traj.back().t);
-        // franka::JointPositions out(hermite(traj[k], traj[k+1], tt));
-        // out.motion_finished = (time >= traj.back().t);
-        // return out;
+            // previous = next;
+            // wp_queue.pop(next);
 
-        struct Segment { };
-        std::array<Segment, 2> buf;
-        std::atomic<int> active{0};
+            std::cout << "IN Waypoint q: " << wp_queue.in().q.transpose() << std::endl;
+            std::cout << "OUT Waypoint q: " << wp_queue.out().q.transpose() << std::endl;
+            
+            // std::cout << "PREVIOUS Waypoint q: " << previous.q.transpose() << std::endl;
+            // std::cout << "NEXT Waypoint q: " << next.q.transpose() << std::endl;
 
-        // thread 60 Hz (non RT): scrive nel buffer inattivo, poi swap
-        int idle = 1 - active.load(std::memory_order_acquire);
-        buf[idle] = build_blended_segment(// ultimo q_d, dq_d, nuovi waypoint);
-        active.store(idle, std::memory_order_release);
 
-        // callback 1 kHz: legge solo buf[active], nessun lock né allocazione
 
-        // loop RT (callback di robot.control)
-            time += period.toSec();
-            while (time >= w1.t) {
-            WP next;
-            if (queue.pop(next)) { w0 = w1; w1 = next; }
-            return franka::JointPositions(quintic(w0, w1, std::min(time, w1.t)));
+            // build_p2p_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
+            //         std::vector<double>* vnorm, Trajectory& out, const double t_end,
+            //         double& t, RobotModel& robot, double dt,
+            //         const Eigen::VectorXd& va,
+            //         const Eigen::VectorXd& aa,
+            //         const Eigen::VectorXd& vb,
+            //         const Eigen::VectorXd& ab)
+
+
+            franka::JointPositions q{q_start};
+            return q;
+
+            // // thread 60 Hz (non RT): scrive nel buffer inattivo, poi swap
+            // int idle = 1 - active.load(std::memory_order_acquire);
+            // buf[idle] = build_blended_segment(// ultimo q_d, dq_d, nuovi waypoint);
+            // active.store(idle, std::memory_order_release);
+// 
+            // // callback 1 kHz: legge solo buf[active], nessun lock né allocazione
+// 
+            // // loop RT (callback di robot.control)
+            // time += period.toSec();
+            // while (time >= w1.t) {
+            // WP next;
+            // if (queue.pop(next)) { w0 = w1; w1 = next; }
+            // return franka::JointPositions(quintic(w0, w1, std::min(time, w1.t)));
         });
     } catch (const franka::Exception& e) {
         std::cerr << e.what() << std::endl;
-    }*/
+    }
+
+    stop_flag.store(true, std::memory_order_release);
+    states_thread.join();
+
+    return 0;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entry point: parse the trajectory index and working directory, then run the
+// task
+// ─────────────────────────────────────────────────────────────────────────────
+int main(int argc, char* argv[]) {
+    // ── Command line: <trajectory index> [repository root] ──────────────────
+    int n_traj = -1;
+    std::string root_arg;
+    if (argc > 1) {
+        try {
+            std::string arg(argv[1]);
+            const char* begin = arg.data();
+            const char* end   = arg.data() + arg.size();
+            auto [ptr, ec] = std::from_chars(begin, end, n_traj);
+            if (ec != std::errc{} || ptr != end || n_traj < 0)
+                throw 1;
+        }
+        catch (int) {
+            std::cerr << "Error: the trajectory index must be a valid non-negative integer."
+                      << std::endl;
+            return 1;
+        }
+    }
+    else {
+        std::cerr << "Error: the trajectory index is required "
+                     "(usage: " << argv[0] << " <traj_index> [repo_dir])." << std::endl;
+        return 1;
+    }
+    if (argc > 2) root_arg = argv[2];
+
+    const std::filesystem::path root = findProjectRoot(root_arg);
+
+    try {
+        if (controller(n_traj, root)) return 1;
+    }
+    catch (const std::exception& e) {
+        // Anything unexpected exits cleanly with a clear message, instead of
+        // terminating the process with a core dump.
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+
+    printf("Exiting cleanly...\n");
+
+    return 0;
 }

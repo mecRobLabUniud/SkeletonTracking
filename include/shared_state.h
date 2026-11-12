@@ -49,10 +49,10 @@ struct LogSample {
     DistanceResult distance;
 };
 
-template <size_t N>
+template <typename T, size_t N>
 class SpcsRingBuffer {
 public:
-    bool push (const LogSample& item) {
+    bool push(const T& item) {
         size_t head = head_.load(std::memory_order_relaxed);
         size_t next = (head + 1) % N;
         if (next == tail_.load(std::memory_order_acquire)) return false; // full, so drop
@@ -61,7 +61,7 @@ public:
         return true;
     }
     
-    bool pop (LogSample& item) {
+    bool pop(T& item) {
         size_t tail = tail_.load(std::memory_order_relaxed);
         if (tail == head_.load(std::memory_order_acquire)) return false; // empty
         item = buf_[tail];
@@ -69,9 +69,18 @@ public:
         return true;
     }
 
+    T in() {
+        size_t head = head_.load(std::memory_order_acquire);
+        return buf_[(head + N - 1) % N];
+    }
+
+    T out() {
+        return buf_[tail_.load(std::memory_order_acquire)];
+    }
+
 private:
-    std::array<LogSample, N> buf_;
+    std::array<T, N> buf_;
     std::atomic<size_t> head_{0}, tail_{0};
 };
 
-inline SpcsRingBuffer<1024> log_queue;
+inline SpcsRingBuffer<LogSample, 1024> log_queue;
