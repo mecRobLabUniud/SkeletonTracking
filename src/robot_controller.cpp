@@ -180,9 +180,11 @@ int controller(int n_traj, const std::filesystem::path& root) {
             if (!real_traj.wp.empty() && i < static_cast<int>(real_traj.wp.size())) {
                 std::cout << "Waypoint q: " << real_traj.wp[i++].q.transpose() << std::endl;
             }
-            
 
-            std::copy(real_traj.wp[i++].q.begin(), real_traj.wp[i++].q.end(), q_ref.begin());
+            if (!real_traj.wp.empty() && i < static_cast<int>(real_traj.wp.size())) {
+                std::copy(real_traj.wp[i].q.begin(), real_traj.wp[i].q.end(), q_ref.begin());
+            }
+
             franka::JointPositions q{q_ref};
             return q;
 
