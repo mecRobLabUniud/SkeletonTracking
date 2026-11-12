@@ -83,9 +83,8 @@ void robotStatesThread(DataTransmitter& transmitter, SpcsRingBuffer<Waypoint, 2>
         
 
         wp_queue.push(wp);
-        std::cout << "############### NEW Waypoint q: " << wp.q.transpose() << std::endl;
         auto t2 = std::chrono::steady_clock::now();
-        std::cout << "\rt: " << static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()) << std::endl;
+        // std::cout << "\rt: " << static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()) << std::endl;
     }
 }
 
@@ -104,6 +103,7 @@ int controller(int n_traj, const std::filesystem::path& root) {
         root / "src" / "trajectories" / ("test" + std::to_string(n_traj));
 
     Trajectory nominal_traj;
+    Trajectory real_traj;
     try {
         nominal_traj = load_trajectory(robot_model, root.string() + "/", n_traj, dt);
     } catch (const std::exception& e) {
@@ -120,15 +120,15 @@ int controller(int n_traj, const std::filesystem::path& root) {
         {{20,20,20,25,25,25}}, {{20,20,20,25,25,25}},
         {{20,20,20,25,25,25}}, {{20,20,20,25,25,25}});
 
-    std::array<double, 7> q_start;
-    std::copy(nominal_traj.wp[0].q.begin(), nominal_traj.wp[0].q.end(), q_start.begin());
+    std::array<double, 7> q_ref;
+    std::copy(nominal_traj.wp[0].q.begin(), nominal_traj.wp[0].q.end(), q_ref.begin());
 
     // std::cout << "nominal q = " << nominal_traj.wp[0].q.transpose() << std::endl; 
     // std::cout << "array q = "; for (auto p : q_start) {std::cout << p << ", ";}; std::cout << std::endl; 
 
 
 
-    MotionGenerator motion_generator(0.3, q_start);
+    MotionGenerator motion_generator(0.3, q_ref);
     std::cout << "WARNING: This example will move the robot! "
             << "Please make sure to have the user stop button at hand!" << std::endl
             << "Press Enter to continue..." << std::endl;
@@ -146,7 +146,6 @@ int controller(int n_traj, const std::filesystem::path& root) {
     Waypoint next = nominal_traj.wp[0];
     double time = 0.0;
     std::vector<double> vnorm;
-    Trajectory traj;
     // std::array<Waypoint, 2> buf;
     int i = 0;
     double t = 0.0;
@@ -161,22 +160,30 @@ int controller(int n_traj, const std::filesystem::path& root) {
             // std::cout << "NEXT Waypoint q: " << next.q.transpose() << std::endl;
 
 
-            if (wp_queue.in().q.size() == next.q.size() && wp_queue.in().q != next.q) {
+            Waypoint in_wp = wp_queue.in();
+            if (!wp_queue.empty() && in_wp.q.size() == next.q.size() && in_wp.q != next.q) {
                 previous = next;
-                wp_queue.pop(next); 
+                wp_queue.pop(next);
 
-                build_p2p_traj(previous.q, next.q, &vnorm, traj, dt,
-                    t, robot_model, dt,previous.qd, previous.qdd, next.qd, next.qdd);
+                
 
+                build_p2p_traj(previous.q, next.q, &vnorm, real_traj, dt,
+                    t, robot_model, 0.001, previous.qd, previous.qdd, next.qd, next.qdd);
+
+                std::cout << "PREVIOUS Waypoint q: " << previous.q.transpose() << std::endl;
                 std::cout << "NEXT Waypoint q: " << next.q.transpose() << std::endl;
-                i = 0;
+                // t += dt;
+
+                
             }
 
-            std::cout << "Waypoint q: " << traj.wp[i++].q.transpose() << std::endl;
+            if (!real_traj.wp.empty() && i < static_cast<int>(real_traj.wp.size())) {
+                std::cout << "Waypoint q: " << real_traj.wp[i++].q.transpose() << std::endl;
+            }
             
 
-
-            franka::JointPositions q{q_start};
+            std::copy(real_traj.wp[i++].q.begin(), real_traj.wp[i++].q.end(), q_ref.begin());
+            franka::JointPositions q{q_ref};
             return q;
 
             // // thread 60 Hz (non RT): scrive nel buffer inattivo, poi swap

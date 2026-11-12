@@ -75,7 +75,10 @@ void build_p2p_traj(const Eigen::VectorXd& a, const Eigen::VectorXd& b,
                     const Eigen::VectorXd& ab) {
     // The segment is sampled at the control rate, so that the playback
     // takes exactly the recorded duration.
+
     const int n = std::max(2, static_cast<int>(std::lround(t_end / dt)));
+
+    std::cout << "t_end: " << t_end << " - dt: " << dt << " - n: " << n  << std::endl;
 
     Traj tr = QuinticPolyTraj(a, b, t_end, dt, n, va, aa, vb, ab);
 

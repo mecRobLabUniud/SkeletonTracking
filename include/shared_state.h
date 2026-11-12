@@ -56,6 +56,14 @@ public:
         size_t head = head_.load(std::memory_order_relaxed);
         size_t next = (head + 1) % N;
         if (next == tail_.load(std::memory_order_acquire)) return false; // full, so drop
+        // size_t tail = tail_.load(std::memory_order_acquire);
+        // if (next == tail) {
+        //     // Buffer full: overwrite oldest item, advance tail too
+        //     buf_[head] = item;
+        //     head_.store(next, std::memory_order_release);
+        //     tail_.store((tail + 1) % N, std::memory_order_release);
+        //     return true;
+        // }
         buf_[head] = item;
         head_.store(next, std::memory_order_release);
         return true;
@@ -67,6 +75,10 @@ public:
         item = buf_[tail];
         tail_.store((tail + 1) % N, std::memory_order_release);
         return true;
+    }
+
+    bool empty() const {
+        return tail_.load(std::memory_order_acquire) == head_.load(std::memory_order_acquire);
     }
 
     T in() {
