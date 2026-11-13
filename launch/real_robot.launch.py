@@ -29,20 +29,17 @@ Usage::
     # Hardware stack only (no motion)
     ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py
 
-    # Hardware stack + controller, dry run (builds/logs, sends nothing)
+    # Hardware stack + controller: the arm moves to the start pose as soon as
+    # the controller is up, then follows the live stream
     ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
-        start_controller:=true traj_index:=3 dry_run:=true
-
-    # Hardware stack + controller, real motion (follows the live stream)
-    ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
-        start_controller:=true traj_index:=3 dry_run:=false
+        start_controller:=true traj_index:=3
 
 If the robot is not already at the trajectory start pose, measure the largest
 single-joint offset and raise ``max_approach_distance`` to cover it, e.g.::
 
     ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
-        start_controller:=true traj_index:=3 dry_run:=false \
-        approach_duration:=8.0 max_approach_distance:=2.0
+        start_controller:=true traj_index:=3 \
+        start_duration:=8.0 max_approach_distance:=2.0
 
 The approach is a quintic joint-space move with zero velocity/acceleration at
 both ends, so a longer ``approach_duration`` makes the move gentler.
@@ -71,8 +68,8 @@ chunk_lead`` seconds; move the robot close to the trajectory start pose (and
 lower ``approach_duration``) to reduce it.
 
 Safety: keep the enabling device (E-stop) in reach, clear the workspace and
-place the robot close to the trajectory start pose before setting
-``dry_run:=false``.  The controller refuses to move if the robot is farther
+place the robot close to the trajectory start pose before launching
+with ``start_controller:=true``.  The controller refuses to move if the robot is farther
 than ``max_approach_distance`` from the first trajectory point.
 """
 
@@ -264,12 +261,12 @@ def _optional_controller(context, namespace):
     published by main_SSM and sends the accumulated trajectory to the effort
     JointTrajectoryController started by ``_real_robot_group``.
     """
-    from launch.actions import ExecuteProcess, TimerAction
+    from launch.actions import ExecuteProcess
 
     executable = LaunchConfiguration('controller_executable').perform(context)
     repo_dir = LaunchConfiguration('repo_dir').perform(context)
     traj_index = LaunchConfiguration('traj_index').perform(context)
-    dry_run = LaunchConfiguration('dry_run').perform(context)
+    start_duration = LaunchConfiguration('start_duration').perform(context)
     stream_timeout = LaunchConfiguration('stream_timeout').perform(context)
     approach_duration = LaunchConfiguration('approach_duration').perform(context)
     max_approach_distance = LaunchConfiguration('max_approach_distance').perform(context)
@@ -287,7 +284,7 @@ def _optional_controller(context, namespace):
             executable, traj_index, repo_dir,
             '--ros-args',
             '-r', '__ns:=/' + namespace,
-            '-p', 'dry_run:=' + dry_run,
+            '-p', 'start_duration:=' + start_duration,
             '-p', 'controller_action:=/' + namespace +
                   '/panda_effort_jtc/follow_joint_trajectory',
             '-p', 'joint_state_topic:=/' + namespace + '/joint_states',
@@ -307,9 +304,9 @@ def _optional_controller(context, namespace):
         condition=IfCondition(LaunchConfiguration('start_controller')),
     )
 
-    # Give the controller manager a moment to load the JTC before the node
-    # starts waiting for its action server.
-    return [TimerAction(period=3.0, actions=[controller])]
+    # No start-up timer: the controller waits by itself for the joint states
+    # and the action server, then moves to the start pose right away.
+    return [controller]
 
 
 def generate_launch_description():
@@ -347,9 +344,10 @@ def generate_launch_description():
             default_value='1',
             description='Trajectory index passed to robot_controller_ros2.'),
         DeclareLaunchArgument(
-            'dry_run',
-            default_value='true',
-            description='robot_controller_ros2: build/log without sending.'),
+            'start_duration',
+            default_value='3.0',
+            description='Duration of the initial move to the first '
+                        'trajectory point (s).'),
         DeclareLaunchArgument(
             'stream_timeout',
             default_value='5.0',
