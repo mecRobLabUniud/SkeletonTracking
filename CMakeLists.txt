@@ -175,3 +175,42 @@ target_link_libraries(robot_controller PRIVATE
     rt
 )
 
+
+# ── Robot controller (ROS2 / multipanda_ros2) ─────────────────────────────
+# ROS2 port of robot_controller.cpp.  It receives the ROBOT_12 stream and sends
+# the accumulated trajectory through a FollowJointTrajectory action, like
+# multipanda_ws/src/panda_test1_effort/src/test1_trajectory_sender.cpp.
+# Built only when a ROS2 environment is sourced (rclcpp is found).
+find_package(rclcpp QUIET)
+if(rclcpp_FOUND)
+    find_package(rclcpp_action REQUIRED)
+    find_package(control_msgs REQUIRED)
+    find_package(trajectory_msgs REQUIRED)
+    find_package(sensor_msgs REQUIRED)
+    find_package(std_srvs REQUIRED)
+    find_package(builtin_interfaces REQUIRED)
+
+    add_executable(robot_controller_ros2
+        src/robot_controller_ros2.cpp
+        src/trajectory_utils.cpp
+        src/robot_model.cpp
+        src/trajectory_loader.cpp
+    )
+    target_link_libraries(robot_controller_ros2 PRIVATE
+        Eigen3::Eigen
+        pinocchio::pinocchio
+        ${ZMQ_LIBRARIES}
+        Threads::Threads
+        nlohmann_json::nlohmann_json
+        rclcpp::rclcpp
+        rclcpp_action::rclcpp_action
+        ${builtin_interfaces_TARGETS}
+        ${control_msgs_TARGETS}
+        ${trajectory_msgs_TARGETS}
+        ${sensor_msgs_TARGETS}
+        ${std_srvs_TARGETS}
+    )
+    message(STATUS "robot_controller_ros2: building against the sourced ROS2 environment")
+else()
+    message(STATUS "rclcpp not found; robot_controller_ros2 skipped (source ROS2 to build it)")
+endif()
