@@ -114,7 +114,7 @@ The real-robot ROS 2 bridge is built separately against ROS 2 Humble (see
 
 | Executable | Purpose |
 |------------|---------|
-| `build_ros2/robot_controller_ros2` | Accumulates the `ROBOT_12` stream and sends it as one `FollowJointTrajectory` goal to the real Panda |
+| `build_ros2/robot_controller_ros2` | Follows the `ROBOT_12` stream live or, with `streaming:=false`, sends it as one `FollowJointTrajectory` goal to the real Panda |
 
 ## Real robot — ROS 2 stack
 
@@ -128,7 +128,7 @@ move through the effort `JointTrajectoryController`:
 | `franka_control2_node` | controller manager + Franka hardware interface |
 | `joint_state_broadcaster`, `franka_robot_state_broadcaster` | state feedback |
 | `panda_effort_jtc` | effort-based `joint_trajectory_controller/JointTrajectoryController` |
-| `robot_controller_ros2` (optional) | receives `ROBOT_12`, sends the trajectory as one goal |
+| `robot_controller_ros2` (optional) | receives `ROBOT_12` and follows it live (`streaming:=true`), or sends one goal at the end |
 
 Everything except `robot_controller_ros2` runs in the `real` namespace, so the
 action server is `/real/panda_effort_jtc/follow_joint_trajectory` and the joint
@@ -174,7 +174,7 @@ ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py
 ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
     start_controller:=true traj_index:=3 dry_run:=true
 
-# Hardware stack + controller, real motion
+# Hardware stack + controller, real motion (follows the live stream)
 ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
     start_controller:=true traj_index:=3 dry_run:=false \
     approach_duration:=8.0 max_approach_distance:=2.0
@@ -214,29 +214,59 @@ cd /home/lab/SkeletonTracking
 ./run.sh --stream --test 7 --robot --traj 3 --core SSM
 ```
 
-`main_SSM` publishes `ROBOT_12`; `robot_controller_ros2` accumulates it and sends
-one `FollowJointTrajectory` goal when the stream ends (`stream_timeout`, `5.0` s
-in the launch file) or on demand:
+`main_SSM` publishes `ROBOT_12`; `robot_controller_ros2` follows it live. About
+one second after the first messages it sends the first goal (approach + one
+chunk of `chunk_duration`) and then keeps replacing the active goal with the
+next chunk `chunk_lead` seconds before the current one ends, so the robot starts
+moving immediately instead of waiting for the end of the stream. If no new data
+arrives, the robot finishes the last chunk and stops. The robot lags the stream
+by roughly `approach_duration + chunk_duration + chunk_lead`; starting close to
+the trajectory start pose (and lowering `approach_duration`) reduces the lag.
+
+Controller services:
 
 ```bash
-# send the accumulated trajectory now (e.g. during a zero-velocity safety hold)
-ros2 service call /real/robot_controller_ros2/send std_srvs/srv/Trigger "{}"
-
-# cancel the goal that is currently executing
+# stop streaming and cancel the goal that is currently executing
 ros2 service call /real/robot_controller_ros2/cancel std_srvs/srv/Trigger "{}"
+
+# streaming:=false only: send the accumulated trajectory now
+ros2 service call /real/robot_controller_ros2/send std_srvs/srv/Trigger "{}"
 ```
 
-Expected controller log:
+Expected controller log in streaming mode:
 
 ```
+Streaming: waiting for more ROBOT_12 data (17/1000 samples available).
+Stream chunk (approach): samples [0, 1000), 1300 points, 3.999 s, max |qd| ... rad/s, ...
+Stream chunk: samples [700, 1700), 820 points, 0.999 s, max |qd| ... rad/s, ...
+Stream chunk: samples [1400, 2400), 820 points, 0.999 s, max |qd| ... rad/s, ...
+...
 ROBOT_12 stream ended (N trajectory samples).
-Built trajectory: P points, T s, max |qd| ... rad/s, max |qdd| ... rad/s^2.
-Trajectory goal accepted; the robot is now executing it.
-Tracking max |position error| = ... rad.
-Trajectory finished with code SUCCESSFUL (0): Goal successfully reached!
 ```
 
-Reference run (test 7 → trajectory 3, robot 1.204 rad from the start pose):
+Each chunk starts about 700 samples (0.7 s) after the previous one; the overlap
+(`chunk_duration - chunk_lead`) is the preemption margin. If the data source is
+slower than the recorded trajectory (for example while `main_SSM` computes a
+stop/restart at ~1 Hz), the controller sends shorter chunks built from the
+newest data instead of stopping the robot, and the lag grows accordingly.
+
+Streaming launch arguments (passed straight to the controller):
+
+| Argument | Default | Meaning |
+|----------|---------|---------|
+| `streaming` | `true` | follow the stream live; `false` = accumulate and send once at the end |
+| `chunk_duration` | `1.0` s | trajectory played by each streamed goal |
+| `chunk_lead` | `0.3` s | send the next chunk this long before the current one ends |
+| `chunk_ramp` | `0.2` s | blend from the measured pose into each chunk |
+| `min_chunk_duration` | `0.3` s | smallest amount of new data worth a goal |
+| `max_chunk_step` | `0.35` rad | refuse a chunk whose first move is larger (safety clamp) |
+| `max_ramp_velocity` | `1.0` rad/s | stretch the blend if it would be faster |
+
+To use the old accumulate-and-send-once behaviour, add `streaming:=false` to
+the launch command.
+
+Reference run in the non-streaming mode (`streaming:=false`, test 7 →
+trajectory 3, robot 1.204 rad from the start pose):
 
 | Metric | Value |
 |--------|-------|
@@ -251,12 +281,14 @@ Reference run (test 7 → trajectory 3, robot 1.204 rad from the start pose):
 
 - `run.sh` replays recorded skeletons in a loop, so the person never leaves the
   workspace and `main_SSM` keeps inserting 5 s safety stops. The stream may run
-  for minutes before it ends; the robot only moves when a goal is sent, and
-  `~/send` lets you trigger it during a hold.
+  for minutes: streaming keeps the robot moving with it, while
+  `streaming:=false` waits for the end of the stream or a manual `~/send`.
 - A manual `~/send` marks the trajectory as sent, so the end-of-stream path will
   not send it a second time.
-- The controller refuses to send while a goal is already active. To send again,
-  wait for the goal to finish or call `~/cancel` first.
+- `~/send` is rejected while streaming; use `~/cancel` to stop streaming and
+  cancel the active goal. A new goal preempts the previous one (the effort JTC
+  reports the old goal as `SUCCESSFUL`), which is what makes continuous
+  streaming possible.
 - The launch file stops the whole stack if `franka_control2_node` exits (the
   robot falls back to idle).
 

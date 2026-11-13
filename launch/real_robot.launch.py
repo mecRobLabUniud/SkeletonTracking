@@ -14,7 +14,8 @@ This launches every node that the real robot needs in order to move through the
     SSM/``robot_controller_ros2`` pipeline
   * optional Franka Hand driver
   * optional robot_controller_ros2, which receives the ``ROBOT_12`` stream and
-    sends the accumulated trajectory to the controller above
+    either follows it live (``streaming:=true``, the default) or sends the
+    accumulated trajectory to the controller above when the stream ends
 
 Everything except the optional controller runs in the ``real`` namespace, so
 the action server is ``/real/panda_effort_jtc/follow_joint_trajectory`` and the
@@ -32,7 +33,7 @@ Usage::
     ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
         start_controller:=true traj_index:=3 dry_run:=true
 
-    # Hardware stack + controller, real motion
+    # Hardware stack + controller, real motion (follows the live stream)
     ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
         start_controller:=true traj_index:=3 dry_run:=false
 
@@ -51,11 +52,23 @@ The ``ROBOT_12`` stream itself comes from the SSM pipeline, typically::
     ./run.sh --stream --test 7 --robot --traj 3 --core SSM
 
 While the person stays inside the robot workspace, ``main_SSM`` keeps inserting
-safety stops and never ends the stream; the controller then only sends when the
-stream ends (``stream_timeout`` elapsed) or when its ``~/send`` service is
-called::
+safety stops and never ends the stream.  With ``streaming:=true`` (the default)
+the controller does not wait for the end of the stream: about one second after
+the first ``ROBOT_12`` messages it sends the first goal (approach + one chunk)
+and then keeps replacing the active goal with the next chunk, so the robot
+follows the person live.  ``streaming:=false`` restores the accumulate and
+send-at-the-end behaviour, in which case the trajectory is only sent when the
+stream ends (``stream_timeout`` elapsed) or when ``~/send`` is called::
 
     ros2 service call /real/robot_controller_ros2/send std_srvs/srv/Trigger "{}"
+
+In streaming mode ``~/cancel`` stops the streaming and cancels the active goal::
+
+    ros2 service call /real/robot_controller_ros2/cancel std_srvs/srv/Trigger "{}"
+
+The robot lags the stream by roughly ``approach_duration + chunk_duration +
+chunk_lead`` seconds; move the robot close to the trajectory start pose (and
+lower ``approach_duration``) to reduce it.
 
 Safety: keep the enabling device (E-stop) in reach, clear the workspace and
 place the robot close to the trajectory start pose before setting
@@ -261,6 +274,13 @@ def _optional_controller(context, namespace):
     approach_duration = LaunchConfiguration('approach_duration').perform(context)
     max_approach_distance = LaunchConfiguration('max_approach_distance').perform(context)
     start_tolerance = LaunchConfiguration('start_tolerance').perform(context)
+    streaming = LaunchConfiguration('streaming').perform(context)
+    chunk_duration = LaunchConfiguration('chunk_duration').perform(context)
+    chunk_lead = LaunchConfiguration('chunk_lead').perform(context)
+    chunk_ramp = LaunchConfiguration('chunk_ramp').perform(context)
+    min_chunk_duration = LaunchConfiguration('min_chunk_duration').perform(context)
+    max_chunk_step = LaunchConfiguration('max_chunk_step').perform(context)
+    max_ramp_velocity = LaunchConfiguration('max_ramp_velocity').perform(context)
 
     controller = ExecuteProcess(
         cmd=[
@@ -275,6 +295,13 @@ def _optional_controller(context, namespace):
             '-p', 'approach_duration:=' + approach_duration,
             '-p', 'max_approach_distance:=' + max_approach_distance,
             '-p', 'start_tolerance:=' + start_tolerance,
+            '-p', 'streaming:=' + streaming,
+            '-p', 'chunk_duration:=' + chunk_duration,
+            '-p', 'chunk_lead:=' + chunk_lead,
+            '-p', 'chunk_ramp:=' + chunk_ramp,
+            '-p', 'min_chunk_duration:=' + min_chunk_duration,
+            '-p', 'max_chunk_step:=' + max_chunk_step,
+            '-p', 'max_ramp_velocity:=' + max_ramp_velocity,
         ],
         output='screen',
         condition=IfCondition(LaunchConfiguration('start_controller')),
@@ -341,6 +368,36 @@ def generate_launch_description():
             'start_tolerance',
             default_value='0.15',
             description='Start-pose tolerance when approach_duration is 0.'),
+        DeclareLaunchArgument(
+            'streaming',
+            default_value='true',
+            description='Follow the ROBOT_12 stream live instead of sending '
+                        'one trajectory when the stream ends.'),
+        DeclareLaunchArgument(
+            'chunk_duration',
+            default_value='1.0',
+            description='Trajectory length played by each streamed goal (s).'),
+        DeclareLaunchArgument(
+            'chunk_lead',
+            default_value='0.3',
+            description='Send the next chunk this long before the current one '
+                        'ends (s).'),
+        DeclareLaunchArgument(
+            'chunk_ramp',
+            default_value='0.2',
+            description='Blend from the measured pose into each chunk (s).'),
+        DeclareLaunchArgument(
+            'min_chunk_duration',
+            default_value='0.3',
+            description='Smallest amount of new data worth a goal (s).'),
+        DeclareLaunchArgument(
+            'max_chunk_step',
+            default_value='0.35',
+            description='Refuse a chunk whose first move is larger (rad).'),
+        DeclareLaunchArgument(
+            'max_ramp_velocity',
+            default_value='1.0',
+            description='Stretch the blend if it would be faster (rad/s).'),
         DeclareLaunchArgument(
             'controller_executable',
             default_value='/home/lab/SkeletonTracking/build_ros2/robot_controller_ros2',
