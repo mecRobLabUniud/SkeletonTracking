@@ -203,12 +203,14 @@ public:
     // skipping it avoids waiting on a segment that may never be created.
     // ─────────────────────────────────────────────────────────────────────────────
     DataTransmitter(Mode mode, int device_id, const std::string& topic,
-                    int port = 6000, bool use_shm = true)
+                    int port = 6000, bool use_shm = true,
+                    const std::string& address = "localhost")
         : mode_(mode),
           device_id_(device_id),
           port_(port + device_id),
           topic_(topic),
           use_shm_(use_shm),
+          address_(address),
           nbytes_(static_cast<size_t>(params::H) * params::W * params::C) {
         if (mode_ == Mode::Sender) {
             setup_zmq_sender();
@@ -290,8 +292,11 @@ public:
             auto result = socket_->recv(zmsg, zmq::recv_flags::none);
             (void)result;
         } catch (const zmq::error_t& e) {
-            // EAGAIN/ETIMEDOUT: the receive timeout expired without a message
-            if (e.num() == EAGAIN || e.num() == ETIMEDOUT) return std::string();
+            // EAGAIN/ETIMEDOUT: the receive timeout expired without a message.
+            // EINTR: a signal interrupted the blocking receive (shutdown).
+            if (e.num() == EAGAIN || e.num() == ETIMEDOUT || e.num() == EINTR) {
+                return std::string();
+            }
             throw;
         }
         return std::string(static_cast<char*>(zmsg.data()), zmsg.size());
@@ -356,6 +361,7 @@ private:
     int port_;
     std::string topic_;
     bool use_shm_;
+    std::string address_;
     size_t nbytes_;
 
     zmq::context_t ctx_{1};
@@ -395,7 +401,7 @@ private:
         socket_->set(zmq::sockopt::conflate, 1);
         std::string filter = topic_ + "_" + std::to_string(device_id_);
         socket_->set(zmq::sockopt::subscribe, filter);
-        socket_->connect("tcp://localhost:" + std::to_string(port_));
+        socket_->connect("tcp://" + address_ + ":" + std::to_string(port_));
     }
 
     // ─────────────────────────────────────────────────────────────────────────────

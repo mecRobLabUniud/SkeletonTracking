@@ -18,6 +18,7 @@ The system streams skeletons from one or more Intel RealSense cameras, fuses the
 | Robot state        | `ROBOT_12`        | `6012` | `main` (robot mode) | `web_interface.py`  |
 | Min. distance      | `DISTANCE_13`     | `6013` | `main` (robot mode) | `web_interface.py`  |
 | Trajectory data    | `TRAJDATA_14`     | `6014` | `main` (robot mode) | `web_interface.py`  |
+| Waypoint stream    | `WAYPOINT_15`     | `6015` | `main` (robot mode) | `robot_waypoint_bridge` |
 
 Camera frames are exchanged out-of-band through POSIX shared memory segments named `shared_image{n}` (480×848×3), referenced by `device_id`.
 
@@ -103,6 +104,89 @@ This produces four executables in `build/`:
 | `build/main_SSMPFL`   | Safe-Stop + Position/Force-Limiting robot executor (`--core SSMPFL`)  |
 | `build/main_SSMPFLescape` | Safe-Stop + Position/Force-Limiting robot executor with escape (`--core SSMPFLescape`, the default) |
 | `build/rula_evaluation` | Receives the merged skeleton and publishes RULA scores      |
+| `build/robot_waypoint_bridge` | Receives `main_SSM`'s `Waypoint` stream and streams it to the real Panda through libfranka |
+
+## Real robot — streaming Waypoints to the Panda
+
+`robot_waypoint_bridge` receives `Waypoint` messages published by `main_SSM.cpp`
+over ZeroMQ (topic `WAYPOINT_15`, port `6015`, single JSON object per message)
+and streams them to a real Franka Panda with libfranka at 1 kHz.
+
+### Prerequisites
+
+- libfranka **0.8.0**, matching robot system **4.1.2** (FCI server version 4).
+  The workspace defaults to `/opt/libfranka-0.8.0`.
+- `libfranka.so.0.8` exposed via symlink in `/opt/libfranka/lib` (see
+  `docker/Dockerfile`); `LD_LIBRARY_PATH` must resolve it.
+- Direct L2 access for FCI UDP: attach the macvlan network `franka_macvlan`
+  (`172.16.0.100`) to the running container:
+  ```bash
+  docker network connect --ip 172.16.0.100 franka_macvlan R3D_project
+  ```
+- Robot IP `172.16.0.2`; keep the E-stop reachable.
+
+### Build
+
+```bash
+cd /home/lab/SkeletonTracking/build
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+  -DFRANKA_CMAKE_DIR=/opt/libfranka-0.8.0/lib/cmake/Franka
+make -j$(nproc) robot_waypoint_bridge main_SSM
+```
+
+`FRANKA_CMAKE_DIR` defaults to `/opt/libfranka-0.8.0/lib/cmake/Franka` when that
+path exists; override it for a different libfranka/robot-system version.
+
+### Start order
+
+1. Start `./build/robot_waypoint_bridge` **before** `main_SSM`. Otherwise the
+   first received Waypoint may already be far along the trajectory and the
+   bridge aborts (`max_approach_distance` start-pose check).
+2. Start `main_SSM` (`./run.sh --robot --traj N`) only after the bridge is
+   listening and holding the robot's current pose.
+3. `main_SSM` starts publishing at `r=1`; its initial `real_traj.wp[0]` entry
+   is **not** published, so the bridge's first Waypoint need not be `t=0`.
+
+### Dry run (recommended first)
+
+```bash
+./build/robot_waypoint_bridge --dry-run
+```
+
+Receives and logs Waypoints without connecting to the robot. Real motion is
+never the default — run without `--dry-run` to drive the robot.
+
+### Safety
+
+- The bridge holds the robot's current pose until the first Waypoint arrives.
+- It refuses to start if the first Waypoint is farther than
+  `--max-approach-distance` (default `0.5` rad) from the current pose.
+- Velocities/accelerations are clamped per joint: `--max-velocity` (default
+  `2.0` rad/s) and `--max-acceleration` (default `10.0` rad/s²).
+- `--tracking-gain` (default `10` 1/s) maps position error to velocity.
+- `--buffer-ms` (default `100`) buffers Waypoints before playback starts.
+- `--watchdog-ms` (default `250`) smoothly stops the motion if no Waypoint
+  arrives within the timeout.
+- `--no-realtime` disables realtime-priority enforcement (not recommended).
+
+### CLI options
+
+| Option | Meaning | Default |
+|--------|---------|---------|
+| `--robot-ip <ip>` | Robot FCI address | `172.16.0.2` |
+| `--connect <host>` | main_SSM ZMQ address | `localhost` |
+| `--port <port>` | base ZMQ port; topic uses port + 15 | `6000` |
+| `--dry-run` | receive/log only, no robot connection | off |
+| `--no-realtime` | do not require realtime priority | off |
+| `--max-velocity <rad/s>` | per-joint velocity limit | `2.0` |
+| `--max-acceleration <rad/s^2>` | per-joint acceleration limit | `10.0` |
+| `--max-approach-distance <r>` | start-pose check distance (rad) | `0.5` |
+| `--tracking-gain <1/s>` | position error → velocity gain | `10` |
+| `--watchdog-ms <ms>` | stop if no Waypoint arrives | `250` |
+| `--buffer-ms <ms>` | Waypoints buffered before playback | `100` |
+| `--init-q q1,...,q7` | initial joint positions (rad) to drive to first | none |
+| `--init-duration <s>` | time allowed to reach the initial config | `5.0` |
+| `--init-threshold <rad>` | max joint error to count as arrived | `0.01` |
 
 ## Usage — run.sh
 
@@ -225,6 +309,6 @@ python3 scripts/web_interface.py <n_cameras> [--robot]
 - **No cameras / no calibration file**: `camera_stream.py` spins without data (or throws `FileNotFoundError` for a missing `pose_{serial}.txt`). Make sure cameras are plugged in and calibration was run.
 - **Robot mode requires a built binary**: `--robot`/`--traj` depend on `build/main_SSM` (or `build/main_SSMPFL` / `build/main_SSMPFLescape`, see `--core`); run the build steps first.
 - **Streaming from disk does not need cameras or RealSense** — only recorded test data.
-- **Ports are fixed** (6000–6014); do not run two senders on the same port at once (e.g. live recording and replaying simultaneously).
+- **Ports are fixed** (6000–6015); do not run two senders on the same port at once (e.g. live recording and replaying simultaneously).
 - The ZMQ framework ensures topic/RX matching between sender and receiver via the `DataTransmitter` class; both Python and C++ implementations speak the same protocol.
 - `data_merging.py` outputs the fused skeleton in a reshaped 21-point format; the web frontend downsamples/renders it in the shared 3D scene.

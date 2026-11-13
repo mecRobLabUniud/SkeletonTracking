@@ -92,6 +92,44 @@ target_include_directories(main_SSM PRIVATE
     ${ZMQ_INCLUDE_DIRS}
 )
 
+# ── Real-robot Waypoint bridge ───────────────────────────────────────────────
+# Receives the WAYPOINT_15 stream published by main_SSM and streams it to the
+# Panda through libfranka.
+#
+# libfranka must match the robot system version:
+#   robot system 4.1.2  (FCI server version 4) -> /opt/libfranka-0.8.0
+#   robot system >= 4.2.1 (server version 5)   -> /opt/libfranka
+# Override with -DFRANKA_CMAKE_DIR=<prefix>/lib/cmake/Franka.
+set(FRANKA_CMAKE_DIR "" CACHE PATH
+    "libfranka CMake config directory (e.g. /opt/libfranka-0.8.0/lib/cmake/Franka)")
+if(NOT FRANKA_CMAKE_DIR AND EXISTS "/opt/libfranka-0.8.0/lib/cmake/Franka")
+    set(FRANKA_CMAKE_DIR "/opt/libfranka-0.8.0/lib/cmake/Franka")
+endif()
+
+if(FRANKA_CMAKE_DIR)
+    find_package(Franka REQUIRED PATHS "${FRANKA_CMAKE_DIR}" NO_DEFAULT_PATH)
+else()
+    find_package(Franka QUIET)
+endif()
+
+if(Franka_FOUND)
+    add_executable(robot_waypoint_bridge src/robot_waypoint_bridge.cpp)
+    target_link_libraries(robot_waypoint_bridge PRIVATE
+        Eigen3::Eigen
+        nlohmann_json::nlohmann_json
+        Threads::Threads
+        ${ZMQ_LIBRARIES}
+        Franka::Franka
+        rt
+    )
+    target_include_directories(robot_waypoint_bridge PRIVATE ${ZMQ_INCLUDE_DIRS})
+    message(STATUS "robot_waypoint_bridge: using libfranka from ${FRANKA_CMAKE_DIR}")
+else()
+    message(WARNING
+        "libfranka not found; robot_waypoint_bridge will not be built. "
+        "Pass -DFRANKA_CMAKE_DIR=<libfranka prefix>/lib/cmake/Franka.")
+endif()
+
 # ── Main SSMPFL ──────────────────────────────────────────────────────────────
 add_executable(main_SSMPFL 
     src/main_SSMPFL.cpp
@@ -136,3 +174,42 @@ target_link_libraries(main_SSMPFLescape PRIVATE
     OpenMP::OpenMP_CXX
 )
 
+
+# ── Robot controller (ROS2 / multipanda_ros2) ─────────────────────────────
+# ROS2 port of robot_controller.cpp.  It receives the ROBOT_12 stream and sends
+# the accumulated trajectory through a FollowJointTrajectory action, like
+# multipanda_ws/src/panda_test1_effort/src/test1_trajectory_sender.cpp.
+# Built only when a ROS2 environment is sourced (rclcpp is found).
+find_package(rclcpp QUIET)
+if(rclcpp_FOUND)
+    find_package(rclcpp_action REQUIRED)
+    find_package(control_msgs REQUIRED)
+    find_package(trajectory_msgs REQUIRED)
+    find_package(sensor_msgs REQUIRED)
+    find_package(std_srvs REQUIRED)
+    find_package(builtin_interfaces REQUIRED)
+
+    add_executable(robot_controller_ros2
+        src/robot_controller_ros2.cpp
+        src/trajectory_utils.cpp
+        src/robot_model.cpp
+        src/trajectory_loader.cpp
+    )
+    target_link_libraries(robot_controller_ros2 PRIVATE
+        Eigen3::Eigen
+        pinocchio::pinocchio
+        ${ZMQ_LIBRARIES}
+        Threads::Threads
+        nlohmann_json::nlohmann_json
+        rclcpp::rclcpp
+        rclcpp_action::rclcpp_action
+        ${builtin_interfaces_TARGETS}
+        ${control_msgs_TARGETS}
+        ${trajectory_msgs_TARGETS}
+        ${sensor_msgs_TARGETS}
+        ${std_srvs_TARGETS}
+    )
+    message(STATUS "robot_controller_ros2: building against the sourced ROS2 environment")
+else()
+    message(STATUS "rclcpp not found; robot_controller_ros2 skipped (source ROS2 to build it)")
+endif()

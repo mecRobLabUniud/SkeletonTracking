@@ -23,6 +23,7 @@ main_SSM.cpp - SSM simulation main: replays a nominal trajectory and stops while
 
 #include "trajectory_utils.hpp"
 #include "data_transmitter.hpp"
+#include "waypoint_zmq.hpp"
 #include "utils.hpp"
 #include "robot_model.hpp"
 #include "project_root.hpp"
@@ -115,10 +116,14 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     // ── Data transmitters ───────────────────────────────────────────────────
     std::vector<std::unique_ptr<DataTransmitter>> transmitters;
-    transmitters.reserve(3);
+    transmitters.reserve(4);
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Receiver, 10, "MERGED", 6000, false));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 12, "ROBOT"));
     transmitters.push_back(std::make_unique<DataTransmitter>(DataTransmitter::Mode::Sender, 14, "TRAJDATA"));
+    // Full Waypoint stream for the real-robot bridge (see robot_waypoint_bridge).
+    transmitters.push_back(std::make_unique<DataTransmitter>(
+        DataTransmitter::Mode::Sender, waypoint_zmq::kDeviceId,
+        waypoint_zmq::kTopic, waypoint_zmq::kBasePort, false));
 
     // ── Delay for loading the web interface ─────────────────────────────────
     std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -258,6 +263,11 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         // ── Plays one waypoint at time ───────────────────────────────────────
         const auto play_sample = [&](Waypoint waypoint, const DistanceResult& dist) {
             real_traj.wp.push_back(waypoint);
+
+            // Feed the real-robot bridge with the exact waypoint that is being
+            // played.  This is a separate, lossy stream (ZMQ PUB with HWM 1), so
+            // it never slows down the simulation or the web interface.
+            transmitters[3]->send_data({waypoint_zmq::encode(waypoint)});
 
             LogSample s;
             s.t = g_t_log;
