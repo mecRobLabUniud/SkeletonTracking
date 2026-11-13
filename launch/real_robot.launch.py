@@ -6,7 +6,7 @@ This launches every node that the real robot needs in order to move through the
   * robot_state_publisher with the real Panda description (FCI IP, optional
     Franka Hand)
   * joint_state_publisher, aggregating ``franka/joint_states`` (and the gripper)
-    into ``/<namespace>/joint_states``
+    into ``/joint_states``
   * franka_control2_node: controller_manager + Franka hardware interface
   * joint_state_broadcaster (always) and franka_robot_state_broadcaster
     (hardware only)
@@ -17,9 +17,9 @@ This launches every node that the real robot needs in order to move through the
     either follows it live (``streaming:=true``, the default) or sends the
     accumulated trajectory to the controller above when the stream ends
 
-Everything except the optional controller runs in the ``real`` namespace, so
-the action server is ``/real/panda_effort_jtc/follow_joint_trajectory`` and the
-joint states are ``/real/joint_states``.
+Everything runs in the root namespace, so the action server is
+``/panda_effort_jtc/follow_joint_trajectory`` and the joint states are
+``/joint_states``.
 
 Usage::
 
@@ -57,11 +57,11 @@ follows the person live.  ``streaming:=false`` restores the accumulate and
 send-at-the-end behaviour, in which case the trajectory is only sent when the
 stream ends (``stream_timeout`` elapsed) or when ``~/send`` is called::
 
-    ros2 service call /real/robot_controller_ros2/send std_srvs/srv/Trigger "{}"
+    ros2 service call /robot_controller_ros2/send std_srvs/srv/Trigger "{}"
 
 In streaming mode ``~/cancel`` stops the streaming and cancels the active goal::
 
-    ros2 service call /real/robot_controller_ros2/cancel std_srvs/srv/Trigger "{}"
+    ros2 service call /robot_controller_ros2/cancel std_srvs/srv/Trigger "{}"
 
 The robot lags the stream by roughly ``approach_duration + chunk_duration +
 chunk_lead`` seconds; move the robot close to the trajectory start pose (and
@@ -74,9 +74,6 @@ than ``max_approach_distance`` from the first trajectory point.
 """
 
 import os
-import tempfile
-
-import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -96,43 +93,12 @@ from launch.substitutions import (
     PathJoinSubstitution,
     PythonExpression,
 )
-from launch_ros.actions import Node, PushRosNamespace
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
-
-def _namespaced_param_file(source_file, namespace):
-    """Scope a ros2_control parameter file to ``namespace``.
-
-    ``franka_bringup`` ships ``single_controllers.yaml`` with relative node
-    names (``controller_manager:``, ``joint_state_broadcaster:`` ...).  ROS 2
-    only matches those nodes when they live in the root namespace, so running
-    the stack inside a namespace silently drops all of their parameters.  This
-    helper rewrites every top-level node name to ``/<namespace>/<node>`` and
-    returns the path of the rewritten copy.
-    """
-    with open(source_file, 'r') as stream:
-        data = yaml.safe_load(stream) or {}
-
-    prefix = '/' + namespace.strip('/')
-    scoped = {}
-    for node_name, node_params in data.items():
-        scoped[node_name if node_name.startswith('/') else prefix + '/' + node_name] = (
-            node_params
-        )
-
-    output_file = os.path.join(
-        tempfile.gettempdir(),
-        'panda_real_{}_{}'.format(
-            namespace.strip('/') or 'root', os.path.basename(source_file)),
-    )
-    with open(output_file, 'w') as stream:
-        yaml.safe_dump(scoped, stream, sort_keys=False)
-    return output_file
 
 
 def _real_robot_group(context):
     """Build the real-robot nodes, resolved against the launch arguments."""
-    namespace = LaunchConfiguration('robot_namespace').perform(context).strip('/')
     robot_ip = LaunchConfiguration('robot_ip').perform(context)
     load_gripper = LaunchConfiguration('load_gripper')
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
@@ -150,18 +116,14 @@ def _real_robot_group(context):
         ' use_fake_hardware:=', use_fake_hardware,
         ' fake_sensor_commands:=false',
     ])
-    controller_config = _namespaced_param_file(
-        os.path.join(franka_bringup, 'config', 'real', 'single_controllers.yaml'),
-        namespace)
-    effort_controller_config = _namespaced_param_file(
-        os.path.join(pkg_share, 'config', 'panda_effort_jtc.yaml'),
-        namespace)
+    controller_config = os.path.join(
+        franka_bringup, 'config', 'real', 'single_controllers.yaml')
+    effort_controller_config = os.path.join(
+        pkg_share, 'config', 'panda_effort_jtc.yaml')
 
     return [
         GroupAction(
             actions=[
-                PushRosNamespace(namespace),
-
                 Node(
                     package='robot_state_publisher',
                     executable='robot_state_publisher',
@@ -196,8 +158,6 @@ def _real_robot_group(context):
                     on_exit=Shutdown(),
                 ),
 
-                # 'controller_manager' is relative on purpose: the spawner
-                # prefixes it with its own namespace ('/real').
                 Node(
                     package='controller_manager',
                     executable='spawner',
@@ -251,11 +211,11 @@ def _real_robot_group(context):
                 ),
             ]
         ),
-    ] + _optional_controller(context, namespace)
+    ] + _optional_controller(context)
 
 
-def _optional_controller(context, namespace):
-    """Conditionally start robot_controller_ros2 outside the namespace group.
+def _optional_controller(context):
+    """Conditionally start robot_controller_ros2.
 
     The ROS2 port of robot_controller.cpp catches the ``ROBOT_12`` stream
     published by main_SSM and sends the accumulated trajectory to the effort
@@ -283,11 +243,9 @@ def _optional_controller(context, namespace):
         cmd=[
             executable, traj_index, repo_dir,
             '--ros-args',
-            '-r', '__ns:=/' + namespace,
             '-p', 'start_duration:=' + start_duration,
-            '-p', 'controller_action:=/' + namespace +
-                  '/panda_effort_jtc/follow_joint_trajectory',
-            '-p', 'joint_state_topic:=/' + namespace + '/joint_states',
+            '-p', 'controller_action:=/panda_effort_jtc/follow_joint_trajectory',
+            '-p', 'joint_state_topic:=/joint_states',
             '-p', 'stream_timeout:=' + stream_timeout,
             '-p', 'approach_duration:=' + approach_duration,
             '-p', 'max_approach_distance:=' + max_approach_distance,
@@ -315,11 +273,6 @@ def generate_launch_description():
             'robot_ip',
             default_value='172.16.0.2',
             description='FCI IP address or hostname of the real Panda.'),
-        DeclareLaunchArgument(
-            'robot_namespace',
-            default_value='real',
-            description='ROS namespace for the real robot stack '
-                        '(plain name, without a leading slash).'),
         DeclareLaunchArgument(
             'load_gripper',
             default_value='false',
