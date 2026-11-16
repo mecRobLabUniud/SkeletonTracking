@@ -8,8 +8,10 @@
 web_interface.py - Flask/SocketIO dashboard that live-plots the merged skeleton, the robot state and the camera frames.
 """
 
+import socket
 import webbrowser
 import threading
+import os
 import numpy as np
 import sys
 from flask import Flask, render_template
@@ -19,6 +21,8 @@ from utils.decorators import set_rate
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
+WEB_PORT = int(os.environ.get("WEB_PORT", 5000))
+
 app = Flask(__name__, 
             template_folder='flask_utils', 
             static_folder='flask_utils', 
@@ -129,6 +133,20 @@ def index():
     return render_template("index.html")
 
 
+def find_free_port(preferred, tries=50):
+    """First port >= preferred that can be bound on all interfaces.
+    Tests with 0.0.0.0, exactly like the server, so a listener on
+    127.0.0.1:<port> (e.g. VS Code forwarding) is detected too."""
+    for port in range(preferred, preferred + tries):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"No free port in {preferred}-{preferred + tries - 1}")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point: parse the arguments, set up the transmitters and start the
 # worker threads and the web server
@@ -161,15 +179,24 @@ def main():
     threading.Thread(target=skeleton_thread, daemon=True).start()              
     threading.Thread(target=frame_thread, daemon=True).start()
     threading.Thread(target=rula_thread, daemon=True).start()
-    webbrowser.open_new('http://127.0.0.1:5000/')
+    
+    port = find_free_port(WEB_PORT)
+    if port != WEB_PORT:
+        print(f"[web] Port {WEB_PORT} is busy on the host, using {port} instead")
+    print(f"[web] Interface available at http://localhost:{port}/")
+
+    # Open the browser shortly after the server starts (it may silently
+    # do nothing inside a container, hence the printed URL above)
+    threading.Timer(1.5, lambda: webbrowser.open_new(f"http://localhost:{port}/")).start()
+
     try:
         # flask-socketio >= 5.5 refuses to serve with Werkzeug unless the
         # caller explicitly opts in (stdin is not a TTY when launched by run.sh)
-        socketio.run(app, host="0.0.0.0", port=5000, debug=False,
+        socketio.run(app, host="0.0.0.0", port=port, debug=False,
                      allow_unsafe_werkzeug=True)
     except TypeError:
         # Older flask-socketio versions do not accept the flag
-        socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+        socketio.run(app, host="0.0.0.0", port=port, debug=False)
     
 
 if __name__ == "__main__":
