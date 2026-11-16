@@ -3,24 +3,30 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      args:
+        # Panda system 4.1.2 speaks libfranka server version 4 (0.8.0).
+        # Use /opt/libfranka/lib/cmake/Franka for a robot >= 4.2.1 (0.9.2).
+        LIBFRANKA_CMAKE_DIR: /opt/libfranka-0.8.0/lib/cmake/Franka
     image: skeletontracking:dev
     container_name: R3D_project
     stdin_open: true
     tty: true
     init: true
-    # network_mode: host
+    # Franka FCI needs host networking: with the Docker bridge, libfranka's UDP
+    # handshake to the robot (172.16.0.2) times out.
+    network_mode: host
     # user: lab
     privileged: true
     environment:
       - PYTHONUNBUFFERED=1
       - DISPLAY=${DISPLAY}
       - XAUTHORITY=/root/.Xauthority
-    ports:
-      # Flask web interface (--gui)
-      - "5000:5000"
+    # ports:  # host networking exposes 5000 directly; port bindings are not used
+    #   # Flask web interface (--gui)
+    #   - "5000:5000"
     working_dir: /home/lab/SkeletonTracking
-    # devices:
-    #   - /dev:/dev
+    devices:
+      - /dev:/dev
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - ${HOME}/.Xauthority:/root/.Xauthority:rw
+      - ${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:rw

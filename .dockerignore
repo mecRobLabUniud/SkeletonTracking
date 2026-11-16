@@ -1,6 +1,7 @@
 .git/
 .vscode/
 build/
+build_ros2/
 logs/
 *.pyc
 __pycache__/
