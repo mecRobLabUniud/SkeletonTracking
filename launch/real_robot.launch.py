@@ -351,7 +351,7 @@ def generate_launch_description():
             description='Stretch the blend if it would be faster (rad/s).'),
         DeclareLaunchArgument(
             'controller_executable',
-            default_value='/home/lab/SkeletonTracking/build_ros2/robot_controller_ros2',
+            default_value='/home/lab/SkeletonTracking/build/robot_controller_ros2',
             description='Absolute path of the robot_controller_ros2 binary.'),
         DeclareLaunchArgument(
             'repo_dir',
