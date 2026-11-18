@@ -478,19 +478,101 @@ private:
     }
 
     // ── End-of-stream / streaming scheduler ──────────────────────────────────
+    // ── Execute approach as a separate step ────────────────────────────────
+    // Moves the robot from its current pose to the first trajectory point
+    // using a standalone quintic approach segment built by build_approach_segment().
+    // This runs outside the poll_callback loop: poll_callback merely triggers
+    // it once, then waits for the goal handle to clear before proceeding with
+    // the nominal trajectory.
+    bool execute_approach() {
+        if (approach_duration_ <= 0.0) {
+            approach_executed_ = true;
+            return true;
+        }
+
+        JointArray start;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            if (!have_joint_state_) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                     "execute_approach: waiting for joint state on '%s'.",
+                                     joint_state_topic_.c_str());
+                return false;
+            }
+            start = current_positions_;
+        }
+
+        trajectory_msgs::msg::JointTrajectory approach;
+        {
+            std::lock_guard<std::mutex> lock(trajectory_mutex_);
+            if (real_traj_.wp.empty()) {
+                RCLCPP_ERROR(get_logger(),
+                             "execute_approach: no trajectory data available.");
+                return false;
+            }
+            const JointArray target = to_joint_array(real_traj_.wp.front().q);
+            const JointArray target_velocity =
+                to_joint_array(real_traj_.wp.front().qd);
+            const JointArray target_acceleration =
+                to_joint_array(real_traj_.wp.front().qdd);
+            approach = build_approach_segment(start, target, target_velocity,
+                                              target_acceleration,
+                                              approach_duration_, approach_dt_);
+        }
+
+        if (approach.points.empty()) {
+            approach_executed_ = true;
+            return true;
+        }
+
+        log_trajectory(approach);
+
+        if (dry_run_) {
+            RCLCPP_INFO(get_logger(),
+                        "execute_approach: dry_run, approach not sent.");
+            approach_executed_ = true;
+            return true;
+        }
+
+        if (!action_client_->action_server_is_ready()) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                 "execute_approach: action server '%s' not available.",
+                                 controller_action_.c_str());
+            return false;
+        }
+
+        approach_executed_ = true;
+        send_goal(std::move(approach), /*quiet=*/false);
+        RCLCPP_INFO(get_logger(),
+                    "execute_approach: approach goal sent; waiting for completion.");
+        return true;
+    }
+
     void poll_callback() {
         if (streaming_) {
             streaming_poll();
             return;
         }
+
+        // ── Step 1: Execute the approach as a separate step (outside this
+        //          function's body).  build_approach_segment() is called from
+        //          execute_approach(), not from here or from build_trajectory.
+        if (approach_duration_ > 0.0 && !approach_executed_) {
+            if (!execute_approach()) return;
+            // Approach goal has been sent; wait for the goal handle to clear
+            // before proceeding with the nominal trajectory.
+            if (current_goal_) return;
+            RCLCPP_INFO(get_logger(),
+                        "Approach completed; proceeding with nominal trajectory.");
+        }
+
+        // ── Step 2: Approach done (or not needed), send the nominal trajectory
         if (send_attempted_ || send_failed_hard_ || !stream_finished_.load()) return;
 
-        // A goal started by the ~/send service must not be preempted by the
-        // end-of-stream trajectory.
-        if (sending_ || current_goal_) {
-            send_attempted_ = true;
-            return;
-        }
+        // Wait for the approach goal (if any) to fully clear before sending
+        // the trajectory.  Do not set send_attempted_ here: we have not yet
+        // attempted to send the main trajectory.
+        if (current_goal_) return;
 
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
@@ -529,6 +611,20 @@ private:
     // chunk_duration + chunk_lead, but starts moving after ~1 s of data.
     void streaming_poll() {
         if (send_failed_hard_ || stream_complete_) return;
+
+        // ── Step 1: Execute the approach as a separate step before sending
+        //          chunks.  build_approach_segment() is called from
+        //          execute_approach(), not from here or from build_stream_chunk.
+        if (approach_duration_ > 0.0 && !approach_executed_) {
+            if (!execute_approach()) return;
+            if (current_goal_) return;
+            RCLCPP_INFO(get_logger(),
+                        "Streaming: approach completed; proceeding with chunks.");
+        }
+
+        // Wait for the approach goal (if any) to fully clear before sending
+        // chunks.
+        if (current_goal_) return;
 
         const Clock::time_point now = Clock::now();
         if (stream_goal_sent_) {
@@ -579,7 +675,6 @@ private:
                 // samples.
                 double elapsed =
                     std::chrono::duration<double>(now - stream_send_time_).count();
-                if (stream_last_used_approach_) elapsed -= approach_duration_;
                 base = stream_last_base_;
                 if (elapsed > 0.0) {
                     const std::size_t advance = static_cast<std::size_t>(
@@ -668,7 +763,6 @@ private:
         stream_send_time_ = now;
         stream_last_base_ = chunk.base;
         stream_last_end_ = chunk.end;
-        stream_last_used_approach_ = first && approach_duration_ > 0.0;
         // Do not replace goals faster than min_chunk_duration: near the data
         // frontier the available horizon is short, and sending a goal every
         // poll would cause needless controller churn.
@@ -725,10 +819,10 @@ private:
                     "max_approach_distance deliberately if the path is known to be safe.");
             }
 
-            append_quintic(chunk->trajectory, 0.0, approach_duration_, approach_dt_,
-                           measured, zero, zero, target, target_velocity,
-                           target_acceleration);
-            const double offset = approach_duration_ - base_time;
+            // No approach segment here: the approach is executed separately by
+            // execute_approach() before streaming begins.  The chunk starts
+            // from timestamp 0 with the trajectory samples.
+            const double offset = -base_time;
             for (std::size_t i = base; i < end; ++i) {
                 const double time = offset + real_traj_.wp[i].timestamp;
                 if (time <= last_point_time(chunk->trajectory) + 1.0e-9) continue;
@@ -938,7 +1032,43 @@ private:
         action_client_->async_send_goal(goal, options);
     }
 
-    // ── Trajectory construction (approach + accumulated real_traj_) ───────────
+    // ── Approach segment ─────────────────────────────────────────────────────
+    // Builds the quintic move that brings the robot from `start` to `target`
+    // (the first point of the trajectory) over `approach_duration`, with zero
+    // velocity and acceleration at both ends.  Returns only the approach
+    // segment; the caller appends the nominal trajectory waypoints afterwards.
+    // This keeps the "move to start point" logic separate from the nominal
+    // trajectory execution.
+    trajectory_msgs::msg::JointTrajectory build_approach_segment(
+        const JointArray& start,
+        const JointArray& target,
+        const JointArray& target_velocity,
+        const JointArray& target_acceleration,
+        double approach_duration,
+        double approach_dt) const {
+        trajectory_msgs::msg::JointTrajectory trajectory;
+        trajectory.joint_names = joint_names_;
+        // A zero stamp tells JointTrajectoryController to start on its first
+        // sample.
+        trajectory.header.stamp.sec = 0;
+        trajectory.header.stamp.nanosec = 0;
+
+        if (!(approach_duration > 0.0)) return trajectory;
+
+        const std::size_t approach_points = static_cast<std::size_t>(
+            std::max(1.0, std::ceil(approach_duration / approach_dt)));
+        trajectory.points.reserve(approach_points);
+
+        const JointArray zero{};
+        append_quintic(trajectory, 0.0, approach_duration, approach_dt,
+                       start, zero, zero, target, target_velocity,
+                       target_acceleration);
+        return trajectory;
+    }
+
+    // ── Trajectory construction (nominal real_traj_ only) ───────────────────
+    // The approach segment is no longer built here: it is executed as a
+    // separate goal by execute_approach() before this function is called.
     trajectory_msgs::msg::JointTrajectory build_trajectory(const JointArray& start) const {
         if (real_traj_.wp.empty()) throw std::runtime_error("trajectory is empty");
 
@@ -964,37 +1094,14 @@ private:
 
         trajectory_msgs::msg::JointTrajectory trajectory;
         trajectory.joint_names = joint_names_;
-        // A zero stamp tells JointTrajectoryController to start on its first sample.
+        // A zero stamp tells JointTrajectoryController to start on its first
+        // sample.
         trajectory.header.stamp.sec = 0;
         trajectory.header.stamp.nanosec = 0;
-
-        if (approach_duration_ > 0.0) {
-            const std::size_t approach_points = static_cast<std::size_t>(
-                std::max(1.0, std::ceil(approach_duration_ / approach_dt_)));
-            trajectory.points.reserve(approach_points + real_traj_.wp.size());
-
-            // Quintic s(u) = 10u^3 - 15u^4 + 6u^5, zero velocity/acceleration at
-            // both ends, identical to test1_trajectory_sender.cpp.
-            for (std::size_t k = 0; k < approach_points; ++k) {
-                const double u = static_cast<double>(k) /
-                                 static_cast<double>(approach_points);
-                const double s = u * u * u * (10.0 + u * (-15.0 + 6.0 * u));
-                const double ds =
-                    u * u * (30.0 + u * (-60.0 + 30.0 * u)) / approach_duration_;
-                const double dds =
-                    u * (60.0 + u * (-180.0 + 120.0 * u)) /
-                    (approach_duration_ * approach_duration_);
-
-                append_point(trajectory, u * approach_duration_,
-                             add_scaled(start, start_delta, s), scaled(start_delta, ds),
-                             scaled(start_delta, dds));
-            }
-        } else {
-            trajectory.points.reserve(real_traj_.wp.size());
-        }
+        trajectory.points.reserve(real_traj_.wp.size());
 
         for (const auto& waypoint : real_traj_.wp) {
-            append_point(trajectory, approach_duration_ + waypoint.timestamp,
+            append_point(trajectory, waypoint.timestamp,
                          to_joint_array(waypoint.q), to_joint_array(waypoint.qd),
                          to_joint_array(waypoint.qdd));
         }
@@ -1083,12 +1190,12 @@ private:
     bool sending_{false};
     uint64_t send_generation_{0};
     GoalHandle::SharedPtr current_goal_;
+    bool approach_executed_{false};
     rclcpp::Time last_feedback_time_{0, 0, RCL_ROS_TIME};
 
     // Streaming scheduler state (executor thread only)
     bool stream_goal_sent_{false};
     bool stream_complete_{false};
-    bool stream_last_used_approach_{false};
     std::size_t stream_last_base_{0};
     std::size_t stream_last_end_{0};
     Clock::time_point stream_send_time_{};
