@@ -1,60 +1,12 @@
 /*
 robot_controller_ros2.cpp - ROS2 (multipanda_ros2) port of robot_controller.cpp.
 
-This is a copy of src/robot_controller.cpp in which every libfranka call has
-been replaced by the ROS2 interface used by
-multipanda_ws/src/panda_test1_effort/src/test1_trajectory_sender.cpp:
-
-  * the real robot is no longer driven by a 1 kHz libfranka control callback;
-  * instead, the accumulated trajectory is sent to the
-    joint_trajectory_controller through a FollowJointTrajectory action goal.
-
-The data flow is unchanged from robot_controller.cpp:
-
-  main_SSM / ROS2 stack --(ZMQ ROBOT_12, 60 Hz)--> this node
-      --(build_p2p_traj, 1 kHz samples)--> real_traj_
-      --(FollowJointTrajectory action)--> joint_trajectory_controller --> Panda
-
-The ROBOT_12 stream is received in the background.  Every time a new joint
-configuration arrives a quintic point-to-point segment is appended to
-real_traj_ with build_p2p_traj(), exactly like robot_controller.cpp.  When the
-stream stops (no message for stream_timeout seconds) the accumulated
-trajectory is sent as a single FollowJointTrajectory goal, with the same
-quintic approach segment used by test1_trajectory_sender.cpp.
-
-With streaming:=true the node follows the stream live instead of waiting for
-its end.  As soon as ~chunk_duration seconds of ROBOT_12 data are available it
-sends the first goal (approach + the first chunk) and then keeps replacing the
-active goal with the next chunk shortly before the current one ends.  The robot
-starts moving about one second after the stream starts and stops on its own
-when the stream stalls.  streaming:=false keeps the accumulate-then-send
-behaviour described above.
-
-No libfranka header is used by this file.
+Replaces libfranka calls with the ROS2 FollowJointTrajectory action interface.
+Receives the ROBOT_12 stream over ZMQ, builds point-to-point trajectory samples,
+and sends them as FollowJointTrajectory goals to the joint_trajectory_controller.
 
 Usage:
   robot_controller_ros2 <traj_index> [repo_dir] [--ros-args -p name:=value]
-
-Typical run, with the multipanda stack already up:
-
-  source /opt/ros/humble/setup.bash
-  ./build/robot_controller_ros2 1 /home/lab/SkeletonTracking \
-      --ros-args -p dry_run:=false
-
-Useful parameters:
-  dry_run:=true                 build/log the trajectory without sending it
-  controller_action:=<name>     default /panda_effort_jtc/follow_joint_trajectory
-  joint_state_topic:=<name>     default /joint_states
-  stream_timeout:=<s>           end-of-stream timeout (default 1.0)
-  approach_duration:=<s>        quintic move to the first point (default 3.0)
-  max_approach_distance:=<rad>  refuse if the start point is farther (default 0.5)
-  streaming:=<bool>             follow the stream live (default false)
-  chunk_duration:=<s>           trajectory played by each streamed goal (default 1.0)
-  chunk_lead:=<s>               send the next chunk this long before the end (default 0.3)
-  chunk_ramp:=<s>               blend from the measured pose into each chunk (default 0.2)
-  min_chunk_duration:=<s>       smallest chunk worth sending (default 0.3)
-  max_chunk_step:=<rad>         refuse a chunk whose first move is larger (default 0.35)
-  max_ramp_velocity:=<rad/s>    stretch the blend if it would be faster (default 1.0)
 */
 
 #include <algorithm>
@@ -100,23 +52,20 @@ using JointArray = std::array<double, 7>;
 using FollowJointTrajectory = control_msgs::action::FollowJointTrajectory;
 using GoalHandle = rclcpp_action::ClientGoalHandle<FollowJointTrajectory>;
 
-// ── Parameters shared with robot_controller.cpp ──────────────────────────────
-constexpr double kRateHz = 60.0;          // rate of the incoming ROBOT_12 stream
+constexpr double kRateHz = 60.0;
 constexpr double kStreamDt = 1.0 / kRateHz;
-constexpr double kTrajectoryDt = 0.001;   // build_p2p_traj sampling period
-constexpr int kRobotZmqDevice = 12;       // DataTransmitter device id of ROBOT_12
-constexpr int kZmqBasePort = 6000;        // DataTransmitter base port (port = base + id)
+constexpr double kTrajectoryDt = 0.001;
+constexpr int kRobotZmqDevice = 12;
+constexpr int kZmqBasePort = 6000;
 
 std::vector<std::string> default_joint_names() {
     return {"panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4",
             "panda_joint5", "panda_joint6", "panda_joint7"};
 }
 
-// ── Small helpers (same conventions as test1_trajectory_sender.cpp) ──────────
 JointArray to_joint_array(const Eigen::VectorXd& value) {
     if (value.size() != 7) {
-        throw std::runtime_error("expected a 7-element joint vector, got " +
-                                 std::to_string(value.size()));
+        throw std::runtime_error("expected a 7-element joint vector");
     }
     JointArray out{};
     for (std::size_t j = 0; j < 7; ++j) out[j] = value[static_cast<Eigen::Index>(j)];
@@ -175,9 +124,6 @@ double last_point_time(const trajectory_msgs::msg::JointTrajectory& trajectory) 
     return static_cast<double>(last.sec) + 1.0e-9 * last.nanosec;
 }
 
-// Append `ceil(duration / dt)` samples of the quintic that moves joint j from
-// (p0, v0, a0) to (p1, v1, a1) in `duration` seconds.  The terminal point is
-// not appended: the caller adds it at exactly `t0 + duration`.
 void append_quintic(trajectory_msgs::msg::JointTrajectory& trajectory,
                     double t0, double duration, double dt,
                     const JointArray& p0, const JointArray& v0, const JointArray& a0,
@@ -221,26 +167,6 @@ void append_quintic(trajectory_msgs::msg::JointTrajectory& trajectory,
     }
 }
 
-std::string result_code_to_string(int32_t code) {
-    switch (code) {
-        case FollowJointTrajectory::Result::SUCCESSFUL:
-            return "SUCCESSFUL";
-        case FollowJointTrajectory::Result::INVALID_GOAL:
-            return "INVALID_GOAL";
-        case FollowJointTrajectory::Result::INVALID_JOINTS:
-            return "INVALID_JOINTS";
-        case FollowJointTrajectory::Result::OLD_HEADER_TIMESTAMP:
-            return "OLD_HEADER_TIMESTAMP";
-        case FollowJointTrajectory::Result::PATH_TOLERANCE_VIOLATED:
-            return "PATH_TOLERANCE_VIOLATED";
-        case FollowJointTrajectory::Result::GOAL_TOLERANCE_VIOLATED:
-            return "GOAL_TOLERANCE_VIOLATED";
-        default:
-            return "UNKNOWN(" + std::to_string(code) + ")";
-    }
-}
-
-// ── ROBOT_12 decoding (identical to robot_controller.cpp) ────────────────────
 Waypoint receiveRobotStates(DataTransmitter& transmitter) {
     const std::vector<nlohmann::json> data = transmitter.receive_data();
     if (data.size() < 5) return {};
@@ -254,9 +180,6 @@ Waypoint receiveRobotStates(DataTransmitter& transmitter) {
 
 }  // namespace
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROS2 controller node
-// ─────────────────────────────────────────────────────────────────────────────
 class RobotControllerNode : public rclcpp::Node {
 public:
     RobotControllerNode(int n_traj, const std::filesystem::path& root)
@@ -264,7 +187,6 @@ public:
         declare_parameters();
         validate_parameters();
 
-        // ── Kinematic model and nominal trajectory (as in robot_controller.cpp) ─
         const std::filesystem::path urdf = root_ / "src" / "urdf" / "panda.urdf";
         if (!std::filesystem::exists(urdf)) {
             throw std::runtime_error("URDF not found: " + urdf.string());
@@ -275,10 +197,7 @@ public:
         if (nominal_traj_.wp.empty()) {
             throw std::runtime_error("the nominal trajectory is empty");
         }
-        RCLCPP_INFO(get_logger(), "Loaded nominal trajectory test%d (%zu waypoints).",
-                    n_traj_, nominal_traj_.wp.size());
 
-        // ── ROS2 interfaces (multipanda_ros2 / joint_trajectory_controller) ─────
         joint_state_subscription_ = create_subscription<sensor_msgs::msg::JointState>(
             joint_state_topic_, rclcpp::QoS(10),
             std::bind(&RobotControllerNode::joint_state_callback, this,
@@ -296,25 +215,8 @@ public:
             std::bind(&RobotControllerNode::cancel_service_callback, this,
                       std::placeholders::_1, std::placeholders::_2));
 
-        RCLCPP_INFO(get_logger(), "Robot controller (ROS2) ready.");
-        RCLCPP_INFO(get_logger(), "  controller action : %s", controller_action_.c_str());
-        RCLCPP_INFO(get_logger(), "  joint states      : %s", joint_state_topic_.c_str());
-        RCLCPP_INFO(get_logger(), "  dry_run           : %s", dry_run_ ? "true" : "false");
-        RCLCPP_INFO(get_logger(),
-                    "  Waiting for the ROBOT_12 stream (port %d). The trajectory is sent "
-                    "when the stream ends (%.2f s without messages) or on ~/send.",
-                    kZmqBasePort + kRobotZmqDevice, stream_timeout_);
-        if (streaming_) {
-            RCLCPP_INFO(get_logger(),
-                        "  Streaming mode: first chunk after %.2f s of data, then a new "
-                        "%.2f s chunk when the current one has %.2f s left.",
-                        chunk_duration_, chunk_duration_, chunk_lead_);
-        }
-
-        // ── Background ROBOT_12 receiver + p2p trajectory builder ──────────────
         receiver_thread_ = std::thread(&RobotControllerNode::receiver_loop, this);
 
-        // Poll for the end of the stream and send the accumulated trajectory.
         poll_timer_ = create_wall_timer(
             std::chrono::milliseconds(20),
             std::bind(&RobotControllerNode::poll_callback, this));
@@ -326,7 +228,6 @@ public:
     }
 
 private:
-    // ── Parameters ────────────────────────────────────────────────────────────
     void declare_parameters() {
         controller_action_ = declare_parameter<std::string>(
             "controller_action", "/panda_effort_jtc/follow_joint_trajectory");
@@ -352,8 +253,7 @@ private:
 
     void validate_parameters() {
         if (joint_names_.size() != 7) {
-            throw std::runtime_error("joint_names must contain exactly 7 names, got " +
-                                     std::to_string(joint_names_.size()));
+            throw std::runtime_error("joint_names must contain exactly 7 names");
         }
         if (!(stream_timeout_ > 0.0)) {
             throw std::runtime_error("stream_timeout must be greater than zero");
@@ -396,7 +296,6 @@ private:
         }
     }
 
-    // ── ROBOT_12 receiver: accumulate real_traj_ exactly like robot_controller ─
     void receiver_loop() {
         DataTransmitter receiver(DataTransmitter::Mode::Receiver, kRobotZmqDevice, "ROBOT");
         receiver.set_receive_timeout(100);
@@ -412,9 +311,7 @@ private:
             Waypoint wp;
             try {
                 wp = receiveRobotStates(receiver);
-            } catch (const std::exception& e) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "ROBOT_12 receive error: %s", e.what());
+            } catch (const std::exception&) {
                 continue;
             }
 
@@ -433,8 +330,6 @@ private:
                 }
             }
 
-            // main_SSM keeps sending ROBOT_12 while it holds; the stream really
-            // ends when the process exits and no message arrives any more.
             if (received_message &&
                 std::chrono::duration<double>(Clock::now() - last_message).count() >
                     stream_timeout_) {
@@ -447,12 +342,6 @@ private:
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
             samples = real_traj_.wp.size();
             stream_finished_.store(true);
-        }
-        if (samples == 0) {
-            RCLCPP_WARN(get_logger(), "ROBOT_12 stream ended without trajectory samples.");
-        } else {
-            RCLCPP_INFO(get_logger(), "ROBOT_12 stream ended (%zu trajectory samples).",
-                        samples);
         }
     }
 
@@ -477,13 +366,6 @@ private:
         have_joint_state_ = true;
     }
 
-    // ── End-of-stream / streaming scheduler ──────────────────────────────────
-    // ── Execute approach as a separate step ────────────────────────────────
-    // Moves the robot from its current pose to the first trajectory point
-    // using a standalone quintic approach segment built by build_approach_segment().
-    // This runs outside the poll_callback loop: poll_callback merely triggers
-    // it once, then waits for the goal handle to clear before proceeding with
-    // the nominal trajectory.
     bool execute_approach() {
         if (approach_duration_ <= 0.0) {
             approach_executed_ = true;
@@ -494,9 +376,6 @@ private:
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!have_joint_state_) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "execute_approach: waiting for joint state on '%s'.",
-                                     joint_state_topic_.c_str());
                 return false;
             }
             start = current_positions_;
@@ -505,16 +384,14 @@ private:
         trajectory_msgs::msg::JointTrajectory approach;
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
-            if (real_traj_.wp.empty()) {
-                RCLCPP_ERROR(get_logger(),
-                             "execute_approach: no trajectory data available.");
+            if (nominal_traj_.wp.empty()) {
                 return false;
             }
-            const JointArray target = to_joint_array(real_traj_.wp.front().q);
+            const JointArray target = to_joint_array(nominal_traj_.wp.front().q);
             const JointArray target_velocity =
-                to_joint_array(real_traj_.wp.front().qd);
+                to_joint_array(nominal_traj_.wp.front().qd);
             const JointArray target_acceleration =
-                to_joint_array(real_traj_.wp.front().qdd);
+                to_joint_array(nominal_traj_.wp.front().qdd);
             approach = build_approach_segment(start, target, target_velocity,
                                               target_acceleration,
                                               approach_duration_, approach_dt_);
@@ -525,26 +402,17 @@ private:
             return true;
         }
 
-        log_trajectory(approach);
-
         if (dry_run_) {
-            RCLCPP_INFO(get_logger(),
-                        "execute_approach: dry_run, approach not sent.");
             approach_executed_ = true;
             return true;
         }
 
-        if (!action_client_->action_server_is_ready()) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "execute_approach: action server '%s' not available.",
-                                 controller_action_.c_str());
-            return false;
-        }
+        if (!action_client_->action_server_is_ready()) return false;
+
+        std::cout << "APPROACH" << std::endl;
 
         approach_executed_ = true;
-        send_goal(std::move(approach), /*quiet=*/false);
-        RCLCPP_INFO(get_logger(),
-                    "execute_approach: approach goal sent; waiting for completion.");
+        send_goal(std::move(approach), false);
         return true;
     }
 
@@ -554,38 +422,18 @@ private:
             return;
         }
 
-        // ── Step 1: Execute the approach as a separate step (outside this
-        //          function's body).  build_approach_segment() is called from
-        //          execute_approach(), not from here or from build_trajectory.
-        if (approach_duration_ > 0.0 && !approach_executed_) {
-            if (!execute_approach()) return;
-            // Approach goal has been sent; wait for the goal handle to clear
-            // before proceeding with the nominal trajectory.
-            if (current_goal_) return;
-            RCLCPP_INFO(get_logger(),
-                        "Approach completed; proceeding with nominal trajectory.");
-        }
-
-        // ── Step 2: Approach done (or not needed), send the nominal trajectory
         if (send_attempted_ || send_failed_hard_ || !stream_finished_.load()) return;
 
-        // Wait for the approach goal (if any) to fully clear before sending
-        // the trajectory.  Do not set send_attempted_ here: we have not yet
-        // attempted to send the main trajectory.
         if (current_goal_) return;
 
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
             if (real_traj_.wp.empty()) {
-                RCLCPP_ERROR(get_logger(),
-                             "The ROBOT_12 stream ended but produced no trajectory samples.");
                 send_failed_hard_ = true;
                 return;
             }
         }
 
-        // Retry every poll period until a joint state (and, for real motion, the
-        // action server) is available; a build error is terminal.
         if (try_send()) send_attempted_ = true;
     }
 
@@ -603,34 +451,21 @@ private:
         bool covers_all{false};
     };
 
-    // ── Live streaming scheduler ──────────────────────────────────────────────
-    // The stream is replayed as a sequence of overlapping goals: every goal
-    // follows chunk_duration seconds of the accumulated trajectory, starting
-    // where the robot is now, and is replaced chunk_lead seconds before its
-    // nominal end.  The robot therefore lags the stream by roughly
-    // chunk_duration + chunk_lead, but starts moving after ~1 s of data.
     void streaming_poll() {
         if (send_failed_hard_ || stream_complete_) return;
 
-        // ── Step 1: Execute the approach as a separate step before sending
-        //          chunks.  build_approach_segment() is called from
-        //          execute_approach(), not from here or from build_stream_chunk.
         if (approach_duration_ > 0.0 && !approach_executed_) {
+            std::cout << "approach_executed_ = " << approach_executed_ << std::endl;
+            std::cout << "approach_duration_ = " << approach_duration_ << std::endl;
             if (!execute_approach()) return;
             if (current_goal_) return;
-            RCLCPP_INFO(get_logger(),
-                        "Streaming: approach completed; proceeding with chunks.");
         }
 
-        // Wait for the approach goal (if any) to fully clear before sending
-        // chunks.
         if (current_goal_) return;
 
         const Clock::time_point now = Clock::now();
         if (stream_goal_sent_) {
             if (now < stream_next_send_time_) return;
-            // Do not send a newer goal before the previous one has been
-            // accepted: the controller must see the goals in order.
             if (sending_ && !current_goal_) return;
         }
         if (stream_last_attempt_ != Clock::time_point{} &&
@@ -644,9 +479,6 @@ private:
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!have_joint_state_) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "Waiting for a complete joint state on '%s'.",
-                                     joint_state_topic_.c_str());
                 return;
             }
             measured = current_positions_;
@@ -660,8 +492,6 @@ private:
             const std::size_t count = real_traj_.wp.size();
             if (count == 0) {
                 if (stream_finished_) {
-                    RCLCPP_ERROR(get_logger(),
-                                 "The ROBOT_12 stream ended without trajectory samples.");
                     send_failed_hard_ = true;
                 }
                 return;
@@ -669,10 +499,6 @@ private:
 
             std::size_t base = 0;
             if (!first) {
-                // Time-based estimate of the robot's progress along the
-                // trajectory: each sample lasts kTrajectoryDt.  A manually
-                // sent approach only covers its own duration, not trajectory
-                // samples.
                 double elapsed =
                     std::chrono::duration<double>(now - stream_send_time_).count();
                 base = stream_last_base_;
@@ -683,19 +509,11 @@ private:
                         std::min(stream_last_end_, count > 0 ? count - 1 : 0);
                     base = std::min(limit, base + advance);
                 }
-                // The pose is deliberately not matched back onto the
-                // trajectory: during a hold every sample is nearly identical,
-                // so a pose search would keep selecting the same sample and
-                // the chunk index would freeze.  Progress is purely
-                // time-based; the measured pose is only used for the blend at
-                // the start of each continuation chunk.
             }
 
             if (base >= count) {
                 if (stream_finished_) {
                     stream_complete_ = true;
-                    RCLCPP_INFO(get_logger(),
-                                "Streaming: all trajectory samples have been sent.");
                 }
                 return;
             }
@@ -709,25 +527,16 @@ private:
                             1, static_cast<std::size_t>(std::llround(
                                    min_chunk_duration_ / kTrajectoryDt)));
             if (!stream_finished_ && available < minimum) {
-                RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "Streaming: waiting for more ROBOT_12 data "
-                                     "(%zu/%zu samples available).",
-                                     available, minimum);
                 return;
             }
             if (available == 0) return;
 
-            // In a dry run assume perfect tracking for the continuation chunks,
-            // so the log shows the real chunk schedule instead of ramps from a
-            // frozen measured pose.
             JointArray ramp_start = measured;
             JointArray ramp_start_velocity{};
             if (dry_run_ && !first) {
                 ramp_start = to_joint_array(real_traj_.wp[base].q);
                 ramp_start_velocity = to_joint_array(real_traj_.wp[base].qd);
             } else if (!first) {
-                // Start the blend with the velocity the robot actually has, so
-                // the goal replacement does not brake the arm.
                 for (std::size_t j = 0; j < 7; ++j) {
                     ramp_start_velocity[j] = std::clamp(
                         measured_velocity[j], -max_ramp_velocity_, max_ramp_velocity_);
@@ -739,33 +548,25 @@ private:
                                         end, &chunk)) {
                     return;
                 }
-            } catch (const std::exception& e) {
-                RCLCPP_ERROR(get_logger(), "Streaming: cannot build the next chunk: %s",
-                             e.what());
+            } catch (const std::exception&) {
                 send_failed_hard_ = true;
                 return;
             }
         }
 
         if (!dry_run_ && !action_client_->action_server_is_ready()) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "Action server '%s' is not available yet.",
-                                 controller_action_.c_str());
             return;
         }
 
-        log_stream_chunk(chunk);
         if (!dry_run_) {
-            send_goal(std::move(chunk.trajectory), /*quiet=*/true);
+            send_goal(std::move(chunk.trajectory), true);
         }
 
         stream_goal_sent_ = true;
         stream_send_time_ = now;
         stream_last_base_ = chunk.base;
         stream_last_end_ = chunk.end;
-        // Do not replace goals faster than min_chunk_duration: near the data
-        // frontier the available horizon is short, and sending a goal every
-        // poll would cause needless controller churn.
+
         const double until_next =
             std::max(chunk.duration - chunk_lead_, min_chunk_duration_);
         stream_next_send_time_ = now + std::chrono::duration_cast<Clock::duration>(
@@ -776,8 +577,6 @@ private:
         }
     }
 
-    // Build one streaming goal: either the initial approach + first chunk, or a
-    // quintic blend from `measured` into the trajectory followed by the chunk.
     bool build_stream_chunk(const JointArray& measured,
                             const JointArray& measured_velocity, bool first,
                             std::size_t base, std::size_t end, StreamChunk* chunk) {
@@ -786,7 +585,6 @@ private:
 
         chunk->trajectory = trajectory_msgs::msg::JointTrajectory();
         chunk->trajectory.joint_names = joint_names_;
-        // A zero stamp tells JointTrajectoryController to start on its first sample.
         chunk->trajectory.header.stamp.sec = 0;
         chunk->trajectory.header.stamp.nanosec = 0;
         chunk->base = base;
@@ -804,24 +602,12 @@ private:
 
             const double start_error = max_abs(subtract(target, measured));
             if (approach_duration_ <= 0.0 && start_error > start_tolerance_) {
-                throw std::runtime_error(
-                    "the robot is " + std::to_string(start_error) +
-                    " rad away from the first trajectory point (start_tolerance = " +
-                    std::to_string(start_tolerance_) +
-                    " rad). Move the robot closer, or set approach_duration > 0.");
+                throw std::runtime_error("robot too far from first trajectory point");
             }
             if (approach_duration_ > 0.0 && start_error > max_approach_distance_) {
-                throw std::runtime_error(
-                    "the robot is " + std::to_string(start_error) +
-                    " rad away from the first trajectory point, which exceeds "
-                    "max_approach_distance = " + std::to_string(max_approach_distance_) +
-                    " rad. Move the robot closer to the start pose, or raise "
-                    "max_approach_distance deliberately if the path is known to be safe.");
+                throw std::runtime_error("robot too far from first trajectory point");
             }
 
-            // No approach segment here: the approach is executed separately by
-            // execute_approach() before streaming begins.  The chunk starts
-            // from timestamp 0 with the trajectory samples.
             const double offset = -base_time;
             for (std::size_t i = base; i < end; ++i) {
                 const double time = offset + real_traj_.wp[i].timestamp;
@@ -835,15 +621,12 @@ private:
             return true;
         }
 
-        // Continuation chunk: the blend replaces the first chunk_ramp seconds
-        // of the trajectory, so the chunk keeps its nominal duration.  Short
-        // chunks (near the data frontier) get a proportionally shorter blend.
         std::size_t ramp_samples = static_cast<std::size_t>(
             std::max(1.0, std::ceil(chunk_ramp_ / kTrajectoryDt)));
         const std::size_t span_samples = end - 1 - base;
         if (span_samples > 0) {
             ramp_samples = std::min(ramp_samples, std::max<std::size_t>(1,
-                                                                       2 * span_samples / 5));
+                                                                        2 * span_samples / 5));
         } else {
             ramp_samples = 0;
         }
@@ -857,17 +640,11 @@ private:
 
         const double step = max_abs(subtract(target, measured));
         if (step > max_chunk_step_) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "Streaming: the next chunk starts %.3f rad from the "
-                                 "measured pose (max_chunk_step = %.3f rad); not sending "
-                                 "it.",
-                                 step, max_chunk_step_);
             return false;
         }
 
         double ramp_duration =
             ramp_samples > 0 ? ramp_samples * kTrajectoryDt : chunk_ramp_;
-        // Peak velocity of a quintic between two rest poses is 1.875 * step / T.
         ramp_duration = std::max(ramp_duration, 1.875 * step / max_ramp_velocity_);
 
         append_quintic(chunk->trajectory, 0.0, ramp_duration, approach_dt_, measured,
@@ -886,30 +663,8 @@ private:
         return true;
     }
 
-    void log_stream_chunk(const StreamChunk& chunk) const {
-        double max_velocity = 0.0;
-        double max_acceleration = 0.0;
-        for (const auto& point : chunk.trajectory.points) {
-            for (double value : point.velocities) {
-                max_velocity = std::max(max_velocity, std::abs(value));
-            }
-            for (double value : point.accelerations) {
-                max_acceleration = std::max(max_acceleration, std::abs(value));
-            }
-        }
-        RCLCPP_INFO(
-            get_logger(),
-            "Stream chunk%s: samples [%zu, %zu), %zu points, %.3f s, "
-            "max |qd| %.3f rad/s, max |qdd| %.3f rad/s^2.",
-            chunk.first ? " (approach)" : "", chunk.base, chunk.end,
-            chunk.trajectory.points.size(), chunk.duration, max_velocity,
-            max_acceleration);
-    }
-
     bool try_send() {
         if (sending_ || current_goal_) {
-            RCLCPP_WARN(get_logger(),
-                        "A trajectory goal is already active; not sending another one.");
             return false;
         }
 
@@ -917,9 +672,6 @@ private:
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!have_joint_state_) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "Waiting for a complete joint state on '%s'.",
-                                     joint_state_topic_.c_str());
                 return false;
             }
             start = current_positions_;
@@ -929,40 +681,29 @@ private:
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
             if (real_traj_.wp.empty()) {
-                RCLCPP_ERROR(get_logger(), "No accumulated trajectory to send.");
                 send_failed_hard_ = true;
                 return false;
             }
             try {
                 trajectory = build_trajectory(start);
-            } catch (const std::exception& e) {
-                RCLCPP_ERROR(get_logger(), "Cannot build trajectory: %s", e.what());
+            } catch (const std::exception&) {
                 send_failed_hard_ = true;
                 return false;
             }
         }
-        log_trajectory(trajectory);
 
         if (dry_run_) {
-            RCLCPP_INFO(get_logger(),
-                        "dry_run is set: the trajectory was built but will not be sent.");
             return true;
         }
 
         if (!action_client_->action_server_is_ready()) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "Action server '%s' is not available yet.",
-                                 controller_action_.c_str());
             return false;
         }
 
-        send_goal(std::move(trajectory), /*quiet=*/false);
-        RCLCPP_INFO(get_logger(), "Sent trajectory goal to '%s'.", controller_action_.c_str());
+        send_goal(std::move(trajectory), false);
         return true;
     }
 
-    // Dispatch a goal and track only the newest one: results from goals that
-    // were superseded must neither clear the current handle nor stop streaming.
     void send_goal(trajectory_msgs::msg::JointTrajectory trajectory, bool quiet) {
         const uint64_t generation = ++send_generation_;
         sending_ = true;
@@ -974,8 +715,6 @@ private:
         options.goal_response_callback =
             [this, generation, quiet](GoalHandle::SharedPtr goal_handle) {
                 if (!goal_handle) {
-                    RCLCPP_ERROR(get_logger(),
-                                 "Trajectory goal was rejected by the controller.");
                     if (generation == send_generation_) {
                         sending_ = false;
                         current_goal_.reset();
@@ -983,62 +722,29 @@ private:
                     return;
                 }
                 if (generation != send_generation_) {
-                    // A newer chunk was sent before this goal was accepted.
                     action_client_->async_cancel_goal(goal_handle);
                     return;
                 }
                 current_goal_ = goal_handle;
-                if (!quiet) {
-                    RCLCPP_INFO(get_logger(),
-                                "Trajectory goal accepted; the robot is now executing it.");
-                }
             };
 
         options.feedback_callback =
             [this](GoalHandle::SharedPtr,
-                   const std::shared_ptr<const FollowJointTrajectory::Feedback> feedback) {
-                const auto current_time = now();
-                if ((current_time - last_feedback_time_).seconds() < 1.0) return;
-                last_feedback_time_ = current_time;
-
-                double max_error = 0.0;
-                for (double value : feedback->error.positions) {
-                    max_error = std::max(max_error, std::abs(value));
-                }
-                RCLCPP_INFO(get_logger(), "Tracking max |position error| = %.4f rad.",
-                            max_error);
+                   const std::shared_ptr<const FollowJointTrajectory::Feedback>) {
             };
 
         options.result_callback =
             [this, generation, quiet](const GoalHandle::WrappedResult& result) {
                 if (generation == send_generation_) sending_ = false;
-                // Only clear the handle if the finished goal is still the current
-                // one: a stale result must not drop the handle of a newer goal.
                 if (current_goal_ && result.goal_id == current_goal_->get_goal_id()) {
                     current_goal_.reset();
                 }
                 if (generation != send_generation_) return;
-
-                const auto code = result.result ? result.result->error_code : -999;
-                const auto message =
-                    result.result ? result.result->error_string : "no result";
-                if (!quiet || code != FollowJointTrajectory::Result::SUCCESSFUL) {
-                    RCLCPP_INFO(get_logger(), "Trajectory finished with code %s (%d): %s",
-                                result_code_to_string(code).c_str(),
-                                static_cast<int>(code), message.c_str());
-                }
             };
 
         action_client_->async_send_goal(goal, options);
     }
 
-    // ── Approach segment ─────────────────────────────────────────────────────
-    // Builds the quintic move that brings the robot from `start` to `target`
-    // (the first point of the trajectory) over `approach_duration`, with zero
-    // velocity and acceleration at both ends.  Returns only the approach
-    // segment; the caller appends the nominal trajectory waypoints afterwards.
-    // This keeps the "move to start point" logic separate from the nominal
-    // trajectory execution.
     trajectory_msgs::msg::JointTrajectory build_approach_segment(
         const JointArray& start,
         const JointArray& target,
@@ -1048,8 +754,6 @@ private:
         double approach_dt) const {
         trajectory_msgs::msg::JointTrajectory trajectory;
         trajectory.joint_names = joint_names_;
-        // A zero stamp tells JointTrajectoryController to start on its first
-        // sample.
         trajectory.header.stamp.sec = 0;
         trajectory.header.stamp.nanosec = 0;
 
@@ -1066,9 +770,6 @@ private:
         return trajectory;
     }
 
-    // ── Trajectory construction (nominal real_traj_ only) ───────────────────
-    // The approach segment is no longer built here: it is executed as a
-    // separate goal by execute_approach() before this function is called.
     trajectory_msgs::msg::JointTrajectory build_trajectory(const JointArray& start) const {
         if (real_traj_.wp.empty()) throw std::runtime_error("trajectory is empty");
 
@@ -1077,25 +778,14 @@ private:
         const double start_error = max_abs(start_delta);
 
         if (approach_duration_ <= 0.0 && start_error > start_tolerance_) {
-            throw std::runtime_error(
-                "the robot is " + std::to_string(start_error) +
-                " rad away from the first trajectory point (start_tolerance = " +
-                std::to_string(start_tolerance_) +
-                " rad). Move the robot closer, or set approach_duration > 0.");
+            throw std::runtime_error("robot too far from first trajectory point");
         }
         if (approach_duration_ > 0.0 && start_error > max_approach_distance_) {
-            throw std::runtime_error(
-                "the robot is " + std::to_string(start_error) +
-                " rad away from the first trajectory point, which exceeds "
-                "max_approach_distance = " + std::to_string(max_approach_distance_) +
-                " rad. Move the robot closer to the start pose, or raise "
-                "max_approach_distance deliberately if the path is known to be safe.");
+            throw std::runtime_error("robot too far from first trajectory point");
         }
 
         trajectory_msgs::msg::JointTrajectory trajectory;
         trajectory.joint_names = joint_names_;
-        // A zero stamp tells JointTrajectoryController to start on its first
-        // sample.
         trajectory.header.stamp.sec = 0;
         trajectory.header.stamp.nanosec = 0;
         trajectory.points.reserve(real_traj_.wp.size());
@@ -1109,27 +799,6 @@ private:
         return trajectory;
     }
 
-    void log_trajectory(const trajectory_msgs::msg::JointTrajectory& trajectory) const {
-        double max_velocity = 0.0;
-        double max_acceleration = 0.0;
-        for (const auto& point : trajectory.points) {
-            for (double value : point.velocities) {
-                max_velocity = std::max(max_velocity, std::abs(value));
-            }
-            for (double value : point.accelerations) {
-                max_acceleration = std::max(max_acceleration, std::abs(value));
-            }
-        }
-
-        const auto& last = trajectory.points.back().time_from_start;
-        const double duration = static_cast<double>(last.sec) + 1.0e-9 * last.nanosec;
-        RCLCPP_INFO(
-            get_logger(),
-            "Built trajectory: %zu points, %.3f s, max |qd| %.3f rad/s, max |qdd| %.3f rad/s^2.",
-            trajectory.points.size(), duration, max_velocity, max_acceleration);
-    }
-
-    // ── Services ──────────────────────────────────────────────────────────────
     void send_service_callback(
         const std::shared_ptr<std_srvs::srv::Trigger::Request>,
         std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
@@ -1142,12 +811,10 @@ private:
         }
         const bool ok = try_send();
         if (ok) {
-            // The trajectory has been handed over: do not send it again when the
-            // stream later times out.
             send_attempted_ = true;
             response->message = "trajectory sent";
         } else {
-            response->message = "trajectory was not sent, see the log";
+            response->message = "trajectory was not sent";
         }
         response->success = ok;
     }
@@ -1163,12 +830,10 @@ private:
             return;
         }
         action_client_->async_cancel_goal(current_goal_);
-        RCLCPP_WARN(get_logger(), "Requested cancellation of the active trajectory goal.");
         response->success = true;
         response->message = "cancel request sent";
     }
 
-    // ── State ─────────────────────────────────────────────────────────────────
     int n_traj_;
     std::filesystem::path root_;
     std::unique_ptr<RobotModel> robot_model_;
@@ -1191,9 +856,7 @@ private:
     uint64_t send_generation_{0};
     GoalHandle::SharedPtr current_goal_;
     bool approach_executed_{false};
-    rclcpp::Time last_feedback_time_{0, 0, RCL_ROS_TIME};
 
-    // Streaming scheduler state (executor thread only)
     bool stream_goal_sent_{false};
     bool stream_complete_{false};
     std::size_t stream_last_base_{0};
@@ -1202,7 +865,6 @@ private:
     Clock::time_point stream_next_send_time_{};
     Clock::time_point stream_last_attempt_{};
 
-    // Parameters
     std::string controller_action_;
     std::string joint_state_topic_;
     std::vector<std::string> joint_names_;
@@ -1220,7 +882,6 @@ private:
     double max_chunk_step_{0.35};
     double max_ramp_velocity_{1.0};
 
-    // ROS interfaces
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_subscription_;
     rclcpp_action::Client<FollowJointTrajectory>::SharedPtr action_client_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr send_service_;
@@ -1228,9 +889,7 @@ private:
     rclcpp::TimerBase::SharedPtr poll_timer_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Entry point: <trajectory index> [repository root] [ROS args]
-// ─────────────────────────────────────────────────────────────────────────────
+
 int main(int argc, char* argv[]) {
     int n_traj = -1;
     std::string root_arg;
@@ -1262,7 +921,7 @@ int main(int argc, char* argv[]) {
         auto node = std::make_shared<RobotControllerNode>(n_traj, root);
         rclcpp::spin(node);
     } catch (const std::exception& e) {
-        RCLCPP_FATAL(rclcpp::get_logger("robot_controller_ros2"), "%s", e.what());
+        std::cerr << e.what() << std::endl;
         status = 1;
     }
     rclcpp::shutdown();
