@@ -385,15 +385,12 @@ RUN mkdir -p /etc/OpenCL/vendors && \
 WORKDIR /home/lab/SkeletonTracking
 
 # ── SkeletonTracking source and C++ build ────────────────────────────────────
-RUN git clone https://github.com/mecRobLabUniud/SkeletonTracking.git -b test
+RUN git clone --branch test https://github.com/mecRobLabUniud/SkeletonTracking.git .
 
-
-
-RUN cd /home/lab/SkeletonTracking
-    mkdir -p build && cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-    make -j$(nproc)
-    cd ..
+RUN cmake -S . -B build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_PREFIX_PATH=/usr/local && \
+    cmake --build build -j"$(nproc)"
 
 # ── SkeletonTracking ROS 2 controller ────────────────────────────────────────
 # Configure the same CMake project again with the ROS 2 environment sourced so

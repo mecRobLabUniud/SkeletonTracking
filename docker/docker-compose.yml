@@ -7,8 +7,8 @@ services:
         # Panda system 4.1.2 speaks libfranka server version 4 (0.8.0).
         # Use /opt/libfranka/lib/cmake/Franka for a robot >= 4.2.1 (0.9.2).
         LIBFRANKA_CMAKE_DIR: /opt/libfranka-0.8.0/lib/cmake/Franka
-    image: mecroblabuniud/r3d-project:latest
-    container_name: R3D_project
+    image: mecroblabuniud/r3d-project:nvidia
+    container_name: R3D_project_nvidia
     stdin_open: true
     tty: true
     init: true
@@ -27,11 +27,11 @@ services:
       - DISPLAY=${DISPLAY}
       - XAUTHORITY=/root/.Xauthority
       - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics,display,video
-      - __EGL_VENDOR_LIBRARY_FILENAMES=/usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
       - LD_LIBRARY_PATH=/usr/local/lib:/opt/mujoco/lib:/opt/libfranka/lib:/usr/lib/x86_64-linux-gnu
     # increased shared memory for MediaPipe / shared-memory image buffers
-    shm_size: 2gb
+    shm_size: 8gb
     devices:
       - /dev:/dev
       - /dev/nvidia0
@@ -41,12 +41,5 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:rw
-      # NVIDIA user-space libraries from the host (mount points match driver
-      # version 580.105.08; adjust if your host driver differs).
-      - /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro
-      - /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0:/usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0:ro
-      - /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0:ro
-      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
-      - /usr/lib/x86_64-linux-gnu/libnvidia-opencl.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-opencl.so.1:ro
-      - /etc/OpenCL/vendors:/etc/OpenCL/vendors:ro
+      - /usr/share/glvnd/egl_vendor.d/10_nvidia.json:/usr/share/glvnd/egl_vendor.d/10_nvidia.json:ro
     working_dir: /home/lab/SkeletonTracking

@@ -1,0 +1,14 @@
+docker run -it --init --name R3D_project_backup --privileged \
+  --gpus all \
+  -e NVIDIA_VISIBLE_DEVICES=all \
+  -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics,display \
+  -e PYTHONUNBUFFERED=1 \
+  -e DISPLAY=$DISPLAY \
+  -e XAUTHORITY=/root/.Xauthority \
+  -w /home/lab/SkeletonTracking \
+  -v /dev:/dev \
+  -v /run/udev:/run/udev:ro \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v $HOME/.Xauthority:/root/.Xauthority:rw \
+  --network host \
+  mecroblabuniud/r3d-project:backup
