@@ -298,7 +298,7 @@ private:
 
     void receiver_loop() {
         DataTransmitter receiver(DataTransmitter::Mode::Receiver, kRobotZmqDevice, "ROBOT");
-        receiver.set_receive_timeout(100);
+        receiver.set_receive_timeout(20);
 
         Waypoint previous = nominal_traj_.wp.front();
         Waypoint next = previous;
