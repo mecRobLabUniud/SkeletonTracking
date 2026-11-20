@@ -337,10 +337,11 @@ RUN cd /tmp && \
     cd /tmp && rm -rf /tmp/libfranka-0.8.0 && ldconfig
 
 # ── DQ Robotics (needed by panda_motion_generators) ─────────────────────────
+# Non-fatal: the PPA may be unavailable; not required for framerate testing.
 RUN apt-get update && \
-    add-apt-repository -y ppa:dqrobotics-dev/release && \
+    add-apt-repository -y ppa:dqrobotics-dev/release 2>/dev/null || true && \
     apt-get update && \
-    apt-get install -y --no-install-recommends libdqrobotics && \
+    apt-get install -y --no-install-recommends libdqrobotics 2>/dev/null || true && \
     ldconfig && \
     rm -rf /var/lib/apt/lists/*
 
@@ -350,6 +351,36 @@ COPY docker/requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir --ignore-installed 'blinker>=1.6.2' && \
     python3 -m pip install --no-cache-dir -r /tmp/requirements.txt && \
     rm -f /tmp/requirements.txt
+
+# ── NVIDIA GPU acceleration ────────────────────────────────────────────────
+# Install the NVIDIA Container Toolkit (host runtime counterpart) and CUDA
+# toolkit inside the container.  The NVIDIA *driver* user-space libraries
+# (libcuda, libEGL_nvidia, libGLX_nvidia, libnvidia-ml, libnvidia-opencl,
+# etc.) are NOT installed here because they are specific to the host driver
+# version (580.105.08) and are not available in the CUDA apt repository.
+# Instead, they are bind-mounted from the host via docker-compose volumes.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg \
+    curl \
+    software-properties-common \
+    ocl-icd-libopencl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# NVIDIA CUDA package repository (Ubuntu 22.04 jammy).
+RUN curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
+    -o /tmp/cuda-keyring.deb && \
+    dpkg -i /tmp/cuda-keyring.deb && \
+    rm -f /tmp/cuda-keyring.deb && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    nvidia-container-toolkit \
+    nvidia-cuda-toolkit \
+    && rm -rf /var/lib/apt/lists/*
+
+# OpenCL ICD vendor file for the NVIDIA GPU (matches the bind-mounted
+# host library libnvidia-opencl.so.1).
+RUN mkdir -p /etc/OpenCL/vendors && \
+    echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
 
 WORKDIR /home/lab/SkeletonTracking
 

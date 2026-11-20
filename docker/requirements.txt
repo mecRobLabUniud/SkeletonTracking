@@ -6,6 +6,8 @@ Flask==3.0.3
 Flask-SocketIO==5.6.1
 mediapipe==0.10.9
 numpy==1.24.4
-opencv-contrib-python==4.12.0.88
+# 4.10.0.84 is the last release that supports numpy 1.x (mediapipe 0.10.9
+# requires numpy<2, and the C++ side is built against numpy 1.24).
+opencv-contrib-python==4.10.0.84
 pyrealsense2==2.55.1.6486
 pyzmq==27.1.0
