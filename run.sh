@@ -39,6 +39,12 @@ Options:
 EOF
 }
 
+# compile source files
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+cd ..
+
 # --- Parse arguments (order-independent) ---
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -147,6 +153,9 @@ data_merging="python3 $dir/scripts/data_merging.py"
 web_interface="python3 $dir/scripts/web_interface.py"
 calibration="python3 $dir/scripts/calibration.py"
 rula_evaluation="$dir/build/rula_evaluation"
+ros_controller="ros2 launch /home/lab/SkeletonTracking/launch/real_robot.launch.py \
+        start_controller:=true traj_index:=3 \
+        start_duration:=8.0 max_approach_distance:=2.0"
 exec_trajectory="$dir/build/main_$core"
 
 # ── Start the robot trajectory executor, when the robot mode is requested ────
@@ -231,6 +240,8 @@ case "$mode" in
         $data_recording "$n_devices" "-s" "10" &
         $data_merging "$n_devices" &
         $rula_evaluation &
+        $ros_controller &
+        sleep 3
         $exec_trajectory "3" "$dir" &
         if [ "$use_gui" = true ]; then
             $web_interface "$n_devices" "--robot"
