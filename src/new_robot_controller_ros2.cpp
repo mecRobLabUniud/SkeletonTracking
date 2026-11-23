@@ -195,6 +195,11 @@ private:
         double t = 0.0;
         std::vector<double> vnorm;
 
+        // ── Delay for loading the web interface ─────────────────────────────────
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        auto next_time = std::chrono::steady_clock::now();
+
         for (std::size_t i = 0; i + 1 < nominal_traj_.wp.size(); ++i) {
             if (stop_receiver_.load() || !rclcpp::ok()) {
                 break;
@@ -203,12 +208,18 @@ private:
             const Waypoint& previous = nominal_traj_.wp[i];
             const Waypoint& next = nominal_traj_.wp[i + 1];
 
+            std::cout << "previous = " << previous.q.transpose() << std::endl;
+            std::cout << "next = " << next.q.transpose() << std::endl;
+
             {
                 std::lock_guard<std::mutex> lock(trajectory_mutex_);
                 build_p2p_traj(previous.q, next.q, &vnorm, real_traj_, kStreamDt, t,
                                *robot_model_, kTrajectoryDt, previous.qd,
                                previous.qdd, next.qd, next.qdd);
             }
+
+            // next_time += std::chrono::milliseconds(100);
+            // std::this_thread::sleep_until(next_time);
         }
 
         {
@@ -327,7 +338,6 @@ private:
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!have_joint_state_) {
-                std::cout << "\n++++++++++ !have_joint_state_ \n" << std::endl;
                 return false;
             }
             start = current_positions_;
@@ -337,8 +347,6 @@ private:
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
             if (nominal_traj_.wp.empty()) {
-
-                std::cout << "\n++++++++++ nominal_traj_.wp.empty() \n" << std::endl;
                 return false;
             }
             const JointArray target = to_joint_array(nominal_traj_.wp.front().q);
@@ -532,26 +540,24 @@ private:
 
     void controller_callback() {
 
-
-        std::cout << "\n++++++++++ looping \n" << std::endl;
-
+        std::cout << "real_traj size = " << real_traj_.wp.size() << std::endl;
 
 
         if (start_attempted_) {
-            std::cout << "\n++++++++++ start_attempted_ \n" << std::endl;
+            std::cout << "start_attempted_" << std::endl;
             return;
         }
 
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!have_joint_state_) {
-                std::cout << "\n++++++++++ have_joint_state_ \n" << std::endl;
+                std::cout << "have_joint_state_" << std::endl;
                 return;
             }
         }
 
         if ((now() - first_joint_state_time_).seconds() < start_delay_) {
-            std::cout << "\n++++++++++ first_joint_state_time_ \n" << std::endl;
+            std::cout << "first_joint_state_time_" << std::endl;
             return;
         }
 
@@ -562,37 +568,32 @@ private:
             return;
         }
 
-        // std::cout << "LOOPING" << std::endl;
-
         if (approach_duration_ > 0.0 && !approach_executed_) {
-            std::cout << "\n++++++++++ approach_\n" << std::endl;
-            if (!execute_approach()) return;
-            // The approach goal was sent asynchronously: current_goal_ is not
-            // populated yet (the goal_response callback runs on the spin
-            // thread).  Wait for the approach to complete before sending the
-            // main trajectory so the two goals do not collide.
+            if (!execute_approach()) {
+                std::cout << "execute_approach" << std::endl;
+                return;
+            }
+            std::cout << "approach_executed_" << std::endl;
             return;
         }
 
         // Wait for an in-flight approach (or any other goal) to finish before
         // sending the main trajectory.
-        if (current_goal_) return;
+        if (current_goal_) {
+            std::cout << "current_goal_" << std::endl;
+            return;
+        }
 
-        start_attempted_ = true;
+        // start_attempted_ = true;
         // controller_->cancel();
         send_trajectory();
     }
 
 
 
-
-
-
-
     void send_trajectory() {
 
-        std::cout << "\n++++++++++ send_trajectory \n" << std::endl;
-
+        std::cout << "send_trajectory" << std::endl;
         JointArray start{};
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
@@ -615,12 +616,10 @@ private:
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
             if (real_traj_.wp.empty()) {
-                std::cout << "\n++++++++++ real_traj_.wp.empty() \n" << std::endl;
                 send_failed_hard_ = true;
                 return;
             }
             try {
-                std::cout << "\n++++++++++ try \n" << std::endl;
                 trajectory = build_trajectory(start);
             } catch (const std::exception&) {
                 send_failed_hard_ = true;
@@ -643,10 +642,6 @@ private:
 
 
     void send_goal(trajectory_msgs::msg::JointTrajectory trajectory, bool quiet) {
-
-        std::cout << "\n++++++++++ send_goal \n" << std::endl;
-
-
         const uint64_t generation = ++send_generation_;
         sending_ = true;
 
@@ -686,19 +681,6 @@ private:
 
         action_client_->async_send_goal(goal, options);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     bool build_stream_chunk(const JointArray& measured,
