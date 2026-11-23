@@ -57,7 +57,7 @@ REPOSITORY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_TRAJECTORY_DIR = os.path.join(REPOSITORY_DIR, "src", "trajectories", "test3")
 DEFAULT_URDF = os.path.join(REPOSITORY_DIR, "src", "urdf", "panda.urdf")
 DEFAULT_EXECUTABLE = os.path.join(
-    REPOSITORY_DIR, "build_ros2", "random_trajectory_controller"
+    REPOSITORY_DIR, "build", "random_trajectory_controller"
 )
 DEFAULT_REAL_ROBOT_LAUNCH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "real_robot.launch.py"

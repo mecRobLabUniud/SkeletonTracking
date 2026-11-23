@@ -237,11 +237,11 @@ case "$mode" in
         n_devices=$(ls "$dir"/scripts/data/skeleton_data/test7/skeleton* 2>/dev/null | wc -l)
 
         echo "Testing temp..."
-        $data_recording "$n_devices" "-s" "10" &
-        $data_merging "$n_devices" &
-        $rula_evaluation &
         $ros_controller &
         sleep 3
+        $data_recording "$n_devices" "-s" "7" &
+        $data_merging "$n_devices" &
+        $rula_evaluation &
         $exec_trajectory "3" "$dir" &
         if [ "$use_gui" = true ]; then
             $web_interface "$n_devices" "--robot"

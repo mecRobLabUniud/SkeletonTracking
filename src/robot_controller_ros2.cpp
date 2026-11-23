@@ -409,8 +409,6 @@ private:
 
         if (!action_client_->action_server_is_ready()) return false;
 
-        std::cout << "APPROACH" << std::endl;
-
         approach_executed_ = true;
         send_goal(std::move(approach), false);
         return true;
@@ -455,8 +453,6 @@ private:
         if (send_failed_hard_ || stream_complete_) return;
 
         if (approach_duration_ > 0.0 && !approach_executed_) {
-            std::cout << "approach_executed_ = " << approach_executed_ << std::endl;
-            std::cout << "approach_duration_ = " << approach_duration_ << std::endl;
             if (!execute_approach()) return;
             if (current_goal_) return;
         }
@@ -484,6 +480,7 @@ private:
             measured = current_positions_;
             measured_velocity = current_velocities_;
         }
+
 
         const bool first = !stream_goal_sent_;
         StreamChunk chunk;
@@ -637,6 +634,23 @@ private:
             to_joint_array(real_traj_.wp[target_index].qd);
         const JointArray target_acceleration =
             to_joint_array(real_traj_.wp[target_index].qdd);
+
+
+        
+
+
+
+
+
+        std::cout << "\n\n\n++++++++++++++++++++\n measured = " << measured.size() << std::endl  << std::endl  << std::endl;
+        // std::cout << "target = " << target << std::endl;
+        // std::cout << "diff = " << current_positions_ - target << std::endl;
+
+
+
+
+
+
 
         const double step = max_abs(subtract(target, measured));
         if (step > max_chunk_step_) {
