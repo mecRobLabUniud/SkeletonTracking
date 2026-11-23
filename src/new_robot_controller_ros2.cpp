@@ -91,6 +91,17 @@ public:
         robot_model_ = std::make_unique<RobotModel>(robot_urdf_);
         load_and_sample_trajectory();
 
+        // Locate the project root so the nominal trajectory can be found
+        // relative to src/trajectories/test<n_traj_>.
+        root_ = findProjectRoot();
+
+        std::cout << "\n++++++++++ !loading traj \n" << std::endl;
+        nominal_traj_ = load_trajectory(*robot_model_, root_.string() + "/", n_traj_, kStreamDt);
+        std::cout << "\n++++++++++ !traj loaded \n" << std::endl;
+        if (nominal_traj_.wp.empty()) {
+            throw std::runtime_error("the nominal trajectory is empty");
+        }
+
         joint_state_subscription_ = create_subscription<sensor_msgs::msg::JointState>(
             joint_state_topic_, rclcpp::QoS(10),
             std::bind(&RobotControllerNode::joint_state_callback, this,
@@ -177,50 +188,31 @@ private:
 
 
     void receiver_loop() {
-        DataTransmitter receiver(DataTransmitter::Mode::Receiver, kRobotZmqDevice, "ROBOT");
-        receiver.set_receive_timeout(20);
-
-        Waypoint previous = nominal_traj_.wp.front();
-        Waypoint next = previous;
+        // Instead of reading incoming waypoints from ZMQ, stream the nominal
+        // trajectory into real_traj_ one segment at a time.  Each consecutive
+        // pair of nominal waypoints is joined with a quintic segment sampled
+        // at kTrajectoryDt, accumulating the timestamp in `t`.
         double t = 0.0;
         std::vector<double> vnorm;
-        bool received_message = false;
-        Clock::time_point last_message = Clock::now();
 
-        while (!stop_receiver_.load() && rclcpp::ok()) {
-            Waypoint wp;
-            try {
-                wp = receiveRobotStates(receiver);
-            } catch (const std::exception&) {
-                continue;
-            }
-
-            if (wp.q.size() == 7 && wp.qd.size() == 7 && wp.qdd.size() == 7 &&
-                wp.q.allFinite() && wp.qd.allFinite() && wp.qdd.allFinite()) {
-                received_message = true;
-                last_message = Clock::now();
-
-                if (wp.q != next.q) {
-                    std::lock_guard<std::mutex> lock(trajectory_mutex_);
-                    previous = next;
-                    next = wp;
-                    build_p2p_traj(previous.q, next.q, &vnorm, real_traj_, kStreamDt, t,
-                                   *robot_model_, kTrajectoryDt, previous.qd,
-                                   previous.qdd, next.qd, next.qdd);
-                }
-            }
-
-            if (received_message &&
-                std::chrono::duration<double>(Clock::now() - last_message).count() >
-                    stream_timeout_) {
+        for (std::size_t i = 0; i + 1 < nominal_traj_.wp.size(); ++i) {
+            if (stop_receiver_.load() || !rclcpp::ok()) {
                 break;
+            }
+
+            const Waypoint& previous = nominal_traj_.wp[i];
+            const Waypoint& next = nominal_traj_.wp[i + 1];
+
+            {
+                std::lock_guard<std::mutex> lock(trajectory_mutex_);
+                build_p2p_traj(previous.q, next.q, &vnorm, real_traj_, kStreamDt, t,
+                               *robot_model_, kTrajectoryDt, previous.qd,
+                               previous.qdd, next.qd, next.qdd);
             }
         }
 
-        std::size_t samples = 0;
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
-            samples = real_traj_.wp.size();
             stream_finished_.store(true);
         }
     }
@@ -335,6 +327,7 @@ private:
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!have_joint_state_) {
+                std::cout << "\n++++++++++ !have_joint_state_ \n" << std::endl;
                 return false;
             }
             start = current_positions_;
@@ -344,6 +337,8 @@ private:
         {
             std::lock_guard<std::mutex> lock(trajectory_mutex_);
             if (nominal_traj_.wp.empty()) {
+
+                std::cout << "\n++++++++++ nominal_traj_.wp.empty() \n" << std::endl;
                 return false;
             }
             const JointArray target = to_joint_array(nominal_traj_.wp.front().q);
@@ -536,6 +531,12 @@ private:
     }
 
     void controller_callback() {
+
+
+        std::cout << "\n++++++++++ looping \n" << std::endl;
+
+
+
         if (start_attempted_) {
             std::cout << "\n++++++++++ start_attempted_ \n" << std::endl;
             return;
@@ -566,10 +567,15 @@ private:
         if (approach_duration_ > 0.0 && !approach_executed_) {
             std::cout << "\n++++++++++ approach_\n" << std::endl;
             if (!execute_approach()) return;
-            if (current_goal_) return;
-            std::cout << "\n++++++++++ approach_executed_ \n" << std::endl;
+            // The approach goal was sent asynchronously: current_goal_ is not
+            // populated yet (the goal_response callback runs on the spin
+            // thread).  Wait for the approach to complete before sending the
+            // main trajectory so the two goals do not collide.
+            return;
         }
 
+        // Wait for an in-flight approach (or any other goal) to finish before
+        // sending the main trajectory.
         if (current_goal_) return;
 
         start_attempted_ = true;
@@ -808,7 +814,7 @@ private:
 
 
 
-    int n_traj_;
+    int n_traj_ = 3;
     std::filesystem::path root_;
     Trajectory nominal_traj_;
     Trajectory real_traj_;
