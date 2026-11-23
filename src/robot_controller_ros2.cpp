@@ -465,7 +465,7 @@ private:
             if (sending_ && !current_goal_) return;
         }
         if (stream_last_attempt_ != Clock::time_point{} &&
-            now - stream_last_attempt_ < std::chrono::milliseconds(100)) {
+            now - stream_last_attempt_ < std::chrono::milliseconds(10)) {
             return;
         }
         stream_last_attempt_ = now;

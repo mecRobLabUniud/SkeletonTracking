@@ -211,7 +211,6 @@ if(rclcpp_FOUND)
         ${sensor_msgs_TARGETS}
         ${std_srvs_TARGETS}
     )
-    message(STATUS "robot_controller_ros2: building against the sourced ROS2 environment")
 
     # ── Random point-to-point trajectory controller (ROS2) ───────────────────
     # Loads src/trajectories/test3, samples it at 60 Hz and sends it through a
@@ -234,7 +233,27 @@ if(rclcpp_FOUND)
         ${trajectory_msgs_TARGETS}
         ${sensor_msgs_TARGETS}
     )
-    message(STATUS "random_trajectory_controller: building against the sourced ROS2 environment")
+
+	add_executable(new_robot_controller_ros2
+        src/new_robot_controller_ros2.cpp
+        src/controller_utils.cpp
+        src/trajectory_utils.cpp
+        src/robot_model.cpp
+        src/trajectory_loader.cpp
+    )
+    target_link_libraries(new_robot_controller_ros2 PRIVATE
+        Eigen3::Eigen
+        pinocchio::pinocchio
+		${ZMQ_LIBRARIES}
+        Threads::Threads
+        nlohmann_json::nlohmann_json
+        rclcpp::rclcpp
+        rclcpp_action::rclcpp_action
+        ${builtin_interfaces_TARGETS}
+        ${control_msgs_TARGETS}
+        ${trajectory_msgs_TARGETS}
+        ${sensor_msgs_TARGETS}
+    )
 else()
     message(STATUS "rclcpp not found; ROS2 targets skipped (source ROS2 to build them)")
 endif()

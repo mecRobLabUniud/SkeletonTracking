@@ -48,7 +48,7 @@ cd ..
 # --- Parse arguments (order-independent) ---
 while [ $# -gt 0 ]; do
     case "$1" in
-        --track|--record|--stream|--calibrate|--x)
+        --track|--record|--stream|--calibrate|--x|--build)
             if [ -n "$mode" ]; then
                 echo "Error: only one mode may be specified (got '$mode' and '$1')." >&2
                 exit 1
@@ -114,6 +114,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+if [ "$mode" = "--build" ]; then
+    exit 1
+fi
 
 if [ -z "$mode" ]; then
     echo "Error: no mode specified." >&2
