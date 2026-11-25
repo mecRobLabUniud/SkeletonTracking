@@ -77,22 +77,28 @@ double computeAddedTime(const Eigen::VectorXd& q_end, const Eigen::VectorXd& q_c
 Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir,
                                int n_traj, double dt);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Build a point-to-point trajectory from the waypoints of a trajectory set
-// ─────────────────────────────────────────────────────────────────────────────
-void restart_trajectory(Trajectory& traj, RobotModel& robot,
-                        const Eigen::VectorXd& q_restart,
-                        const double& t_restart, double dt);
-
+                               
 // ─────────────────────────────────────────────────────────────────────────────
 // Rebuild a point-to-point trajectory resuming from current motion state.
 // Same structure as restart_trajectory, but the first rebuilt segment starts
 // from the current velocity and acceleration instead of a steady state.
 // ─────────────────────────────────────────────────────────────────────────────
-void resume_trajectory(Trajectory& traj, RobotModel& robot,
+void restart_trajectory(Trajectory& traj, RobotModel& robot,
                        const Eigen::VectorXd& q_resume,
                        const Eigen::VectorXd& qd_resume, const Eigen::VectorXd& qdd_resume,
                        const double& t_resume, double dt);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point trajectory with a trapezoidal velocity profile.
+// Starts from a steady-state waypoint, accelerates to velocity_PFL, cruises at
+// PFL, and finally decelerates to reach the following waypoint with zero
+// velocity and acceleration.
+// ─────────────────────────────────────────────────────────────────────────────
+void limit_velocity(Trajectory& traj, RobotModel& robot,
+                    const Eigen::VectorXd& q_start,
+                    const Eigen::VectorXd& q_end,
+                    const double& t_start, double dt,
+                    double velocity_PFL);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point emergency stop trajectory. Returns the index of the

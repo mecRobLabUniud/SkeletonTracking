@@ -37,13 +37,15 @@ main_SSMPFL.cpp - SSM+PFL simulation main: replays a nominal trajectory and veri
 const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
-const double velocity_PFL = 0.4;
+const double velocity_PFL = 0.1;
 const double pause_after_collision = 0.5;
 std::vector<double> rh = {{0.16, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.1, 0.1, 0.16, 0.15}};
 const double rv = 0.085;
 constexpr double WORKSPACE_RADIUS          = 0.9;  // meters, from robot base
 constexpr double ROBOT_ACTIVE_VEL_THRESH   = 0.05;  // rad/s (joint velocity norm)
 constexpr double IDLE_DEBOUNCE_SEC         = 0.2;
+
+bool do_once = true;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,7 +257,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // Map the string state to a code usable in a switch statement.
     const auto status_code = [](const std::string& s) -> int {
         if (s == "running")  return 0;
-        if (s == "steady")   return 1;
+        if (s == "slowingdown")   return 1;
+        if (s == "steady")   return 2;
         return -1;
     };
     std::string last_status;
@@ -385,30 +388,65 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             std::this_thread::sleep_until(next_time);
         };
 
-        size_t stop_end = 0;
+        size_t slowdown_end = 0;
         // Robot state: "pass", "limited" or "undefined" ("undefined" is reserved).
         std::string status = "running";
-        if (nominal_traj.state == "limit" && last_status!= "limit") {
+        if (nominal_traj.state == "limit" && last_status!= "limit" && do_once) {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
 
             std::cout << "++++++++++++++++++++++" << std::endl;
-            std::cout << "r_idx = " << r_idx << std::endl;
-            std::cout << "q stop = " << nominal_traj.wp[r_idx].q.transpose() << std::endl;
-            std::cout << "qd stop = " << nominal_traj.wp[r_idx].qd.transpose() << std::endl;
+            // std::cout << "r_idx = " << r_idx << std::endl;
+            // std::cout << "q stop = " << nominal_traj.wp[r_idx].q.transpose() << std::endl;
+            // std::cout << "qd stop = " << nominal_traj.wp[r_idx].qd.transpose() << std::endl;
             
 
-            stop_end = slow_down_trajctory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt, velocity_PFL);
-            status = "running";
+            slowdown_end = slow_down_trajctory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt, velocity_PFL);
+            std::cout << "++++++++++++++++++++++" << std::endl;
+            status = "slowingdown";
         }
-        else if (nominal_traj.state == "limit" && last_status!= "limit") {
-            status = "running";
-        }
-        else if (nominal_traj.state == "collision") {
-            status = "steady";
-        }        
+        
+        // else if (nominal_traj.state == "limit" && last_status!= "limit") {
+        //     status = "running";
+        // }
+        // else if (nominal_traj.state == "collision") {
+        //     status = "steady";
+        // }       
+        // else if (nominal_traj.state == "pass" && last_status!= "limit") {
+        //     restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, nominal_traj.wp[r+1].qd, nominal_traj.wp[r+1].qdd, (r+1)*dt, dt);
+        //     status = "running";
+        // } 
 
         // std::cout << "status = " << status << std::endl;
         // std::cout << "nominal_traj.state = " << nominal_traj.state << std::endl;
+
+
+
+
+        if (!do_once) {
+            status = "running";
+            if (nominal_traj.state == "collision") {
+                status = "steady";
+            } 
+            // else if (nominal_traj.state == "pass" && last_status!= "collision") {
+            //     restart_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, Eigen::VectorXd::Zero(7), Eigen::VectorXd::Zero(7), r_idx*dt, dt);
+            //     status = "running";
+            // }
+        }
+
+        if (r_idx == 300) {
+            std::cout << "=========================" << std::endl;
+            std::cout << "nominal_traj.wp[r_idx].q = " << nominal_traj.wp[r_idx].q.transpose() << std::endl;
+            restart_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, dt);
+            std::cout << "=========================" << std::endl;
+            std::cout << "nominal_traj.wp[r_idx].q = " << nominal_traj.wp[r_idx].q.transpose() << std::endl;
+        }
+        else if (r_idx == 299) {
+            std::cout << "nominal_traj.wp[r_idx].q = " << nominal_traj.wp[r_idx].q.transpose() << std::endl;
+        }
+
+        
+
+        // std::cout << "status = " << status << std::endl;
 
         // ── Real trajectory update ──────────────────────────────────────
         switch (status_code(status)) {
@@ -420,18 +458,25 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 ++i; ++r;
                 break;
             }
-            // case 1:  {
-            //     if (state != last_status) std::cout << "[STATE] limited" << std::endl; 
-// 
-            //     waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
-            //     play_sample(waypoint, *closest);
-            //     ++i; ++r;
-            //     break;
-// 
-            //     // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
-            //     // break;
-            // }
             case 1:  {
+                if (status != last_status) std::cout << "[STATE] slowing down" << std::endl; 
+
+                // std::cout << "slow down started" << std::endl;
+// 
+                // while (r <= static_cast<int>(slowdown_end) && r < static_cast<int>(nominal_traj.wp.size())) {                   
+                //     waypoint = nominal_traj.wp[r];
+                //     play_sample(waypoint, *closest);
+                //     ++i; ++r;
+                // }
+
+                std::cout << "slow down finished" << std::endl;
+
+                do_once = false;
+
+                // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+                // break;
+            }
+            case 2:  {
                 if (status != last_status) std::cout << "[STATE] steady" << std::endl; 
 
                 // waypoint = nominal_traj.wp[r_idx];
@@ -443,8 +488,6 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                             g_t_log};
                 play_sample(waypoint, *closest);
                 ++i;
-
-                restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
                 break;
             }
             default: std::cout << "[STATE] unknown (" << status << ")" << std::endl; break;

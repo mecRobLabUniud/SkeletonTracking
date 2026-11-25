@@ -264,7 +264,7 @@ size_t truncate_trajectory(Trajectory& traj, size_t n_keep) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Rebuild a point-to-point trajectory from the waypoints of a trajectory set
 // ─────────────────────────────────────────────────────────────────────────────
-void restart_trajectory(Trajectory& traj, RobotModel& robot,
+void old_restart_trajectory(Trajectory& traj, RobotModel& robot,
                         const Eigen::VectorXd& q_restart,
                         const double& t_restart, double dt) {
     // The restart configuration usually references an element of traj
@@ -349,7 +349,7 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
 // a steady state (zero velocity/acceleration), so the robot keeps its motion
 // momentum when resuming the remaining trajectory.
 // ─────────────────────────────────────────────────────────────────────────────
-void resume_trajectory(Trajectory& traj, RobotModel& robot,
+void restart_trajectory(Trajectory& traj, RobotModel& robot,
                        const Eigen::VectorXd& q_resume,
                        const Eigen::VectorXd& qd_resume, const Eigen::VectorXd& qdd_resume,
                        const double& t_resume, double dt) {
@@ -358,6 +358,8 @@ void resume_trajectory(Trajectory& traj, RobotModel& robot,
     const Eigen::VectorXd q_resume_c  = q_resume;
     const Eigen::VectorXd qd_resume_c = qd_resume;
     const Eigen::VectorXd qdd_resume_c = qdd_resume;
+
+    // std::cout << "q_resume_c = " << q_resume_c.transpose() << std::endl;
 
     // ── Resume time ────────────────────────────────────────────────────────
     // Only the waypoints whose timestamp is strictly smaller than the resume
@@ -372,6 +374,20 @@ void resume_trajectory(Trajectory& traj, RobotModel& robot,
     q_robot_temp.reserve(q_robot.size() + 1);
     t_robot_temp.reserve(q_robot.size() + 1);
 
+
+    // std::cout << "q_robot (size " << q_robot.size() << "):\n";
+    // for (size_t i = 0; i < q_robot.size(); ++i) {
+    //     std::cout << "  [" << i << "] " << q_robot[i].transpose() << "\n";
+    // }
+// 
+    // std::cout << "t_robot (size " << t_robot.size() << "):\n";
+    // for (size_t i = 0; i < t_robot.size(); ++i) {
+    //     std::cout << "  [" << i << "] " << t_robot[i] << "\n";
+    // }
+
+
+
+
     // Offset added to the recorded timestamps of the waypoints that are
     // still to be reached. It is computed from the time actually left in
     // the interrupted segment once the resume point is inserted.
@@ -380,6 +396,8 @@ void resume_trajectory(Trajectory& traj, RobotModel& robot,
         double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
         if (i == ins) {
             t_gap = t_resume + computeAddedTime(q_robot[i], q_resume_c) - t_ref;
+            q_robot_temp.push_back(q_resume_c);
+            t_robot_temp.push_back(t_resume);
         }
 
         if (i == q_robot.size()) break;
@@ -387,8 +405,26 @@ void resume_trajectory(Trajectory& traj, RobotModel& robot,
         q_robot_temp.push_back(q_robot[i]);
     }
 
+    
+
     q_robot = q_robot_temp;
     t_robot = t_robot_temp;
+
+
+
+
+    // std::cout << "q_robot (size " << q_robot.size() << "):\n";
+    // for (size_t i = 0; i < q_robot.size(); ++i) {
+    //     std::cout << "  [" << i << "] " << q_robot[i].transpose() << "\n";
+    // }
+// 
+    // std::cout << "t_robot (size " << t_robot.size() << "):\n";
+    // for (size_t i = 0; i < t_robot.size(); ++i) {
+    //     std::cout << "  [" << i << "] " << t_robot[i] << "\n";
+    // }
+
+
+
 
     // ── Partial segment assembly ────────────────────────────────────────────
     // The waypoints before the resume point are unchanged, so the samples of
@@ -409,14 +445,15 @@ void resume_trajectory(Trajectory& traj, RobotModel& robot,
                       << std::endl;
             continue;
         }
-        if (i == first_seg) {
-            // Resume from current velocity/acceleration instead of steady state.
-            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
-                           qd_resume_c, qdd_resume_c);
-        }
-        else {
-            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
-        }
+        build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
+        // if (i == first_seg) {
+        //     // Resume from current velocity/acceleration instead of steady state.
+        //     build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+        //                    qd_resume_c, qdd_resume_c);
+        // }
+        // else {
+        //     build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
+        // }
     }
 }
 
@@ -515,6 +552,104 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point trajectory with a trapezoidal velocity profile.
+// ─────────────────────────────────────────────────────────────────────────────
+// Starts from a steady-state waypoint (zero velocity/acceleration), accelerates
+// to `velocity_PFL`, cruises at constant PFL velocity, and finally decelerates
+// to reach the following waypoint with zero velocity and acceleration. Each
+// phase is a quintic segment chained so the velocity is continuous while the
+// acceleration steps at the phase transitions (inherent to a trapezoidal
+// profile). Samples are appended to `traj` starting at `t_start`.
+// ─────────────────────────────────────────────────────────────────────────────
+void limit_velocity(Trajectory& traj, RobotModel& robot,
+                    const Eigen::VectorXd& q_start,
+                    const Eigen::VectorXd& q_end,
+                    const double& t_start, double dt,
+                    double velocity_PFL) {
+    // Kinematic limits (same source as computeAddedTime / restart_trajectory).
+    static const KinematicsLimits limits;
+    const Eigen::VectorXd a_max_lim = limits.qdd_limits.row(1).transpose();
+
+    const Eigen::VectorXd q_start_c = q_start;
+    const Eigen::VectorXd q_end_c = q_end;
+
+    // Path from q_start to q_end; path coordinate s in [0, d_max].
+    const Eigen::VectorXd D = q_end_c - q_start_c;
+    const double d_max = D.cwiseAbs().maxCoeff();
+    if (d_max <= 1e-12) {
+        // No motion: just append the end waypoint.
+        Waypoint wp;
+        wp.q = q_end_c;
+        wp.qd = Eigen::VectorXd::Zero(7);
+        wp.qdd = Eigen::VectorXd::Zero(7);
+        wp.p = robot.GetJointPose("panda_link8", q_end_c).translation();
+        wp.pd = Eigen::Vector3d::Zero();
+        wp.timestamp = t_start + dt;
+        traj.wp.push_back(wp);
+        return;
+    }
+    const Eigen::VectorXd u = D / d_max;  // unit direction along the path
+
+    // Common path acceleration: limited by the most constrained joint.
+    double a_path = a_max_lim.minCoeff();
+    if (a_path <= 1e-9) a_path = 1.0;
+
+    const double v_path = std::max(velocity_PFL, 1e-9);
+
+    // Trapezoidal velocity profile along the path coordinate.
+    const double d_acc = v_path * v_path / (2.0 * a_path);
+    double t_acc = 0.0, t_cruise = 0.0, t_dec = 0.0;
+    double s1 = 0.0, s2 = 0.0;
+    Eigen::VectorXd v_cruise = Eigen::VectorXd::Zero(7);
+
+    if (2.0 * d_acc < d_max) {
+        // Full trapezoid: accelerate, cruise at v_path, decelerate.
+        t_acc = v_path / a_path;
+        t_dec = v_path / a_path;
+        t_cruise = (d_max - 2.0 * d_acc) / v_path;
+        s1 = d_acc;
+        s2 = d_max - d_acc;
+        v_cruise = u * v_path;
+    } else {
+        // Short segment: triangular profile (cannot reach PFL).
+        const double v_peak = std::sqrt(a_path * d_max);
+        t_acc = v_peak / a_path;
+        t_dec = v_peak / a_path;
+        t_cruise = 0.0;
+        s1 = d_max / 2.0;
+        s2 = d_max / 2.0;
+        v_cruise = u * v_peak;
+    }
+
+    const Eigen::VectorXd q_1 = q_start_c + (s1 / d_max) * D;
+    const Eigen::VectorXd q_2 = q_start_c + (s2 / d_max) * D;
+
+    // Append one quintic sub-segment, advancing the sample counter `t` so that
+    // timestamps increase by dt (wp.timestamp = dt * t inside build_p2p_traj).
+    auto append_segment = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
+                              const Eigen::VectorXd& va, const Eigen::VectorXd& vb,
+                              double T, double& t) {
+        if (T <= 0.0) return;
+        const Eigen::VectorXd zero = Eigen::VectorXd::Zero(7);
+        build_p2p_traj(a, b, nullptr, traj, T, t, robot, dt, va, zero, vb, zero);
+        t += T;
+    };
+
+    // `t` is a sample index: wp.timestamp = dt * t, so start at t_start / dt so
+    // the first sample is stamped at t_start.
+    double t = t_start / dt;
+
+    // Phase 1: accelerate from steady state to cruise velocity.
+    append_segment(q_start_c, q_1,
+                   Eigen::VectorXd::Zero(7), v_cruise, t_acc, t);
+    // Phase 2: cruise at PFL velocity.
+    append_segment(q_1, q_2, v_cruise, v_cruise, t_cruise, t);
+    // Phase 3: decelerate to zero velocity/acceleration at the following waypoint.
+    append_segment(q_2, q_end_c, v_cruise, Eigen::VectorXd::Zero(7), t_dec, t);
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point slow-down trajectory.
 // ─────────────────────────────────────────────────────────────────────────────
 // Instead of completely stopping the robot, this function only slows it down:
@@ -538,6 +673,21 @@ size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
     size_t ins = 0;
     while (ins < t_robot.size() && t_robot[ins] < t_stop) ins++;
 
+    // Path-consistent limit point: position reached after decelerating from
+    // the current velocity to velocity_PFL over stop_duration, along the
+    // nominal trajectory direction toward the next waypoint.
+    const double vd_norm = qd_stop_c.norm();
+    const double v_target = std::min(velocity_PFL, vd_norm);
+    const double s_decel = stop_duration * (vd_norm + v_target) / 2.0;
+    Eigen::VectorXd q_limit_c = q_stop_c;
+    if (ins < q_robot.size()) {
+        const Eigen::VectorXd dq_path = q_robot[ins] - q_stop_c;
+        const double dq_norm = dq_path.norm();
+        if (dq_norm > 1e-12 && s_decel > 1e-12) {
+            q_limit_c = q_stop_c + (dq_path / dq_norm) * std::min(s_decel, dq_norm);
+        }
+    }
+
     std::vector<Eigen::VectorXd> q_robot_temp;
     std::vector<double> t_robot_temp;
     q_robot_temp.reserve(q_robot.size() + 2);
@@ -558,7 +708,7 @@ size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
         double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
         if (i == ins) {
             q_robot_temp.push_back(q_stop_c);
-            q_robot_temp.push_back(q_stop_c);
+            q_robot_temp.push_back(q_limit_c);
             t_robot_temp.push_back(t_stop);
             t_robot_temp.push_back(t_stop + stop_duration);
         }
@@ -586,14 +736,14 @@ size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
     // A zero-end-velocity quintic over time T has peak velocity 15*d/(8*T) per
     // joint (d = joint displacement), hence T = 15*max|dq|/(8*velocity_PFL).
     double t_accum = t_stop + stop_duration;  // time at q_robot[ins + 1]
-    for (size_t i = ins + 1; i + 1 < q_robot.size(); ++i) {
-        const Eigen::VectorXd dq = q_robot[i + 1] - q_robot[i];
+    for (size_t i = ins + 1; i + 1 < q_robot_temp.size(); ++i) {
+        const Eigen::VectorXd dq = q_robot_temp[i + 1] - q_robot_temp[i];
         const double dq_max = dq.cwiseAbs().maxCoeff();
         const double T = (dq_max > 1e-12 && velocity_PFL > 1e-9)
                              ? (15.0 * dq_max) / (8.0 * velocity_PFL)
                              : dt;
         t_accum += std::max(T, dt);
-        t_robot[i + 1] = t_accum;
+        t_robot_temp[i + 1] = t_accum;
     }
 
 
@@ -604,19 +754,18 @@ size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
     // rebuilt, starting from the insertion index. Every segment from the
     // slow-down point onward is executed at peak velocity velocity_PFL.
     const size_t first_seg = ins > 0 ? ins - 1 : 0;
-    const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot, first_seg, dt));
+    const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot_temp, first_seg, dt));
     double t = dt * static_cast<double>(keep);
 
     // Velocity the robot keeps after the slow-down: same direction as the
     // current motion, with magnitude equal to velocity_PFL.
     Eigen::VectorXd v_slow = Eigen::VectorXd::Zero(qd_stop_c.size());
-    const double vd_norm = qd_stop_c.norm();
     if (vd_norm > 1e-9) {
         v_slow = qd_stop_c * (velocity_PFL / vd_norm);
     }
 
-    for (size_t i = first_seg; i + 1 < q_robot.size(); ++i) {
-        const double t_end = t_robot[i + 1] - t_robot[i];
+    for (size_t i = first_seg; i + 1 < q_robot_temp.size(); ++i) {
+        const double t_end = t_robot_temp[i + 1] - t_robot_temp[i];
         if (t_end <= 0.0) {
             // A segment with no duration carries no motion: skip it instead of
             // building a degenerate polynomial (which would divide by zero).
@@ -627,20 +776,23 @@ size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
         if (i == ins) {
             // Decelerate from the current velocity to velocity_PFL at the
             // slow-down point instead of coming to a full stop.
-            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+            build_p2p_traj(q_robot_temp[i], q_robot_temp[i + 1], nullptr, traj, t_end, t, robot, dt,
                            qd_stop_c, qdd_stop_c, v_slow);
         }
-        else {
+        else if (i == ins + 1) {
             // Keep the whole remaining trajectory at velocity_PFL: start each
             // segment at velocity_PFL so the peak velocity stays constant until
             // the end of the nominal trajectory.
-            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+            build_p2p_traj(q_robot_temp[i], q_robot_temp[i + 1], nullptr, traj, t_end, t, robot, dt,
                            v_slow);
+        }
+        else {
+            build_p2p_traj(q_robot_temp[i], q_robot_temp[i + 1], nullptr, traj, t_end, t, robot, dt);
         }
     }
 
     // Index of the last sample of the inserted slow-down segment: the segment
-    // at index `ins` (q_stop -> q_stop) spans the slow-down duration.
-    const size_t slow_end = sampled_prefix(t_robot, ins + 1, dt);
+    // at index `ins` (q_stop -> q_limit_c) spans the slow-down duration.
+    const size_t slow_end = sampled_prefix(t_robot_temp, ins + 1, dt);
     return slow_end > 0 ? slow_end - 1 : 0;
 }

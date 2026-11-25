@@ -348,8 +348,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                     play_sample(waypoint, *closest);
                     ++i; ++r;
                 }
-
-                restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+                
+                restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, nominal_traj.wp[r+1].qd, nominal_traj.wp[r+1].qdd, (r+1)*dt, dt);
                 break;
             }
             case 2:  {
