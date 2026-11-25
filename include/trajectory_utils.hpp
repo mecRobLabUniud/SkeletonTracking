@@ -85,6 +85,16 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
                         const double& t_restart, double dt);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rebuild a point-to-point trajectory resuming from current motion state.
+// Same structure as restart_trajectory, but the first rebuilt segment starts
+// from the current velocity and acceleration instead of a steady state.
+// ─────────────────────────────────────────────────────────────────────────────
+void resume_trajectory(Trajectory& traj, RobotModel& robot,
+                       const Eigen::VectorXd& q_resume,
+                       const Eigen::VectorXd& qd_resume, const Eigen::VectorXd& qdd_resume,
+                       const double& t_resume, double dt);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point emergency stop trajectory. Returns the index of the
 // last sample of the inserted stop (the end of the hold), so the caller knows
 // when the stop has been fully played.

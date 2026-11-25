@@ -342,6 +342,86 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rebuild a point-to-point trajectory resuming from current motion state
+// ─────────────────────────────────────────────────────────────────────────────
+// Same structure as restart_trajectory, but the first rebuilt segment starts
+// from the current velocity and acceleration (qd_resume, qdd_resume) instead of
+// a steady state (zero velocity/acceleration), so the robot keeps its motion
+// momentum when resuming the remaining trajectory.
+// ─────────────────────────────────────────────────────────────────────────────
+void resume_trajectory(Trajectory& traj, RobotModel& robot,
+                       const Eigen::VectorXd& q_resume,
+                       const Eigen::VectorXd& qd_resume, const Eigen::VectorXd& qdd_resume,
+                       const double& t_resume, double dt) {
+    // The resume state usually references an element of traj
+    // (traj.wp[r_idx].q), which is modified below: work on copies.
+    const Eigen::VectorXd q_resume_c  = q_resume;
+    const Eigen::VectorXd qd_resume_c = qd_resume;
+    const Eigen::VectorXd qdd_resume_c = qdd_resume;
+
+    // ── Resume time ────────────────────────────────────────────────────────
+    // Only the waypoints whose timestamp is strictly smaller than the resume
+    // time are kept: the trajectory is rebuilt from that point onward.
+    if (!(t_resume > 0.0)) return;
+
+    size_t ins = 0;
+    while (ins < t_robot.size() && t_robot[ins] < t_resume) ins++;
+
+    std::vector<Eigen::VectorXd> q_robot_temp;
+    std::vector<double> t_robot_temp;
+    q_robot_temp.reserve(q_robot.size() + 1);
+    t_robot_temp.reserve(q_robot.size() + 1);
+
+    // Offset added to the recorded timestamps of the waypoints that are
+    // still to be reached. It is computed from the time actually left in
+    // the interrupted segment once the resume point is inserted.
+    double t_gap = 0.0;
+    for (size_t i = 0; i <= q_robot.size(); ++i) {
+        double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
+        if (i == ins) {
+            t_gap = t_resume + computeAddedTime(q_robot[i], q_resume_c) - t_ref;
+        }
+
+        if (i == q_robot.size()) break;
+        i < ins ? t_robot_temp.push_back(t_robot[i]) : t_robot_temp.push_back(t_ref + t_gap);
+        q_robot_temp.push_back(q_robot[i]);
+    }
+
+    q_robot = q_robot_temp;
+    t_robot = t_robot_temp;
+
+    // ── Partial segment assembly ────────────────────────────────────────────
+    // The waypoints before the resume point are unchanged, so the samples of
+    // the trajectory leading up to them are kept. Only the segment that ends
+    // at the resume point (ins - 1) and the following ones are rebuilt, starting
+    // from the insertion index. The first rebuilt segment starts from the
+    // current velocity and acceleration instead of a steady state.
+    const size_t first_seg = ins > 0 ? ins - 1 : 0;
+    const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot, first_seg, dt));
+    double t = dt * static_cast<double>(keep);
+
+    for (size_t i = first_seg; i + 1 < q_robot.size(); ++i) {
+        const double t_end = t_robot[i + 1] - t_robot[i];
+        if (t_end <= 0.0) {
+            // A segment with no duration carries no motion: skip it instead of
+            // building a degenerate polynomial (which would divide by zero).
+            std::cout << "Skipping segment " << i << ": its duration is not positive"
+                      << std::endl;
+            continue;
+        }
+        if (i == first_seg) {
+            // Resume from current velocity/acceleration instead of steady state.
+            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+                           qd_resume_c, qdd_resume_c);
+        }
+        else {
+            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
+        }
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point emergency stop trajectory
 // ─────────────────────────────────────────────────────────────────────────────
 size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
