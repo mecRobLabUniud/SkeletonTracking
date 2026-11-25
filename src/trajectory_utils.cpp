@@ -204,7 +204,7 @@ Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir, int n_tr
     std::vector<double> v_norm;
     int N = t_robot[t_robot.size() - 1]/dt;
     Trajectory traj;
-    traj.collision = false;
+    traj.state = "pass";
     traj.wp.reserve(N);
 
     double t = 0;

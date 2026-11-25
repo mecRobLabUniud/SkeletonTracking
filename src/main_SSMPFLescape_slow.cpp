@@ -37,7 +37,7 @@ main_SSMPFLescape_slow.cpp - SSM+PFL with escape main: solves the QP at each ste
 const double rate_hz = 60.0;
 const double dt = 1.0 / rate_hz;
 const double stopping_time = 0.25;
-const double velocity_PFL = 0.4;
+const double velocity_PFL = 0.2;
 const double pause_after_collision = 0.5;
 std::vector<double> rh = {{0.16, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.1, 0.1, 0.16, 0.15}};
 const double rv = 0.085;
@@ -187,7 +187,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     // ── PFL, SSM and escape trajectory simulation ────────────────────────────────
     Trajectory real_traj;
-    real_traj.collision = false;
+    real_traj.state = "pass";
     real_traj.wp.push_back({nominal_traj.wp[0].q,
                             nominal_traj.wp[0].qd,
                             Eigen::VectorXd::Zero(7),
@@ -196,7 +196,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                             nominal_traj.wp[0].timestamp});
     Waypoint waypoint;
 
-    nominal_traj.collision = false;
+    nominal_traj.state = "pass";
     bool collision_prev = false;
     int r = 1;
     int kNumKeypoints = 11;
@@ -257,13 +257,12 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     const int n_steps = static_cast<int>(nominal_traj.wp.size());
     // for (int i = 0; i <= n_steps-1; ++i) {
     // Map the string state to a code usable in a switch statement.
-    const auto state_code = [](const std::string& s) -> int {
+    const auto status_code = [](const std::string& s) -> int {
         if (s == "running")  return 0;
-        if (s == "limited") return 1;
-        if (s == "undefined")   return 2;
+        if (s == "steady")   return 1;
         return -1;
     };
-    std::string last_state;
+    std::string last_status;
     int i = 0;
     while (true) {
         if (r >= static_cast<int>(nominal_traj.wp.size())) break;
@@ -310,20 +309,21 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         }
 
         // ── Core SSM, PFL and escape trajectory computation ──────────────────────────
-        std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, real_traj.wp[i].q);
+        std::optional<DistanceResult> closest = human_to_robot_distance(skeleton, robot, nominal_traj.wp[i].q); // real_traj.wp[i].q);
 
         SSMPFLResult res = SSMPFLescape(robot, dt, stopping_time, real_traj.wp[i].q, real_traj.wp[i].qd,
                                 nominal_traj.wp[r_idx].p, nominal_traj.wp[r_idx].pd, nominal_traj.wp[r_idx].q,
                                 ro_vec, vo_vec, delta_vec);
 
         if (res.exitflag) {
-            if (closest && closest->length <= HR_clearance[closest->ind_h]) {
-                nominal_traj.collision = true;
-            }
-            else nominal_traj.collision = false;
+            nominal_traj.state = "pass";
         }
         else {
-            nominal_traj.collision = true;
+            nominal_traj.state = "limit";
+        }
+
+        if (closest && closest->length <= HR_clearance[closest->ind_h]) {
+            nominal_traj.state = "collision";
         }
 
         // ── Plays one waypoint at time ───────────────────────────────────────
@@ -382,7 +382,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
             payload.push_back(std::vector<double>(nominal_traj.wp[r_idx].p.data(), nominal_traj.wp[r_idx].p.data() + nominal_traj.wp[r_idx].p.size()));
-            payload.push_back(nominal_traj.collision);
+            payload.push_back(nominal_traj.state);
             transmitters[2]->send_data(payload);
 
             next_time += std::chrono::milliseconds(period_ms);
@@ -390,58 +390,55 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         };
 
         size_t stop_end = 0;
-        // Robot state: "running", "limited" or "undefined" ("undefined" is reserved).
-        std::string state = "running";
-        if (nominal_traj.collision && !collision_prev ) {
-            do_once = false;
-            std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
+        // Robot state: "pass", "limited" or "undefined" ("undefined" is reserved).
+        std::string status = "running";
+        if (nominal_traj.state == "limit" && last_status!= "limit") {
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = slow_down_trajctory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt, velocity_PFL);
-            state = "limited";
+            status = "running";
         }
-        else if (nominal_traj.collision && collision_prev) {
-            state = "limited";
+        else if (nominal_traj.state == "limit" && last_status!= "limit") {
+            status = "running";
         }
-        // else if (nominal_traj.collision && collision_prev) {
-        //     state = "undefined";
-        // }
-        collision_prev = nominal_traj.collision;
+        else if (nominal_traj.state == "collision") {
+            status = "steady";
+        }        
 
-        if (!do_once) state = "running";
+        // std::cout << "status = " << status << std::endl;
+        std::cout << "nominal_traj.state = " << nominal_traj.state << std::endl;
 
         // ── Real trajectory update ──────────────────────────────────────
-        switch (state_code(state)) {
+        switch (status_code(status)) {
             case 0:  {
-                if (state != last_state) std::cout << "[STATE] running" << std::endl; 
+                if (status != last_status) std::cout << "[STATE] running" << std::endl; 
 
                 waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
                 play_sample(waypoint, *closest);
                 ++i; ++r;
                 break;
             }
+            // case 1:  {
+            //     if (state != last_status) std::cout << "[STATE] limited" << std::endl; 
+// 
+            //     waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
+            //     play_sample(waypoint, *closest);
+            //     ++i; ++r;
+            //     break;
+// 
+            //     // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
+            //     // break;
+            // }
             case 1:  {
-                if (state != last_state) std::cout << "[STATE] limited" << std::endl; 
-
-                while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
-                    waypoint = nominal_traj.wp[r];
-                    play_sample(waypoint, *closest);
-                    ++i; ++r;
-                }
-
-                // restart_trajectory(nominal_traj, robot, nominal_traj.wp[r+1].q, (r+1)*dt, dt);
-                // break;
-            }
-            case 2:  {
-                if (state != last_state) std::cout << "[STATE] undefined" << std::endl; 
+                if (status != last_status) std::cout << "[STATE] steady" << std::endl; 
 
                 waypoint = nominal_traj.wp[r_idx];
                 play_sample(waypoint, *closest);
                 ++i;
                 break;
             }
-            default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
+            default: std::cout << "[STATE] unknown (" << status << ")" << std::endl; break;
         }
-        last_state = state;
+        last_status = status;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";

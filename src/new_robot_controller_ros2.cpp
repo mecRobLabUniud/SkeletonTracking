@@ -292,7 +292,7 @@ private:
 
         const double dt = 1.0 / sample_rate_;
         sampled_trajectory_ = Trajectory{};
-        sampled_trajectory_.collision = false;
+        sampled_trajectory_.state = "pass";
 
         double sample_index = 0.0;
         for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
@@ -415,7 +415,7 @@ private:
             }
 
             Trajectory approach;
-            approach.collision = false;
+            approach.state = "pass";
             double approach_index = 0.0;
             build_p2p_traj(start_eigen, first.q, nullptr, approach,
                            approach_duration_, approach_index, *robot_model_, dt);

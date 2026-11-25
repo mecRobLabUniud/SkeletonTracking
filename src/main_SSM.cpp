@@ -143,7 +143,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     // ── SSM simulation ───────────────────────────────────────────────────────
     Trajectory real_traj;
-    real_traj.collision = false;
+    real_traj.state = "pass";
     real_traj.wp.push_back({nominal_traj.wp[0].q,
                             nominal_traj.wp[0].qd,
                             Eigen::VectorXd::Zero(7),
@@ -152,7 +152,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                             nominal_traj.wp[0].timestamp});
     Waypoint waypoint;
 
-    nominal_traj.collision = false;
+    nominal_traj.state = "pass";
     bool collision_prev = false;
     int r = 1;
 
@@ -210,7 +210,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // for (int i = 0; i <= n_steps-1; ++i) {
     // Map the string state to a code usable in a switch statement.
     const auto state_code = [](const std::string& s) -> int {
-        if (s == "running")  return 0;
+        if (s == "pass")  return 0;
         if (s == "stopping") return 1;
         if (s == "steady")   return 2;
         return -1;
@@ -252,8 +252,8 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         
         const double stop_duration = optimizer.solve(q_ref, qd_ref, qdd_ref);
 
-        nominal_traj.collision = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
-                           robot, radii, *closest);
+        nominal_traj.state = SSM(stop_duration, q_ref, qd_ref, qdd_ref, skeleton,
+                           robot, radii, *closest) ? "collision" : "pass";
 
         // ── Plays one waypoint at time ───────────────────────────────────────
         const auto play_sample = [&](Waypoint waypoint, const DistanceResult& dist) {
@@ -309,7 +309,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
             payload.push_back(std::vector<double>(waypoint.p.data(), waypoint.p.data() + waypoint.p.size()));
-            payload.push_back(nominal_traj.collision);
+            payload.push_back(nominal_traj.state);
             transmitters[2]->send_data(payload);
 
             next_time += std::chrono::milliseconds(period_ms);
@@ -317,18 +317,18 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         };
 
         size_t stop_end = 0;
-        // Robot state: "running", "stopping" or "steady" ("steady" is reserved).
-        std::string state = "running";
-        if (nominal_traj.collision && !collision_prev) {
+        // Robot state: "pass", "stopping" or "steady" ("steady" is reserved).
+        std::string state = "pass";
+        if (nominal_traj.state == "collision" && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stop_duration, dt);
             state = "stopping";
         }
-        else if (nominal_traj.collision && collision_prev) {
+        else if (nominal_traj.state == "collision" && collision_prev) {
             state = "steady";
         }
-        collision_prev = nominal_traj.collision;
+        collision_prev = (nominal_traj.state == "collision");
 
         // ── Real trajectory update ──────────────────────────────────────
         switch (state_code(state)) {
