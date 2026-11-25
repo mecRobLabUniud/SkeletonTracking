@@ -117,7 +117,7 @@ target_link_libraries(main_SSMPFL PRIVATE
 
 # ── Main SSMPFLescape ────────────────────────────────────────────────────────
 add_executable(main_SSMPFLescape 
-    src/main_SSMPFLescape.cpp
+    src/main_SSMPFLescape_slow.cpp
     src/trajectory_utils.cpp
     src/trajectory_loader.cpp
     src/robot_model.cpp

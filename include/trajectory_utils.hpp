@@ -93,3 +93,15 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
                        const Eigen::VectorXd& q_stop,
                        const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
                        const double& t_stop, const double& stop_duration, double dt);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point slow-down trajectory: instead of coming to a full
+// stop, the robot is decelerated to a constant peak velocity equal to
+// velocity_PFL and keeps following the previous trajectory. Returns the index
+// of the last sample of the inserted slow-down segment.
+// ─────────────────────────────────────────────────────────────────────────────
+size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
+                           const Eigen::VectorXd& q_stop,
+                           const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                           const double& t_stop, const double& stop_duration, double dt,
+                           double velocity_PFL);

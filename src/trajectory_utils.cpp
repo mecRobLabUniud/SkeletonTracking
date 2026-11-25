@@ -432,3 +432,135 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
     const size_t stop_end = sampled_prefix(t_robot, ins + 1, dt);
     return stop_end > 0 ? stop_end - 1 : 0;
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build a point-to-point slow-down trajectory.
+// ─────────────────────────────────────────────────────────────────────────────
+// Instead of completely stopping the robot, this function only slows it down:
+// the robot is decelerated from its current velocity to a constant peak
+// velocity equal to `velocity_PFL` and then keeps following its previous
+// trajectory. Returns the index of the last sample of the inserted
+// slow-down segment.
+// ─────────────────────────────────────────────────────────────────────────────
+size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
+                           const Eigen::VectorXd& q_stop,
+                           const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
+                           const double& t_stop, const double& stop_duration, double dt,
+                           double velocity_PFL) {
+    // The stop state usually references an element of traj (traj.wp[r_idx].q),
+    // which is modified below: work on copies.
+    const Eigen::VectorXd q_stop_c  = q_stop;
+    const Eigen::VectorXd qd_stop_c = qd_stop;
+    const Eigen::VectorXd qdd_stop_c = qdd_stop;
+
+    // ── Adding slow-down waypoint ────────────────────────────────────────────────
+    size_t ins = 0;
+    while (ins < t_robot.size() && t_robot[ins] < t_stop) ins++;
+
+    std::vector<Eigen::VectorXd> q_robot_temp;
+    std::vector<double> t_robot_temp;
+    q_robot_temp.reserve(q_robot.size() + 2);
+    t_robot_temp.reserve(q_robot.size() + 2);
+
+    // std::cout << std::endl;
+    // std::cout << "t_data: ";
+    // for (const auto& t : t_data) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << std::endl;
+
+    // Offset added to the recorded timestamps of the waypoints that are
+    // still to be reached. It is computed from the time actually left in
+    // the interrupted segment once the restart point is inserted.
+    for (size_t i = 0; i <= q_robot.size(); ++i) {
+        double t_ref = t_data[t_data.size() - (q_robot.size() - i)];
+        if (i == ins) {
+            q_robot_temp.push_back(q_stop_c);
+            q_robot_temp.push_back(q_stop_c);
+            t_robot_temp.push_back(t_stop);
+            t_robot_temp.push_back(t_stop + stop_duration);
+        }
+
+        if (i == q_robot.size()) break;
+        i < ins ? t_robot_temp.push_back(t_robot[i]) : t_robot_temp.push_back(t_robot[i] + stop_duration);
+        q_robot_temp.push_back(q_robot[i]);
+    }
+
+    q_robot = q_robot_temp;
+    t_robot = t_robot_temp;
+
+    // std::cout << std::endl;
+    // std::cout << "t_robot: ";
+    // for (const auto& t : t_robot) {
+    //     std::cout << t << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << std::endl;
+
+
+    // ── Re-time every remaining segment to run at constant peak velocity PFL ─
+    // From the slow-down point on, stretch/compress each segment so its peak
+    // joint velocity equals velocity_PFL, until the end of the trajectory.
+    // A zero-end-velocity quintic over time T has peak velocity 15*d/(8*T) per
+    // joint (d = joint displacement), hence T = 15*max|dq|/(8*velocity_PFL).
+    double t_accum = t_stop + stop_duration;  // time at q_robot[ins + 1]
+    for (size_t i = ins + 1; i + 1 < q_robot.size(); ++i) {
+        const Eigen::VectorXd dq = q_robot[i + 1] - q_robot[i];
+        const double dq_max = dq.cwiseAbs().maxCoeff();
+        const double T = (dq_max > 1e-12 && velocity_PFL > 1e-9)
+                             ? (15.0 * dq_max) / (8.0 * velocity_PFL)
+                             : dt;
+        t_accum += std::max(T, dt);
+        t_robot[i + 1] = t_accum;
+    }
+
+
+    // ── Partial segment assembly ────────────────────────────────────────────────
+    // The waypoints before the slow-down point are unchanged, so the samples of
+    // the trajectory leading up to them are kept. Only the segment that ends at
+    // the inserted slow-down waypoint (ins - 1) and the following ones are
+    // rebuilt, starting from the insertion index. Every segment from the
+    // slow-down point onward is executed at peak velocity velocity_PFL.
+    const size_t first_seg = ins > 0 ? ins - 1 : 0;
+    const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot, first_seg, dt));
+    double t = dt * static_cast<double>(keep);
+
+    // Velocity the robot keeps after the slow-down: same direction as the
+    // current motion, with magnitude equal to velocity_PFL.
+    Eigen::VectorXd v_slow = Eigen::VectorXd::Zero(qd_stop_c.size());
+    const double vd_norm = qd_stop_c.norm();
+    if (vd_norm > 1e-9) {
+        v_slow = qd_stop_c * (velocity_PFL / vd_norm);
+    }
+
+    for (size_t i = first_seg; i + 1 < q_robot.size(); ++i) {
+        const double t_end = t_robot[i + 1] - t_robot[i];
+        if (t_end <= 0.0) {
+            // A segment with no duration carries no motion: skip it instead of
+            // building a degenerate polynomial (which would divide by zero).
+            std::cout << "Skipping segment " << i << ": its duration is not positive"
+                      << std::endl;
+            continue;
+        }
+        if (i == ins) {
+            // Decelerate from the current velocity to velocity_PFL at the
+            // slow-down point instead of coming to a full stop.
+            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+                           qd_stop_c, qdd_stop_c, v_slow);
+        }
+        else {
+            // Keep the whole remaining trajectory at velocity_PFL: start each
+            // segment at velocity_PFL so the peak velocity stays constant until
+            // the end of the nominal trajectory.
+            build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
+                           v_slow);
+        }
+    }
+
+    // Index of the last sample of the inserted slow-down segment: the segment
+    // at index `ins` (q_stop -> q_stop) spans the slow-down duration.
+    const size_t slow_end = sampled_prefix(t_robot, ins + 1, dt);
+    return slow_end > 0 ? slow_end - 1 : 0;
+}
