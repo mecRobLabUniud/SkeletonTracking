@@ -48,7 +48,7 @@ cd ..
 # --- Parse arguments (order-independent) ---
 while [ $# -gt 0 ]; do
     case "$1" in
-        --track|--record|--stream|--calibrate|--x|--build)
+        --track|--record|--stream|--calibrate|-x|--build)
             if [ -n "$mode" ]; then
                 echo "Error: only one mode may be specified (got '$mode' and '$1')." >&2
                 exit 1
@@ -236,16 +236,16 @@ case "$mode" in
         fi
         ;;
 
-    --x)
+    -x)
         n_devices=$(ls "$dir"/scripts/data/skeleton_data/test7/skeleton* 2>/dev/null | wc -l)
 
         echo "Testing temp..."
-        $ros_controller &
-        sleep 3
+        # $ros_controller &
+        # sleep 3
         $data_recording "$n_devices" "-s" "7" &
         $data_merging "$n_devices" &
         $rula_evaluation &
-        $exec_trajectory "3" "$dir" &
+        $exec_trajectory "4" "$dir" &
         if [ "$use_gui" = true ]; then
             $web_interface "$n_devices" "--robot"
         else
