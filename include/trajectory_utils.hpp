@@ -41,7 +41,7 @@ struct Waypoint {
 // ─────────────────────────────────────────────────────────────────────────────
 struct Trajectory {
     std::vector<Waypoint> wp;
-    std::string state = "pass";
+    std::vector<std::string> status;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

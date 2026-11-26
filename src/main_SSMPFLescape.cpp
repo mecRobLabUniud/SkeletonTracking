@@ -185,7 +185,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
     // ── PFL, SSM and escape trajectory simulation ────────────────────────────────
     Trajectory real_traj;
-    real_traj.state = "pass";
+    real_traj.status = "pass";
     real_traj.wp.push_back({nominal_traj.wp[0].q,
                             nominal_traj.wp[0].qd,
                             Eigen::VectorXd::Zero(7),
@@ -194,7 +194,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                             nominal_traj.wp[0].timestamp});
     Waypoint waypoint;
 
-    nominal_traj.state = "pass";
+    nominal_traj.status = "pass";
     bool collision_prev = false;
     int r = 1;
     int kNumKeypoints = 11;
@@ -221,7 +221,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     // ── Logging ──────────────────────────────────────────────────────────────────
     const std::filesystem::path logs_dir = root / "logs" / "SSMPFLescape";
     std::string pathname = logs_dir.string() + "/";
-    resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS state for this task
+    resetMetrics();  // fresh T-TIME / R-IDLE / C-ACT-WS / R-STOPS status for this task
     {
         std::error_code ec;
         std::filesystem::create_directories(logs_dir, ec);
@@ -254,14 +254,14 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
     auto next_time = std::chrono::steady_clock::now();
     const int n_steps = static_cast<int>(nominal_traj.wp.size());
     // for (int i = 0; i <= n_steps-1; ++i) {
-    // Map the string state to a code usable in a switch statement.
-    const auto state_code = [](const std::string& s) -> int {
+    // Map the string status to a code usable in a switch statusment.
+    const auto status_code = [](const std::string& s) -> int {
         if (s == "pass")  return 0;
         if (s == "stopping") return 1;
         if (s == "steady")   return 2;
         return -1;
     };
-    std::string last_state;
+    std::string last_status;
     int i = 0;
     while (true) {
         if (r >= static_cast<int>(nominal_traj.wp.size())) break;
@@ -316,12 +316,12 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
         if (res.exitflag) {
             if (closest && closest->length <= HR_clearance[closest->ind_h]) {
-                nominal_traj.state = "collision";
+                nominal_traj.status = "collision";
             }
-            else nominal_traj.state = "pass";
+            else nominal_traj.status = "pass";
         }
         else {
-            nominal_traj.state = "collision";
+            nominal_traj.status = "collision";
         }
 
         // ── Plays one waypoint at time ───────────────────────────────────────
@@ -346,7 +346,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
 
             g_t_log += dt;
 
-            // ── Publish robot state, obstacle distance and trajectory ───
+            // ── Publish robot status, obstacle distance and trajectory ───
             const Eigen::VectorXd& q_now = real_traj.wp[i + 1].q;
             const Eigen::VectorXd& qd_now = real_traj.wp[i + 1].qd;
             const Eigen::VectorXd& qdd_now = real_traj.wp[i + 1].qdd;
@@ -380,7 +380,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
             payload.clear();
             payload.push_back(std::vector<double>(real_traj.wp[i + 1].p.data(), real_traj.wp[i + 1].p.data() + real_traj.wp[i + 1].p.size()));
             payload.push_back(std::vector<double>(nominal_traj.wp[r_idx].p.data(), nominal_traj.wp[r_idx].p.data() + nominal_traj.wp[r_idx].p.size()));
-            payload.push_back(nominal_traj.state);
+            payload.push_back(nominal_traj.status);
             transmitters[2]->send_data(payload);
 
             next_time += std::chrono::milliseconds(period_ms);
@@ -388,23 +388,23 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
         };
 
         size_t stop_end = 0;
-        // Robot state: "pass", "stopping" or "steady" ("steady" is reserved).
-        std::string state = "pass";
-        if (nominal_traj.state == "collision" && !collision_prev) {
+        // Robot status: "pass", "stopping" or "steady" ("steady" is reserved).
+        std::string status = "pass";
+        if (nominal_traj.status == "collision" && !collision_prev) {
             std::cout << "++++++++++++++ COLLISION ++++++++++++++++" << std::endl;
             g_stop_count.fetch_add(1);  // R-STOPS: a genuine safety stop is triggered
             stop_end = stop_trajectory(nominal_traj, robot, nominal_traj.wp[r_idx].q, nominal_traj.wp[r_idx].qd, nominal_traj.wp[r_idx].qdd, r_idx*dt, stopping_time, dt);
-            state = "stopping";
+            status = "stopping";
         }
-        else if (nominal_traj.state == "collision" && collision_prev) {
-            state = "steady";
+        else if (nominal_traj.status == "collision" && collision_prev) {
+            status = "steady";
         }
-        collision_prev = (nominal_traj.state == "collision");
+        collision_prev = (nominal_traj.status == "collision");
 
         // ── Real trajectory update ──────────────────────────────────────
-        switch (state_code(state)) {
+        switch (status_code(status)) {
             case 0:  {
-                if (state != last_state) std::cout << "[STATE] running" << std::endl; 
+                if (status != last_status) std::cout << "[STATE] running" << std::endl; 
 
                 waypoint = {res.q_next, res.qd_next, res.qdd_next, res.p_next, res.pd_next, g_t_log};
                 play_sample(waypoint, *closest);
@@ -412,7 +412,7 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 break;
             }
             case 1:  {
-                if (state != last_state) std::cout << "[STATE] stopping" << std::endl; 
+                if (status != last_status) std::cout << "[STATE] stopping" << std::endl; 
 
                 while (r <= static_cast<int>(stop_end) && r < static_cast<int>(nominal_traj.wp.size())) {
                     waypoint = nominal_traj.wp[r];
@@ -424,16 +424,16 @@ int execute_task (int n_traj, const std::filesystem::path& root) {
                 break;
             }
             case 2:  {
-                if (state != last_state) std::cout << "[STATE] steady" << std::endl; 
+                if (status != last_status) std::cout << "[STATE] steady" << std::endl; 
 
                 waypoint = nominal_traj.wp[r_idx];
                 play_sample(waypoint, *closest);
                 ++i;
                 break;
             }
-            default: std::cout << "[STATE] unknown (" << state << ")" << std::endl; break;
+            default: std::cout << "[STATE] unknown (" << status << ")" << std::endl; break;
         }
-        last_state = state;
+        last_status = status;
     }
 
     std::cout << "\n── Task completed ──────────────────────────────────────────────\n";

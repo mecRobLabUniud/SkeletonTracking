@@ -204,7 +204,7 @@ Trajectory load_trajectory(RobotModel& robot, const std::string& c_dir, int n_tr
     std::vector<double> v_norm;
     int N = t_robot[t_robot.size() - 1]/dt;
     Trajectory traj;
-    traj.state = "pass";
+    // traj.status.push_back("running");
     traj.wp.reserve(N);
 
     double t = 0;
@@ -342,18 +342,18 @@ void old_restart_trajectory(Trajectory& traj, RobotModel& robot,
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rebuild a point-to-point trajectory resuming from current motion state
+// Rebuild a point-to-point trajectory resuming from current motion status
 // ─────────────────────────────────────────────────────────────────────────────
 // Same structure as restart_trajectory, but the first rebuilt segment starts
 // from the current velocity and acceleration (qd_resume, qdd_resume) instead of
-// a steady state (zero velocity/acceleration), so the robot keeps its motion
+// a steady status (zero velocity/acceleration), so the robot keeps its motion
 // momentum when resuming the remaining trajectory.
 // ─────────────────────────────────────────────────────────────────────────────
 void restart_trajectory(Trajectory& traj, RobotModel& robot,
                        const Eigen::VectorXd& q_resume,
                        const Eigen::VectorXd& qd_resume, const Eigen::VectorXd& qdd_resume,
                        const double& t_resume, double dt) {
-    // The resume state usually references an element of traj
+    // The resume status usually references an element of traj
     // (traj.wp[r_idx].q), which is modified below: work on copies.
     const Eigen::VectorXd q_resume_c  = q_resume;
     const Eigen::VectorXd qd_resume_c = qd_resume;
@@ -431,7 +431,7 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
     // the trajectory leading up to them are kept. Only the segment that ends
     // at the resume point (ins - 1) and the following ones are rebuilt, starting
     // from the insertion index. The first rebuilt segment starts from the
-    // current velocity and acceleration instead of a steady state.
+    // current velocity and acceleration instead of a steady status.
     const size_t first_seg = ins > 0 ? ins - 1 : 0;
     const size_t keep = truncate_trajectory(traj, sampled_prefix(t_robot, first_seg, dt));
     double t = dt * static_cast<double>(keep);
@@ -447,7 +447,7 @@ void restart_trajectory(Trajectory& traj, RobotModel& robot,
         }
         build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt);
         // if (i == first_seg) {
-        //     // Resume from current velocity/acceleration instead of steady state.
+        //     // Resume from current velocity/acceleration instead of steady status.
         //     build_p2p_traj(q_robot[i], q_robot[i + 1], nullptr, traj, t_end, t, robot, dt,
         //                    qd_resume_c, qdd_resume_c);
         // }
@@ -465,7 +465,7 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
                        const Eigen::VectorXd& q_stop,
                        const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
                        const double& t_stop, const double& stop_duration, double dt) {
-    // The stop state usually references an element of traj (traj.wp[r_idx].q),
+    // The stop status usually references an element of traj (traj.wp[r_idx].q),
     // which is modified below: work on copies.
     const Eigen::VectorXd q_stop_c  = q_stop;
     const Eigen::VectorXd qd_stop_c = qd_stop;
@@ -554,7 +554,7 @@ size_t stop_trajectory(Trajectory& traj, RobotModel& robot,
 // ─────────────────────────────────────────────────────────────────────────────
 // Build a point-to-point trajectory with a trapezoidal velocity profile.
 // ─────────────────────────────────────────────────────────────────────────────
-// Starts from a steady-state waypoint (zero velocity/acceleration), accelerates
+// Starts from a steady-status waypoint (zero velocity/acceleration), accelerates
 // to `velocity_PFL`, cruises at constant PFL velocity, and finally decelerates
 // to reach the following waypoint with zero velocity and acceleration. Each
 // phase is a quintic segment chained so the velocity is continuous while the
@@ -639,7 +639,7 @@ void limit_velocity(Trajectory& traj, RobotModel& robot,
     // the first sample is stamped at t_start.
     double t = t_start / dt;
 
-    // Phase 1: accelerate from steady state to cruise velocity.
+    // Phase 1: accelerate from steady status to cruise velocity.
     append_segment(q_start_c, q_1,
                    Eigen::VectorXd::Zero(7), v_cruise, t_acc, t);
     // Phase 2: cruise at PFL velocity.
@@ -663,7 +663,7 @@ size_t slow_down_trajctory(Trajectory& traj, RobotModel& robot,
                            const Eigen::VectorXd& qd_stop, const Eigen::VectorXd& qdd_stop,
                            const double& t_stop, const double& stop_duration, double dt,
                            double velocity_PFL) {
-    // The stop state usually references an element of traj (traj.wp[r_idx].q),
+    // The stop status usually references an element of traj (traj.wp[r_idx].q),
     // which is modified below: work on copies.
     const Eigen::VectorXd q_stop_c  = q_stop;
     const Eigen::VectorXd qd_stop_c = qd_stop;
